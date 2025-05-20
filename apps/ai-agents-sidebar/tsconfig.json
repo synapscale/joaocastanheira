@@ -1,7 +1,7 @@
 {
   "extends": "../../tsconfig.json",
   "compilerOptions": {
-    "baseUrl": ".",
+    "baseUrl": "../../../",
     "jsx": "preserve",
     "composite": true,
     "emitDeclarationOnly": true,
@@ -39,6 +39,12 @@
       ],
       "@shared/types/*": [
         "../../shared/types/*"
+      ],
+      "@shared/node-sidebar/*": [
+        "../../../shared/node-sidebar/*"
+      ],
+      "@components/ui/*": [
+        "components/ui/*"
       ],
       "@/components/ui/button": [
         "components/ui/button.tsx"
@@ -213,6 +219,12 @@
       ],
       "@chat-interativo/*": [
         "components/chat-interativo/*"
+      ],
+      "../../../components/sidebar/*": [
+        "../../../components/sidebar/*"
+      ],
+      "../../../packages/theme/*": [
+        "../../../packages/theme/*"
       ]
     },
     "target": "ES2017",
@@ -238,20 +250,13 @@
     ]
   },
   "include": [
-    "packages/types/**/*",
-    "app",
-    "components",
-    "constants",
-    "hooks",
-    "lib",
-    "types",
-    "utils",
-    ".next/types/**/*.ts",
-    "../../shared/hooks",
-    "../../shared/types",
-    "../../shared/utils/**/*.ts",
-    "../../types/**/*.ts",
-    "../../shared/types/**/*.ts"
+    "**/*",
+    "../../../components/**/*",
+    "../../../packages/**/*",
+    "../../../shared/node-sidebar/node-sidebar.tsx",
+    "../../../shared/node-sidebar/**/*",
+    "components/ui/section.tsx",
+    "components/ui/card.tsx"
   ],
   "exclude": [
     "node_modules"

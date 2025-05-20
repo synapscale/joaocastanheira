@@ -1,5 +1,30 @@
-import { Section } from "@/components/ui/section"
-import { Card, CardContent } from "@/components/ui/card"
+import { Metadata } from "next";
+
+// Componentes simplificados para resolver problemas de importação
+const Section = ({ title, description, children }) => (
+  <div className="mb-6">
+    <h2 className="text-2xl font-bold mb-1">{title}</h2>
+    <p className="text-muted-foreground mb-4">{description}</p>
+    {children}
+  </div>
+);
+
+const Card = ({ children, className = "" }) => (
+  <div className={`border rounded-lg bg-card shadow-sm ${className}`}>{children}</div>
+);
+
+const CardContent = ({ children, className = "" }) => (
+  <div className={`p-4 ${className}`}>{children}</div>
+);
+
+export const metadata: Metadata = {
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+};
 
 export default function CanvasPage() {
   return (

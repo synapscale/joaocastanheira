@@ -10,6 +10,17 @@ import { AgentListEmpty } from "../../components/agents/agent-list-empty"
 import { AgentCard } from "../../components/agents/agent-card"
 import { AgentDeleteDialog } from "../../components/agents/agent-delete-dialog"
 import { formatDate } from "../../../../shared/utils/date-utils"
+import { Metadata } from "next";
+
+export const metadata: Metadata = {
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+};
+
 // Update the import path below to the correct location if needed
 // Update the import path below to the correct location if needed
 type AgentType = {

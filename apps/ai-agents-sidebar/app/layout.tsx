@@ -18,10 +18,15 @@ const inter = Inter({
 export const metadata: Metadata = {
   title: "Canva E Agentes",
   description: "Plataforma para criação e gerenciamento de agentes de IA",
-  viewport: "width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no",
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
   authors: [{ name: "Canva E Agentes Team" }],
   keywords: ["IA", "agentes", "prompts", "canvas", "chat"],
-    generator: 'v0.dev'
+  generator: 'v0.dev'
 }
 
 export default function RootLayout({

@@ -19,13 +19,18 @@
       "@shared/hooks": ["shared/hooks/index.ts"],
       "@shared/ui": ["shared/ui/index.ts"],
       "@shared/types": ["shared/types/index.ts"],
-      "@ui": ["packages/ui/index.ts"]
+      "@ui": ["packages/ui/index.ts"],
+      "@components/sidebar/*": ["components/sidebar/*"],
+      "@theme-provider/*": ["packages/theme/theme-provider/*"],
+      "@node-sidebar/*": ["shared/node-sidebar/*"]
     }
   },
   "files": ["tests/global.d.ts"],
   "include": [
     "tests/global.d.ts",
-    "packages/ui"
+    "packages/ui",
+    "components/**/*",
+    "packages/**/*"
   ],
   "references": []
 }

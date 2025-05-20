@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { useState } from "react"
-import { cn } from "@/lib/utils"
+import { cn } from "../../lib/utils"
 import { ChevronDown, ChevronUp } from "lucide-react"
 
 /**
@@ -13,13 +13,13 @@ export interface SectionProps extends React.HTMLAttributes<HTMLElement> {
    * Título da seção
    * @example <Section title="Informações do Usuário" />
    */
-  title?: React.ReactNode
+  title?: string
 
   /**
    * Descrição da seção, exibida abaixo do título
    * @example <Section description="Preencha os dados do seu perfil" />
    */
-  description?: React.ReactNode
+  description?: string
 
   /**
    * Actions to be displayed in the header
@@ -256,3 +256,5 @@ export const Section: React.FC<SectionProps> = ({
     </section>
   )
 }
+
+export default Section;

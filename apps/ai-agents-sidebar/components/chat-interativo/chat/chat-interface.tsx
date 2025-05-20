@@ -17,7 +17,7 @@ import { ChatHeader } from "./chat-header"
 import { MessagesArea } from "./messages-area"
 import ConversationSidebar from "./conversation-sidebar"
 import { useConversations } from "@/hooks/use-conversations"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "../../../contexts/chat-interativo/app-context"
 import type { Message, Conversation } from "../../types/chat";
 import { useToast } from "@hooks/use-toast"
 import ModelSelectorSidebar from "./model-selector-sidebar"

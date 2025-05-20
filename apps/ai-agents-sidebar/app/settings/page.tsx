@@ -1,6 +1,56 @@
-import { Section } from "@/components/ui/section"
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
+import { Metadata } from "next";
+
+// Componentes simplificados para resolver problemas de importação
+const Section = ({ title, description, children }) => (
+  <div className="mb-6">
+    <h2 className="text-2xl font-bold mb-1">{title}</h2>
+    <p className="text-muted-foreground mb-4">{description}</p>
+    {children}
+  </div>
+);
+
+const Card = ({ children, className = "" }) => (
+  <div className={`border rounded-lg bg-card shadow-sm ${className}`}>{children}</div>
+);
+
+const CardHeader = ({ children, className = "" }) => (
+  <div className={`p-4 border-b ${className}`}>{children}</div>
+);
+
+const CardContent = ({ children, className = "" }) => (
+  <div className={`p-4 ${className}`}>{children}</div>
+);
+
+const CardTitle = ({ children, className = "" }) => (
+  <h3 className={`text-xl font-semibold ${className}`}>{children}</h3>
+);
+
+const Tabs = ({ children, defaultValue }) => (
+  <div data-default-value={defaultValue}>{children}</div>
+);
+
+const TabsList = ({ children, className = "" }) => (
+  <div className={`flex space-x-2 ${className}`}>{children}</div>
+);
+
+const TabsTrigger = ({ children, value, className = "" }) => (
+  <button className={`px-4 py-2 rounded hover:bg-muted ${className}`} data-value={value}>
+    {children}
+  </button>
+);
+
+const TabsContent = ({ children, value }) => (
+  <div data-value={value}>{children}</div>
+);
+
+export const metadata: Metadata = {
+  viewport: {
+    width: "device-width",
+    initialScale: 1,
+    maximumScale: 1,
+    userScalable: false,
+  },
+};
 
 export default function SettingsPage() {
   return (
