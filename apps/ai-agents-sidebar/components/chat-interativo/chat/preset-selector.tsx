@@ -14,13 +14,18 @@ import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Input } from "@/components/ui/input"
 import { useApp } from "@/contexts/app-context"
-import type { BaseComponentProps } from "@types/component-types"
-import type { ChatPreset } from "@/types/chat"
+import type { BaseComponentProps } from "../../../../shared/types/component-types"
+import type { ChatPreset } from "../../../../packages/types/chat"
 
 /**
  * Props for the PresetSelector component
  */
 export interface PresetSelectorProps extends BaseComponentProps {
+  className?: string;
+  style?: React.CSSProperties;
+  id?: string;
+  disabled?: boolean;
+  dataAttributes?: Record<string, string>;
   /**
    * List of available presets
    * If not provided, presets from the app context will be used

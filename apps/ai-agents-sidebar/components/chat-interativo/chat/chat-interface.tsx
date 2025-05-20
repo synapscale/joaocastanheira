@@ -18,20 +18,22 @@ import { MessagesArea } from "./messages-area"
 import ConversationSidebar from "./conversation-sidebar"
 import { useConversations } from "@/hooks/use-conversations"
 import { useApp } from "@/contexts/app-context"
-import { Notification } from "@/components/ui/notification"
-import type { Message, Conversation } from "@/types/chat"
+import type { Message, Conversation } from "../../types/chat";
 import { useToast } from "@hooks/use-toast"
 import ModelSelectorSidebar from "./model-selector-sidebar"
 import ToolSelector from "./tool-selector"
 import PersonalitySelector from "./personality-selector"
 import PresetSelector from "./preset-selector"
-import type { BaseComponentProps, Status } from "@types/component-types"
+import type { BaseComponentProps, Status } from "../../types/component-types";
 import { ChevronDown } from "lucide-react"
 
 /**
  * Props for the ChatInterface component
  */
 export interface ChatInterfaceProps extends BaseComponentProps {
+  id?: string
+  className?: string
+  style?: React.CSSProperties
   initialMessages?: Message[]
   showConfigByDefault?: boolean
   enableFileUploads?: boolean
@@ -48,6 +50,8 @@ export interface ChatInterfaceProps extends BaseComponentProps {
   onConversationExport?: (conversation: Conversation) => void
   onConversationCreated?: (conversation: Conversation) => void
   onConversationDeleted?: (conversationId: string) => void
+  disabled?: boolean
+  dataAttributes?: Record<string, any>
 }
 
 /**
@@ -55,7 +59,7 @@ export interface ChatInterfaceProps extends BaseComponentProps {
  * @param props Component props
  * @returns ChatInterface component
  */
-export default function ChatInterface({
+export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   className = "",
   style,
   id,
@@ -77,7 +81,7 @@ export default function ChatInterface({
   onConversationExport,
   onConversationCreated,
   onConversationDeleted,
-}: ChatInterfaceProps) {
+}: ChatInterfaceProps) => {
   // SECTION: Local state
   const [inputValue, setInputValue] = useState("")
   const [isLoading, setIsLoading] = useState(false)
@@ -578,7 +582,7 @@ export default function ChatInterface({
     if (typeof setComponentSelectorActive === "function") {
       setComponentSelectorActive(!isComponentSelectorActive)
     }
-  }, [isComponentSelectorActive, setComponentSelectorActive])
+  }, [setComponentSelectorActive, isComponentSelectorActive])
 
   /**
    * Toggles the configuration panel
@@ -591,7 +595,7 @@ export default function ChatInterface({
   const allDataAttributes = useMemo(
     () => ({
       "data-component": "ChatInterface",
-      "data-component-path": "@/components/chat/chat-interface",
+      "data-component-path": "@/components/chat-interativo/chat/chat-interface",
       ...(dataAttributes || {}),
     }),
     [dataAttributes],
@@ -610,8 +614,8 @@ export default function ChatInterface({
   return (
     <div className={containerClassName} style={style} id={id} {...allDataAttributes}>
       {/* Notification for feedback */}
-      <Notification />
-
+      {/* Notification for feedback */}
+      {/* <Notification /> */}
       {/* Conversations sidebar (visible only when isSidebarOpen is true) */}
       {isSidebarOpen && (
         <div className="fixed inset-0 z-50 md:relative md:z-0">
@@ -708,3 +712,5 @@ export default function ChatInterface({
     </div>
   )
 }
+
+export default ChatInterface;

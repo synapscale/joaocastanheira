@@ -23,6 +23,10 @@ const nextConfig = {
       '@components': path.resolve(process.cwd(), '../../components'),
       '@theme': path.resolve(process.cwd(), '../../shared/theme-provider'),
       '@themePkg': path.resolve(process.cwd(), '../../packages/theme/theme-provider'),
+      '@/services': path.resolve(process.cwd(), 'services'),
+      '@/hooks': path.resolve(process.cwd(), 'hooks'),
+      '@/components/ui/skeletons': path.resolve(process.cwd(), 'components/ui/skeletons'),
+      '@/components/ui': path.resolve(process.cwd(), 'components/ui'),
     };
     return config;
   },

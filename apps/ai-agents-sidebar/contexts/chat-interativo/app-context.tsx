@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
 import type { AIModel, UserPreferences } from "@types"
 import type { Component } from "@types"
+import type { ChatPreset } from "../../../../packages/types/chat";
 
 /**
  * Default model configuration
@@ -118,6 +119,13 @@ export interface AppContextType {
   dragState: { isDragging: boolean; component?: Component; x?: number; y?: number } | null
   setDragState: (state: { isDragging: boolean; component?: Component; x?: number; y?: number } | null) => void
   updateDragPosition: (position: { x: number; y: number }) => void
+
+  // Presets management
+  savedPresets: ChatPreset[]
+  savePreset: (preset: ChatPreset) => void
+  deletePreset: (presetId: string) => void
+  toggleFavoritePreset: (presetId: string) => void
+  applyPreset: (preset: ChatPreset) => void
 }
 
 // Create the context with undefined default value

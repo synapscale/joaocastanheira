@@ -1,8 +1,8 @@
 "use client"
-import * as React from "react"
+import React from "react";
 import { useState, useEffect, useMemo } from "react"
 import { useRouter } from "next/navigation"
-import { useLocalStorage } from "../../../../shared/hooks/use-local-storage"
+import { useLocalStorage } from "@/hooks/use-local-storage";
 import { Skeleton } from "../../components/ui/skeleton"
 import { AgentListHeader } from "../../components/agents/agent-list-header"
 import { AgentListFilters } from "../../components/agents/agent-list-filters"
@@ -10,7 +10,31 @@ import { AgentListEmpty } from "../../components/agents/agent-list-empty"
 import { AgentCard } from "../../components/agents/agent-card"
 import { AgentDeleteDialog } from "../../components/agents/agent-delete-dialog"
 import { formatDate } from "../../../../shared/utils/date-utils"
-import type { AgentType } from "../../../../shared/types/agent-types"
+// Update the import path below to the correct location if needed
+// Update the import path below to the correct location if needed
+type AgentType = {
+  id: string;
+  name: string;
+  type: string;
+  model: string;
+  description: string;
+  status: "active" | "draft" | "archived";
+  createdAt: string;
+  updatedAt: string;
+};
+// If the above import fails, try the correct path below:
+// import type { AgentType } from "../../../types/agent-types";
+// Or define AgentType inline as a temporary fix:
+// type AgentType = {
+//   id: string;
+//   name: string;
+//   type: string;
+//   model: string;
+//   description: string;
+//   status: "active" | "draft" | "archived";
+//   createdAt: string;
+//   updatedAt: string;
+// };
 
 // Sample agents data
 const SAMPLE_AGENTS: AgentType[] = [

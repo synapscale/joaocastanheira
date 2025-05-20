@@ -16,7 +16,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Input } from "@/components/ui/input"
 import { useApp } from "@/contexts/app-context"
 import { ScrollArea } from "@/components/ui/scroll-area"
-import type { BaseComponentProps } from "@types/component-types"
+import type { BaseComponentProps } from "../../../../shared/types/component-types"
 import type { Personality } from "@/types/chat"
 
 /**

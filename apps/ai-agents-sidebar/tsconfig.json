@@ -2,7 +2,7 @@
   "extends": "../../tsconfig.json",
   "compilerOptions": {
     "baseUrl": ".",
-    "jsx": "react-jsx",
+    "jsx": "preserve",
     "composite": true,
     "emitDeclarationOnly": true,
     "paths": {
@@ -19,7 +19,8 @@
         "../../shared/hooks/use-toast.ts"
       ],
       "@types/*": [
-        "types/*"
+        "types/*",
+        "../../packages/types/*"
       ],
       "@utils/*": [
         "utils/*"
@@ -203,6 +204,15 @@
       ],
       "@lib": [
         "lib/index.ts"
+      ],
+      "@/services/*": [
+        "services/*"
+      ],
+      "@/hooks/*": [
+        "hooks/*"
+      ],
+      "@chat-interativo/*": [
+        "components/chat-interativo/*"
       ]
     },
     "target": "ES2017",
@@ -228,6 +238,7 @@
     ]
   },
   "include": [
+    "packages/types/**/*",
     "app",
     "components",
     "constants",
@@ -235,7 +246,12 @@
     "lib",
     "types",
     "utils",
-    ".next/types/**/*.ts"
+    ".next/types/**/*.ts",
+    "../../shared/hooks",
+    "../../shared/types",
+    "../../shared/utils/**/*.ts",
+    "../../types/**/*.ts",
+    "../../shared/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

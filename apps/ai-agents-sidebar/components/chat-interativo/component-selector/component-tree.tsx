@@ -336,7 +336,7 @@ export default function ComponentTree({ onSelectComponent, onClose }: ComponentT
 
     // Componentes específicos da aplicação de chat
     if (kebabName.includes("chat-message")) return "@/components/chat/chat-message"
-    if (kebabName.includes("chat-interface")) return "@/components/chat/chat-interface"
+    if (kebabName.includes("chat-interface")) return "@/components/chat-interativo/chat/chat-interface"
     if (kebabName.includes("model-selector")) return "@/components/chat/model-selector"
     if (kebabName.includes("tool-selector")) return "@/components/chat/tool-selector"
     if (kebabName.includes("personality-selector")) return "@/components/chat/personality-selector"

@@ -8,6 +8,7 @@ export type Toast = {
   title: string;
   description?: string;
   action?: () => void;
+  variant?: "success" | "warning" | "destructive";
 };
 
 export function useToast() {

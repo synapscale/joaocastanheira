@@ -13,7 +13,7 @@ import { Copy, Check, ThumbsUp, ThumbsDown, MoreHorizontal, RefreshCw, Trash2 } 
 import { Button } from "@/components/ui/button"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
-import type { BaseComponentProps } from "@types/component-types"
+import type { BaseComponentProps } from "../../../../shared/types/component-types"
 import type { Message, MessageReaction } from "@/types/chat"
 
 /**
