@@ -1,5 +1,7 @@
 packages:
-  - 'apps/*'
-  - 'packages/*'
-  - 'components/*'
-  - 'shared/*'
+  - apps/*
+  - packages/*
+  - components/*
+  - shared/*
+ignoredBuiltDependencies:
+  - unrs-resolver
