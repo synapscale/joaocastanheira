@@ -253,10 +253,11 @@
     "**/*",
     "../../../components/**/*",
     "../../../packages/**/*",
-    "../../../shared/node-sidebar/node-sidebar.tsx",
     "../../../shared/node-sidebar/**/*",
+    "../../../shared/node-sidebar/node-sidebar.tsx",
+    "components/ui/card.tsx",
     "components/ui/section.tsx",
-    "components/ui/card.tsx"
+    ".next/types/**/*.ts"
   ],
   "exclude": [
     "node_modules"

@@ -8,6 +8,8 @@ global.ResizeObserver = jest.fn().mockImplementation(() => ({
   disconnect: jest.fn(),
 }));
 
+global.jest = require('jest-mock');
+
 // Mock para o next/navigation
 jest.mock('next/navigation', () => ({
   useRouter: () => ({
@@ -56,3 +58,13 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   }))
 });
+
+module.exports = {
+  preset: 'ts-jest',
+  testEnvironment: 'jsdom',
+  setupFilesAfterEnv: ['<rootDir>/jest.setup.js'],
+  testMatch: ['<rootDir>/tests/jest-tests/**/*.test.tsx'],
+  moduleNameMapper: {
+    '^@/(.*)$': '<rootDir>/apps/ai-agents-sidebar/$1',
+  },
+};

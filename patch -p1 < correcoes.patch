@@ -1,0 +1,93 @@
+diff --git a/apps/ai-agents-sidebar/components/ui/skeletons/card-skeleton.tsx b/apps/ai-agents-sidebar/components/ui/skeletons/card-skeleton.tsx
+new file mode 100644
+index 0000000..1111111
+--- /dev/null
++++ b/apps/ai-agents-sidebar/components/ui/skeletons/card-skeleton.tsx
+@@ -0,0 +1,15 @@
++type CardSkeletonProps = {
++  className?: string;
++  imageHeight?: number;
++  lines?: number;
++  showFooter?: boolean;
++};
++
++export function CardSkeleton({
++  className = "",
++  imageHeight = 140,
++  lines = 3,
++  showFooter = false,
++}: CardSkeletonProps) {
++  return <div className={`skeleton-card ${className}`}>{/* ... */}</div>;
++}
+diff --git a/apps/ai-agents-sidebar/components/ui/data-display/status-badge.tsx b/apps/ai-agents-sidebar/components/ui/data-display/status-badge.tsx
+new file mode 100644
+index 0000000..2222222
+--- /dev/null
++++ b/apps/ai-agents-sidebar/components/ui/data-display/status-badge.tsx
+@@ -0,0 +1,10 @@
++type StatusBadgeProps = {
++  status: string;
++  variant?: string;
++};
++
++export function StatusBadge({ status, variant }: StatusBadgeProps) {
++  return <div>{status}</div>;
++}
++
++// Adicione sua implementação aqui
+diff --git a/apps/ai-agents-sidebar/components/ui/search-bar.tsx b/apps/ai-agents-sidebar/components/ui/search-bar.tsx
+new file mode 100644
+index 0000000..3333333
+--- /dev/null
++++ b/apps/ai-agents-sidebar/components/ui/search-bar.tsx
+@@ -0,0 +1,12 @@
++type SearchBarProps = {
++  placeholder?: string;
++  value: any;
++  onChange: (value: any) => void;
++  onClear: () => void;
++  className?: string;
++  debounceMs?: number;
++  "aria-label"?: string;
++};
++
++export function SearchBar(props: SearchBarProps) {
++  return <input {...props} />;
+diff --git a/apps/ai-agents-sidebar/components/ui/pagination-controls.tsx b/apps/ai-agents-sidebar/components/ui/pagination-controls.tsx
+new file mode 100644
+index 0000000..4444444
+--- /dev/null
++++ b/apps/ai-agents-sidebar/components/ui/pagination-controls.tsx
+@@ -0,0 +1,12 @@
++type PaginationControlsProps = {
++  currentPage: number;
++  totalPages: number;
++  onPageChange: (page: number) => void;
++  className?: string;
++  "aria-label"?: string;
++};
++
++export function PaginationControls(props: PaginationControlsProps) {
++  return <div>{/* ... */}</div>;
++}
++
+diff --git a/apps/ai-agents-sidebar/components/ui/confirmation-dialog.tsx b/apps/ai-agents-sidebar/components/ui/confirmation-dialog.tsx
+new file mode 100644
+index 0000000..5555555
+--- /dev/null
++++ b/apps/ai-agents-sidebar/components/ui/confirmation-dialog.tsx
+@@ -0,0 +1,12 @@
++type ConfirmationDialogProps = {
++  isOpen: boolean;
++  onClose: () => void;
++  onConfirm: () => void;
++  title: string;
++  message: string;
++  confirmLabel: string;
++  confirmVariant: string;
++  cancelLabel: string;
++};
++
++export function ConfirmationDialog(props: ConfirmationDialogProps) {
++  return <div>{/* ... */}</div>;
++}

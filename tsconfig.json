@@ -1,6 +1,6 @@
 {
   "compilerOptions": {
-    "baseUrl": "./",
+    "baseUrl": ".",
     "esModuleInterop": true,
     "jsx": "react-jsx",
     "lib": ["es2015", "dom"],
@@ -22,7 +22,8 @@
       "@ui": ["packages/ui/index.ts"],
       "@components/sidebar/*": ["components/sidebar/*"],
       "@theme-provider/*": ["packages/theme/theme-provider/*"],
-      "@node-sidebar/*": ["shared/node-sidebar/*"]
+      "@node-sidebar/*": ["shared/node-sidebar/*"],
+      "@/*": ["apps/ai-agents-sidebar/*"]
     }
   },
   "files": ["tests/global.d.ts"],
