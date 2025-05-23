@@ -9,15 +9,15 @@ import { ArrowLeft } from "lucide-react"
 import type { NodeDefinition } from "@/types/node-definition"
 import { Params } from "next/navigation"
 import React from "react"
+import { Metadata } from 'next';
 
-// Defina a interface correta para as props da página
-interface PageProps {
-  params: { id: string }
-  searchParams?: { [key: string]: string | string[] | undefined }
-}
-
-// Use a interface corretamente na função da página
-export default function EditNodeDefinitionPage({ params }: PageProps) {
+// Use o tipo padrão do Next.js
+export default function Page({
+  params,
+}: {
+  params: { id: string };
+  searchParams?: { [key: string]: string | string[] | undefined };
+}) {
   const { id } = params
   const router = useRouter()
   const { getNodeDefinition } = useNodeDefinitions()
