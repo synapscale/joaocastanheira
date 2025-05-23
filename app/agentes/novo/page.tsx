@@ -140,24 +140,33 @@ export default function NovoAgentePage() {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
             titleClassName="text-xl font-semibold text-gray-900 dark:text-white"
           >
-            <AgentParametersTab 
+            <AgentParametersTab
               maxTokens={agent.maxTokens.toString()}
               temperature={agent.temperature.toString()}
               topP={agent.topP.toString()}
               frequencyPenalty={agent.frequencyPenalty.toString()}
               presencePenalty={agent.presencePenalty.toString()}
               userDecision={false}
-              onChangeMaxTokens={(value) => setAgent({...agent, maxTokens: Number(value)})}
-              onChangeTemperature={(value) => setAgent({...agent, temperature: Number(value)})}
-              onChangeTopP={(value) => setAgent({...agent, topP: Number(value)})}
-              onChangeFrequencyPenalty={(value) => setAgent({...agent, frequencyPenalty: Number(value)})}
-              onChangePresencePenalty={(value) => setAgent({...agent, presencePenalty: Number(value)})}
-              onChangeUserDecision={(checked) => {}}
+              onChangeMaxTokens={(value: string) => setAgent({ ...agent, maxTokens: Number(value) })}
+              onChangeTemperature={(value: string) => setAgent({ ...agent, temperature: Number(value) })}
+              onChangeTopP={(value: string) => setAgent({ ...agent, topP: Number(value) })}
+              onChangeFrequencyPenalty={(value: string) => setAgent({ ...agent, frequencyPenalty: Number(value) })}
+              onChangePresencePenalty={(value: string) => setAgent({ ...agent, presencePenalty: Number(value) })}
+              onChangeUserDecision={(checked: boolean) => {}}
               onBlurMaxTokens={() => {}}
               onBlurTemperature={() => {}}
               onBlurTopP={() => {}}
               onBlurFrequencyPenalty={() => {}}
               onBlurPresencePenalty={() => {}}
+              maxTokensError={null}
+              temperatureError={null}
+              topPError={null}
+              frequencyPenaltyError={null}
+              presencePenaltyError={null}
+              className=""
+              id="agent-parameters-tab"
+              testId="agent-parameters-tab"
+              ariaLabel="Parâmetros do agente"
             />
           </Section>
         </motion.div>
