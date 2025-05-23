@@ -116,7 +116,7 @@ export default function NovoAgentePage() {
           >
             <AgentPromptTab
               prompt={agent.prompt}
-              onChangePrompt={(value) => setAgent({ ...agent, prompt: value })}
+              onChangePrompt={(value: string) => setAgent({ ...agent, prompt: value })}
               onBlurPrompt={() => {}}
               onOpenTemplates={() => {}}
               promptError={null}
