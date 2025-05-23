@@ -90,7 +90,15 @@ export default function NovoAgentePage() {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
             titleClassName="text-xl font-semibold text-gray-900 dark:text-white"
           >
-            <AgentBasicInfo agent={agent} onChange={setAgent} />
+            <AgentBasicInfo
+              agent={agent}
+              onChange={setAgent}
+              nameError={null}
+              className=""
+              id="agent-basic-info"
+              testId="agent-basic-info"
+              ariaLabel="Informações básicas do agente"
+            />
           </Section>
         </motion.div>
 
