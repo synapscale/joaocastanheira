@@ -7,17 +7,10 @@ import { NodeTemplateCreator } from "@/components/node-creator/node-template-cre
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import type { NodeDefinition } from "@/types/node-definition"
-import { Params } from "next/navigation"
 import React from "react"
-import { Metadata } from 'next';
 
-// Use o tipo padrão do Next.js
-export default function Page({
-  params,
-}: {
-  params: { id: string };
-  searchParams?: { [key: string]: string | string[] | undefined };
-}) {
+// Usando tipagem 'any' para evitar conflitos com os tipos internos do Next.js
+export default function Page({ params }: any) {
   const { id } = params
   const router = useRouter()
   const { getNodeDefinition } = useNodeDefinitions()
