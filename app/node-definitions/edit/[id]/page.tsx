@@ -7,21 +7,31 @@ import { NodeTemplateCreator } from "@/components/node-creator/node-template-cre
 import { Button } from "@/components/ui/button"
 import { ArrowLeft } from "lucide-react"
 import type { NodeDefinition } from "@/types/node-definition"
+import { Params } from "next/navigation"
+import React from "react"
 
-export default function EditNodeDefinitionPage({ params }: { params: { id: string } }) {
+// Defina a interface correta para as props da página
+interface PageProps {
+  params: { id: string }
+  searchParams?: { [key: string]: string | string[] | undefined }
+}
+
+// Use a interface corretamente na função da página
+export default function EditNodeDefinitionPage({ params }: PageProps) {
+  const { id } = params
   const router = useRouter()
   const { getNodeDefinition } = useNodeDefinitions()
   const [nodeDefinition, setNodeDefinition] = useState<NodeDefinition | null>(null)
   const [notFound, setNotFound] = useState(false)
 
   useEffect(() => {
-    const definition = getNodeDefinition(params.id)
+    const definition = getNodeDefinition(id)
     if (definition) {
       setNodeDefinition(definition)
     } else {
       setNotFound(true)
     }
-  }, [params.id, getNodeDefinition])
+  }, [id, getNodeDefinition])
 
   if (notFound) {
     return (
@@ -35,7 +45,7 @@ export default function EditNodeDefinitionPage({ params }: { params: { id: strin
         </div>
         <div className="bg-muted p-6 rounded-lg text-center">
           <h2 className="text-xl font-semibold mb-4">O template de nó solicitado não foi encontrado</h2>
-          <p className="mb-6">O template de nó com ID "{params.id}" não existe ou foi excluído.</p>
+          <p className="mb-6">O template de nó com ID "{id}" não existe ou foi excluído.</p>
           <Button onClick={() => router.push("/node-definitions")}>Voltar para Templates de Nós</Button>
         </div>
       </div>
