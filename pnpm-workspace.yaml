@@ -1,7 +1,0 @@
-packages:
-  - apps/*
-  - packages/*
-  - components/*
-  - shared/*
-ignoredBuiltDependencies:
-  - unrs-resolver
