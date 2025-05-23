@@ -190,6 +190,12 @@ export default function NovoAgentePage() {
               onRemoveAgent={() => {}}
               onAddUrl={() => {}}
               onRemoveUrl={() => {}}
+              onEditAgent={() => {}}
+              onEditUrl={() => {}}
+              className=""
+              id="agent-connections-tab"
+              testId="agent-connections-tab"
+              ariaLabel="Conexões do agente"
             />
           </Section>
         </motion.div>
