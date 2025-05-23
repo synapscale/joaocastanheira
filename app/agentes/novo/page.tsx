@@ -114,11 +114,16 @@ export default function NovoAgentePage() {
             className="bg-white dark:bg-gray-800 rounded-xl shadow-sm border border-gray-200 dark:border-gray-700 overflow-hidden"
             titleClassName="text-xl font-semibold text-gray-900 dark:text-white"
           >
-            <AgentPromptTab 
-              prompt={agent.prompt} 
-              onChangePrompt={(value) => setAgent({...agent, prompt: value})}
+            <AgentPromptTab
+              prompt={agent.prompt}
+              onChangePrompt={(value) => setAgent({ ...agent, prompt: value })}
               onBlurPrompt={() => {}}
               onOpenTemplates={() => {}}
+              promptError={null}
+              className=""
+              id="agent-prompt-tab"
+              testId="agent-prompt-tab"
+              ariaLabel="Prompt do agente"
             />
           </Section>
         </motion.div>
