@@ -6,7 +6,8 @@ import { Button } from "@/components/ui/button"
 import { PlusCircle } from "lucide-react"
 import { CategoryList } from "@/components/marketplace/category-list"
 import { CategoryDialog } from "@/components/marketplace/category-dialog"
-import type { CreateCustomCategoryInput } from "@/types/custom-category"
+import type { CreateCustomCategoryInput, UpdateCustomCategoryInput } from "@/types/custom-category"
+import { createCategory } from "@/services/categoryService"
 import { Helmet } from "react-helmet" // Para SEO e acessibilidade
 
 /**
@@ -16,13 +17,12 @@ export default function CustomCategoriesPage() {
   const { addCategory } = useCustomCategories()
   const [dialogOpen, setDialogOpen] = useState(false)
 
-  const handleCreateCategory = useCallback(
-    async (data: CreateCustomCategoryInput) => {
-      await addCategory(data)
-      setDialogOpen(false)
-    },
-    [addCategory],
-  )
+  const handleCreateCategory = (data: CreateCustomCategoryInput | UpdateCustomCategoryInput) => {
+    if (!data.name) return;
+    void (async () => {
+      await createCategory(data as CreateCustomCategoryInput);
+    })();
+  };
 
   const openDialog = useCallback(() => {
     setDialogOpen(true)
