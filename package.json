@@ -11,7 +11,8 @@
     "test:watch": "jest --watch",
     "test:coverage": "jest --coverage",
     "test:e2e": "cypress run",
-    "test:e2e:open": "cypress open"
+    "test:e2e:open": "cypress open",
+    "check-dupes": "node scripts/check-duplicate-functions.js"
   },
   "dependencies": {
     "@emotion/is-prop-valid": "latest",
