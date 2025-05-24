@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { Section } from "@/components/ui/section"
 import type { CreateCustomCategoryInput, UpdateCustomCategoryInput } from "@/types/custom-category";
+import { createCategory } from "@/services/categoryService";
 
 export default function NovoAgentePage() {
   const router = useRouter()
