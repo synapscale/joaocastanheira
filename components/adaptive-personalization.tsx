@@ -447,39 +447,5 @@ export function useLocalStorage<T>(
   key: string,
   initialValue: T
 ): [T, (value: T | ((val: T) => T)) => void] {
-  // Estado para armazenar o valor
-  const [storedValue, setStoredValue] = useState<T>(initialValue)
-  
-  // Inicializa o valor do localStorage
-  useEffect(() => {
-    try {
-      const item = window.localStorage.getItem(key)
-      if (item) {
-        setStoredValue(JSON.parse(item))
-      }
-    } catch (error) {
-      console.error("Error reading localStorage:", error)
-    }
-  }, [key])
-  
-  // Função para atualizar o valor
-  const setValue = (value: T | ((val: T) => T)) => {
-    try {
-      // Permite função como argumento
-      const valueToStore =
-        value instanceof Function ? value(storedValue) : value
-      
-      // Salva no estado
-      setStoredValue(valueToStore)
-      
-      // Salva no localStorage
-      if (typeof window !== "undefined") {
-        window.localStorage.setItem(key, JSON.stringify(valueToStore))
-      }
-    } catch (error) {
-      console.error("Error setting localStorage:", error)
-    }
-  }
-  
-  return [storedValue, setValue]
+  // ... implementação ...
 }
