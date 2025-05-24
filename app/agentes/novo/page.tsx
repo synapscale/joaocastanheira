@@ -37,6 +37,14 @@ export default function NovoAgentePage() {
     router.push("/agentes")
   }
 
+  const handleCreateCategory = (data: CreateCustomCategoryInput | UpdateCustomCategoryInput) => {
+    if (!data.name) return; // Garante que name existe
+    void (async () => {
+      // Sua lógica assíncrona aqui, por exemplo:
+      await createCategory(data as CreateCustomCategoryInput);
+    })();
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
