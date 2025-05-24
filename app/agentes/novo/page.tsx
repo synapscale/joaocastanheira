@@ -10,6 +10,7 @@ import { AgentConnectionsTab } from "@/components/agents/agent-connections-tab"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { Section } from "@/components/ui/section"
+import type { CreateCustomCategoryInput, UpdateCustomCategoryInput } from "@/types/custom-category";
 
 export default function NovoAgentePage() {
   const router = useRouter()
