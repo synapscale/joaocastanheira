@@ -15,7 +15,6 @@ export function AgentBasicInfo({
   onChange,
 
   // Optional props with defaults
-  nameError,
   descriptionMaxLength = 200,
   nameMaxLength = 50,
   descriptionPlaceholder = "Breve descrição do agente",
@@ -29,7 +28,6 @@ export function AgentBasicInfo({
 }: {
   agent: Agent;
   onChange: (agent: Agent) => void;
-  nameError?: boolean;
   descriptionMaxLength?: number;
   nameMaxLength?: number;
   descriptionPlaceholder?: string;
@@ -65,10 +63,11 @@ export function AgentBasicInfo({
             onChange={(value) => handleChange('name', value)}
             placeholder={namePlaceholder}
             required
-            error={nameError}
             maxLength={nameMaxLength}
             autoFocus={true}
-            aria-describedby={nameError ? `${componentId}-name-error` : undefined}
+            aria-describedby={`${
+              componentId
+            }-name-error`}
           />
         </div>
 
