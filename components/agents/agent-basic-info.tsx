@@ -132,7 +132,7 @@ export function AgentBasicInfo({
 export interface Agent {
   id: string;
   name: string;
-1  type: string;
+  type: string;
   model: string;
   description: string;
   status: string;
