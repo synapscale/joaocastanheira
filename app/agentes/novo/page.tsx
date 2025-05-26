@@ -12,11 +12,12 @@ import { ArrowLeft, Save, X } from "lucide-react"
 import { Section } from "@/components/ui/section"
 import type { CreateCustomCategoryInput, UpdateCustomCategoryInput } from "@/types/custom-category";
 import { createCategory } from "@/services/categoryService";
+import type { Agent } from "@/components/agents/agent-basic-info";
 
 export default function NovoAgentePage() {
   const router = useRouter()
-  const [agent, setAgent] = useState({
-    id: "", // ou gere um id único, se necessário
+  const [agent, setAgent] = useState<Agent>({
+    id: "",
     name: "",
     type: "",
     model: "",
