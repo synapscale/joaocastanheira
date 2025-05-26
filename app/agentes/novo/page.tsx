@@ -103,7 +103,7 @@ export default function NovoAgentePage() {
           >
             <AgentBasicInfo
               agent={agent}
-              onChange={setAgent}
+              onChange={(updatedAgent) => setAgent(updatedAgent)}
               nameError={null}
               className=""
               id="agent-basic-info"
