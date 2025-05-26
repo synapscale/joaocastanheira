@@ -16,15 +16,16 @@ import { createCategory } from "@/services/categoryService";
 export default function NovoAgentePage() {
   const router = useRouter()
   const [agent, setAgent] = useState({
+    id: "", // ou gere um id único, se necessário
     name: "",
-    type: "chat",
-    model: "gpt-4o",
+    type: "",
+    model: "",
     description: "",
-    status: "draft",
+    status: "",
     prompt: "",
-    maxTokens: 4096,
-    temperature: 0.7,
-    topP: 1,
+    maxTokens: 0,
+    temperature: 0,
+    topP: 0,
     frequencyPenalty: 0,
     presencePenalty: 0,
     connections: {
