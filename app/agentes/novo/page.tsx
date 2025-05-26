@@ -49,6 +49,13 @@ export default function NovoAgentePage() {
     })();
   };
 
+  const handleChange = (field: string, value: any) => {
+    setAgent((prevAgent) => ({
+      ...prevAgent,
+      [field]: value
+    }));
+  };
+
   return (
     <motion.div
       initial={{ opacity: 0, y: 10 }}
