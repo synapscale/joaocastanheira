@@ -26,6 +26,18 @@ export function AgentBasicInfo({
   id,
   testId,
   ariaLabel,
+}: {
+  agent: Agent;
+  onChange: (agent: Agent) => void;
+  nameError?: boolean;
+  descriptionMaxLength?: number;
+  nameMaxLength?: number;
+  descriptionPlaceholder?: string;
+  namePlaceholder?: string;
+  className?: string;
+  id?: string;
+  testId?: string;
+  ariaLabel?: string;
 }) {
   const componentId = id || "agent-basic-info"
   
@@ -115,4 +127,12 @@ export function AgentBasicInfo({
       </div>
     </div>
   )
+}
+
+// Exemplo de tipo, ajuste conforme sua estrutura real
+interface Agent {
+  // Defina os campos reais do seu agente aqui
+  id: string;
+  name: string;
+  // ...outros campos
 }
