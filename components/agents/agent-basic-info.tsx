@@ -129,10 +129,21 @@ export function AgentBasicInfo({
   )
 }
 
-// Exemplo de tipo, ajuste conforme sua estrutura real
-interface Agent {
-  // Defina os campos reais do seu agente aqui
+export interface Agent {
   id: string;
   name: string;
-  // ...outros campos
+1  type: string;
+  model: string;
+  description: string;
+  status: string;
+  prompt: string;
+  maxTokens: number;
+  temperature: number;
+  topP: number;
+  frequencyPenalty: number;
+  presencePenalty: number;
+  connections: {
+    agents: any[]; // Ajuste o tipo se necessário
+    urls: any[];   // Ajuste o tipo se necessário
+  };
 }
