@@ -1,11 +1,1 @@
-{
-  "/page": "app/page.js",
-  "/canvas/page": "app/canvas/page.js",
-  "/marketplace/page": "app/marketplace/page.js",
-  "/agentes/page": "app/agentes/page.js",
-  "/docs/page": "app/docs/page.js",
-  "/chat/page": "app/chat/page.js",
-  "/team/page": "app/team/page.js",
-  "/settings/page": "app/settings/page.js",
-  "/node-creator/canvas/page": "app/node-creator/canvas/page.js"
-}
+{}

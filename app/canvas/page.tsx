@@ -1,107 +1,133 @@
 "use client";
 
-import React from 'react';
-import { NodeIntegrationValidator } from '@/components/node-creator/node-integration-validator';
+import React, { useState, useCallback } from 'react';
 import { useNodeDefinitionIntegration } from '@/hooks/use-node-definition-integration';
-import { NodeCreationProviders } from '@/contexts/node-creator';
+import { UnifiedCanvas } from '@/components/canvas/unified-canvas';
+import { 
+  Plus, 
+  Share, 
+  Save, 
+  MoreHorizontal, 
+  Star,
+  ZoomIn,
+  ZoomOut,
+  Maximize,
+  RotateCcw,
+  RefreshCw
+} from 'lucide-react';
 
-export default function WorkflowCanvasPage() {
+// Componente para o indicador de cores
+function ColorIndicator() {
   return (
-    <NodeCreationProviders>
-      <WorkflowCanvasContent />
-    </NodeCreationProviders>
+    <div className="absolute bottom-4 right-4 flex items-center gap-2 bg-white rounded-md shadow-md px-3 py-2 z-10">
+      <div className="flex items-center gap-1.5">
+        <div className="w-3 h-3 rounded-full bg-[#FF5C00]"></div>
+        <span className="text-xs">Trigger</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <div className="w-3 h-3 rounded-full bg-[#6E6E6E]"></div>
+        <span className="text-xs">Process</span>
+      </div>
+      <div className="flex items-center gap-1.5">
+        <div className="w-3 h-3 rounded-full bg-[#7B68EE]"></div>
+        <span className="text-xs">AI Task</span>
+      </div>
+    </div>
   );
 }
 
-// Componente interno que usa os hooks dentro do provider
-function WorkflowCanvasContent() {
-  // Integrar nodes personalizados ao workflow
-  useNodeDefinitionIntegration();
-  
+// Logo SynapScale
+function SynapScaleLogo() {
   return (
-    <div className="container mx-auto p-6">
-      <h1 className="text-2xl font-bold mb-6">Canvas de Workflow</h1>
-      
-      <NodeIntegrationValidator />
-      
-      <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6 mb-6">
-        <h2 className="text-xl font-semibold mb-4">Área de Trabalho do Workflow</h2>
-        <p className="text-gray-600 dark:text-gray-300 mb-4">
-          Este é o Canvas de Workflow principal, onde você pode usar nodes personalizados criados no Canvas de Criação.
-        </p>
-        
-        <div className="bg-gray-100 dark:bg-gray-700 rounded-lg p-4 min-h-[400px] flex items-center justify-center">
-          <div className="text-center">
-            <p className="text-gray-500 dark:text-gray-400 mb-2">Área do Canvas de Workflow</p>
-            <p className="text-sm text-gray-400 dark:text-gray-500">
-              Aqui você pode arrastar e soltar nodes para criar seu workflow
-            </p>
+    <div className="flex items-center">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z" fill="#FF5C00" stroke="#FF5C00" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+      </svg>
+      <span className="ml-2 font-semibold text-[#FF5C00]">SynapScale</span>
+    </div>
+  );
+}
+
+export default function CanvasPage() {
+  // Estado para controle de zoom e posição
+  const [zoom, setZoom] = useState(1);
+  const [viewportPosition, setViewportPosition] = useState({ x: 0, y: 0 });
+  
+  // Integração com o hook de definição de nodes
+  const { customNodesCount, nodeTemplates, publishedTemplates, syncPublishedNodes } = useNodeDefinitionIntegration();
+  
+  // Handlers para controles de zoom
+  const handleZoomIn = useCallback(() => {
+    setZoom(prev => Math.min(prev + 0.1, 2));
+  }, []);
+  
+  const handleZoomOut = useCallback(() => {
+    setZoom(prev => Math.max(prev - 0.1, 0.5));
+  }, []);
+  
+  const handleReset = useCallback(() => {
+    setZoom(1);
+    setViewportPosition({ x: 0, y: 0 });
+  }, []);
+  
+  const handleCenter = useCallback(() => {
+    setViewportPosition({ x: 0, y: 0 });
+  }, []);
+
+  return (
+    <div className="flex h-screen w-full overflow-hidden">
+      {/* Conteúdo principal */}
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* Barra superior */}
+        <div className="flex h-14 items-center justify-between border-b bg-white px-4 z-10">
+          <div className="flex items-center gap-3">
+            <button className="p-1 rounded-md hover:bg-gray-100">
+              <Plus className="h-5 w-5" />
+            </button>
+            <span className="font-medium">Untitled Workflow</span>
+            <div className="flex items-center gap-1 rounded-md bg-gray-100 px-2 py-1 text-sm">
+              <span>Agentes IA</span>
+              <span className="rounded-full bg-gray-200 px-1.5 py-0.5 text-xs">+1</span>
+            </div>
           </div>
-        </div>
-      </div>
-      
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        <div>
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Nodes Disponíveis</h2>
+          
+          <div className="flex items-center gap-2">
+            <div className="flex items-center">
+              <span className="mr-2 text-sm">Active</span>
+              <div className="relative inline-flex h-6 w-11 items-center rounded-full bg-gray-200">
+                <div className="absolute h-5 w-5 transform rounded-full bg-white shadow-md transition-transform translate-x-5"></div>
+                <div className="absolute inset-0 rounded-full bg-[#FF5C00]"></div>
+                <div className="absolute h-5 w-5 transform rounded-full bg-white shadow-md transition-transform translate-x-5"></div>
+              </div>
+            </div>
             
-            <div className="space-y-2">
-              <div className="p-2 bg-blue-50 dark:bg-blue-900/20 rounded border border-blue-200 dark:border-blue-800 cursor-pointer hover:bg-blue-100 dark:hover:bg-blue-900/30">
-                Entrada de Texto
-              </div>
-              <div className="p-2 bg-green-50 dark:bg-green-900/20 rounded border border-green-200 dark:border-green-800 cursor-pointer hover:bg-green-100 dark:hover:bg-green-900/30">
-                Saída de Texto
-              </div>
-              <div className="p-2 bg-purple-50 dark:bg-purple-900/20 rounded border border-purple-200 dark:border-purple-800 cursor-pointer hover:bg-purple-100 dark:hover:bg-purple-900/30">
-                Processador
-              </div>
-              <div className="p-2 bg-yellow-50 dark:bg-yellow-900/20 rounded border border-yellow-200 dark:border-yellow-800 cursor-pointer hover:bg-yellow-100 dark:hover:bg-yellow-900/30">
-                Transformador
-              </div>
-              <div className="p-2 bg-red-50 dark:bg-red-900/20 rounded border border-red-200 dark:border-red-800 cursor-pointer hover:bg-red-100 dark:hover:bg-red-900/30">
-                Teste de Integração
-              </div>
+            <button className="flex items-center gap-1 rounded-md border px-3 py-1.5 hover:bg-gray-50">
+              <Share className="h-4 w-4" />
+              <span className="text-sm">Share</span>
+            </button>
+            
+            <button className="flex items-center gap-1 rounded-md border px-3 py-1.5 hover:bg-gray-50">
+              <Save className="h-4 w-4" />
+              <span className="text-sm">Saved</span>
+            </button>
+            
+            <button className="flex h-8 w-8 items-center justify-center rounded-md border hover:bg-gray-50">
+              <MoreHorizontal className="h-5 w-5" />
+            </button>
+            
+            <div className="flex items-center gap-1 ml-2">
+              <Star className="h-5 w-5 text-yellow-400 fill-yellow-400" />
+              <span className="font-medium">88,435</span>
             </div>
           </div>
         </div>
         
-        <div className="md:col-span-2">
-          <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-            <h2 className="text-xl font-semibold mb-4">Propriedades do Workflow</h2>
-            
-            <div className="space-y-4">
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Nome do Workflow
-                </label>
-                <input
-                  type="text"
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                  placeholder="Digite o nome do workflow"
-                />
-              </div>
-              
-              <div>
-                <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-1">
-                  Descrição
-                </label>
-                <textarea
-                  className="w-full px-3 py-2 border border-gray-300 dark:border-gray-600 rounded-md"
-                  rows={3}
-                  placeholder="Digite uma descrição para o workflow"
-                ></textarea>
-              </div>
-              
-              <div className="flex space-x-4">
-                <button className="px-4 py-2 bg-blue-500 text-white rounded hover:bg-blue-600">
-                  Salvar Workflow
-                </button>
-                <button className="px-4 py-2 bg-green-500 text-white rounded hover:bg-green-600">
-                  Executar Workflow
-                </button>
-              </div>
-            </div>
-          </div>
+        {/* Área principal com o canvas */}
+        <div className="relative flex-1 overflow-hidden">
+          <UnifiedCanvas />
+          
+          {/* Indicador de cores */}
+          <ColorIndicator />
         </div>
       </div>
     </div>

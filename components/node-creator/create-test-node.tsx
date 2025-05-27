@@ -2,6 +2,7 @@
 
 import React from 'react';
 import { useNodeCreator } from '@/contexts/node-creator/node-creator-context';
+import { useSharedNodes } from '@/contexts/node-creator/shared-nodes-context';
 
 /**
  * Componente para criar um node de exemplo para testes de integração
@@ -9,6 +10,7 @@ import { useNodeCreator } from '@/contexts/node-creator/node-creator-context';
  */
 export function CreateTestNode() {
   const { addNodeTemplate, publishNodeTemplate, state } = useNodeCreator();
+  const { addNodeToWorkflow, state: sharedNodesState } = useSharedNodes();
 
   const handleCreateTestNode = () => {
     // Criar um node de teste
@@ -53,6 +55,9 @@ export function CreateTestNode() {
     if (state.nodeTemplates.length > 0) {
       const latestNode = state.nodeTemplates[state.nodeTemplates.length - 1];
       publishNodeTemplate(latestNode.id);
+      
+      // Adicionar ao contexto compartilhado para disponibilizar no Canvas Principal
+      addNodeToWorkflow(latestNode);
     }
   };
 
@@ -82,6 +87,18 @@ export function CreateTestNode() {
               <li key={template.id} className="flex items-center">
                 <span className={`w-3 h-3 rounded-full ${template.published ? 'bg-green-500' : 'bg-gray-400'} mr-2`}></span>
                 {template.name} {template.published ? '(Publicado)' : ''}
+              </li>
+            ))}
+          </ul>
+        </div>
+        
+        <div className="mt-3">
+          <h4 className="text-sm font-medium mb-1">Nodes Disponíveis no Canvas Principal:</h4>
+          <ul className="text-sm space-y-1">
+            {sharedNodesState.sharedNodes.map(node => (
+              <li key={node.id} className="flex items-center">
+                <span className="w-3 h-3 rounded-full bg-green-500 mr-2"></span>
+                {node.name} (Disponível no Canvas Principal)
               </li>
             ))}
           </ul>

@@ -1,35 +1,37 @@
-"use client"
-
-import { memo } from "react"
-import type { Position } from "@/types/workflow"
-
-interface SelectionBoxProps {
-  start: Position
-  end: Position
-}
+// Arquivo: components/canvas/selection-box.tsx
 
 /**
- * Componente que renderiza uma caixa de seleção para selecionar múltiplos nós
+ * Componente SelectionBox
+ * 
+ * Este componente renderiza uma caixa de seleção no canvas,
+ * usada para selecionar múltiplos nodes.
  */
-function SelectionBoxComponent({ start, end }: SelectionBoxProps) {
-  // Calcular as coordenadas da caixa de seleção
-  const left = Math.min(start.x, end.x)
-  const top = Math.min(start.y, end.y)
-  const width = Math.abs(end.x - start.x)
-  const height = Math.abs(end.y - start.y)
 
+"use client";
+
+import React from "react";
+
+interface SelectionBoxProps {
+  start: { x: number; y: number };
+  end: { x: number; y: number };
+}
+
+export function SelectionBox({ start, end }: SelectionBoxProps) {
+  // Calcular dimensões da caixa de seleção
+  const left = Math.min(start.x, end.x);
+  const top = Math.min(start.y, end.y);
+  const width = Math.abs(end.x - start.x);
+  const height = Math.abs(end.y - start.y);
+  
   return (
     <div
-      className="absolute border-2 border-blue-500 bg-blue-500/10 pointer-events-none"
+      className="absolute border border-primary bg-primary/10"
       style={{
         left,
         top,
         width,
-        height,
+        height
       }}
-      aria-hidden="true"
     />
-  )
+  );
 }
-
-export const SelectionBox = memo(SelectionBoxComponent)

@@ -1,7 +1,6 @@
 "use client"
 
 import { useEffect } from "react"
-import { NodeCreationProviders } from '@/contexts/node-creator'
 import { usePathname } from "next/navigation"
 
 // Componente para verificar e expandir automaticamente o item pai na sidebar
@@ -23,13 +22,13 @@ export default function NodeCreatorLayout({
   children: React.ReactNode;
 }) {
   return (
-    <NodeCreationProviders>
+    <>
       <SidebarItemExpander />
       <div className="flex min-h-screen flex-col">
         <div className="flex-1">
           {children}
         </div>
       </div>
-    </NodeCreationProviders>
+    </>
   );
 }

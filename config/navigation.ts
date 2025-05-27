@@ -10,42 +10,42 @@ import {
   Store
 } from "lucide-react"
 
-// Configuração original de navegação
+// Configuração original de navegação usando strings para ícones
 export const originalNavItems = [
   {
     name: "Editor de Workflow",
     href: "/",
-    icon: <Home className="h-5 w-5" />,
+    iconName: "Home",
   },
   {
     name: "Canvas",
     href: "/canvas",
-    icon: <Layers className="h-5 w-5" />,
+    iconName: "Layers",
   },
   {
     name: "Agentes De IA",
     href: "/agentes",
-    icon: <Bot className="h-5 w-5" />,
+    iconName: "Bot",
   },
   {
     name: "Documentação",
     href: "/docs",
-    icon: <FileCode className="h-5 w-5" />,
+    iconName: "FileCode",
   },
   {
     name: "Chat Interativo",
     href: "/chat",
-    icon: <MessagesSquare className="h-5 w-5" />,
+    iconName: "MessagesSquare",
   },
   {
     name: "Equipe",
     href: "/team",
-    icon: <UserRound className="h-5 w-5" />,
+    iconName: "UserRound",
   },
   {
     name: "Configurações",
     href: "/settings",
-    icon: <Cog className="h-5 w-5" />,
+    iconName: "Cog",
   },
 ]
 
@@ -54,7 +54,7 @@ export const newNavItems = [
   {
     name: "Criação de Nodes",
     href: "/node-creator",
-    icon: <Puzzle className="h-5 w-5" />,
+    iconName: "Puzzle",
     children: [
       {
         name: "Canvas de Criação",
@@ -73,7 +73,7 @@ export const newNavItems = [
   {
     name: "Marketplace",
     href: "/marketplace",
-    icon: <Store className="h-5 w-5" />,
+    iconName: "Store",
   },
 ]
 

@@ -14,6 +14,8 @@ import { TemplateProvider } from "@/context/template-context"
 import { MarketplaceProvider } from "@/context/marketplace-context"
 import { Toaster } from "@/components/ui/toaster"
 import { ClientLayout } from "@/components/client-layout"
+import { NodeCreatorProvider } from "@/contexts/node-creator/node-creator-context"
+import { SharedNodesProvider } from "@/contexts/node-creator/shared-nodes-context"
 
 // Carrega a fonte Inter com o subconjunto latino
 const inter = Inter({ subsets: ["latin"] })
@@ -55,10 +57,15 @@ export default function RootLayout({
                       <CustomCategoryProvider>
                         <TemplateProvider>
                           <MarketplaceProvider>
-                            <ClientLayout>
-                              {children}
-                            </ClientLayout>
-                            <Toaster />
+                            {/* Centralização dos providers de node-creator no nível mais alto da árvore */}
+                            <NodeCreatorProvider>
+                              <SharedNodesProvider>
+                                <ClientLayout>
+                                  {children}
+                                </ClientLayout>
+                                <Toaster />
+                              </SharedNodesProvider>
+                            </NodeCreatorProvider>
                           </MarketplaceProvider>
                         </TemplateProvider>
                       </CustomCategoryProvider>

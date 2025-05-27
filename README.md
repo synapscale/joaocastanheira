@@ -21,7 +21,7 @@ cd synapscale
 
 2. Instale as dependências:
 ```bash
-npm install
+pnpm install
 ```
 
 3. Configure as variáveis de ambiente:
@@ -39,7 +39,7 @@ NEXT_PUBLIC_SITE_URL=http://localhost:3000
 Para iniciar o servidor de desenvolvimento:
 
 ```bash
-npm run dev
+pnpm run dev
 ```
 
 O aplicativo estará disponível em [http://localhost:3000](http://localhost:3000).
