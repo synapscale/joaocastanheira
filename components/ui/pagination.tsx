@@ -1,3 +1,5 @@
+"use client"
+
 import * as React from "react"
 import { ChevronLeft, ChevronRight, MoreHorizontal } from "lucide-react"
 
@@ -7,12 +9,11 @@ import { ButtonProps, buttonVariants } from "@/components/ui/button"
 const Pagination = ({ className, ...props }: React.ComponentProps<"nav">) => (
   <nav
     role="navigation"
-    aria-label="pagination"
+    aria-label="Navegação de paginação"
     className={cn("mx-auto flex w-full justify-center", className)}
     {...props}
   />
 )
-Pagination.displayName = "Pagination"
 
 const PaginationContent = React.forwardRef<
   HTMLUListElement,
@@ -20,7 +21,7 @@ const PaginationContent = React.forwardRef<
 >(({ className, ...props }, ref) => (
   <ul
     ref={ref}
-    className={cn("flex flex-row items-center gap-1", className)}
+    className={cn("flex flex-wrap items-center gap-1", className)}
     {...props}
   />
 ))
@@ -64,13 +65,13 @@ const PaginationPrevious = ({
   ...props
 }: React.ComponentProps<typeof PaginationLink>) => (
   <PaginationLink
-    aria-label="Go to previous page"
+    aria-label="Ir para página anterior"
     size="default"
     className={cn("gap-1 pl-2.5", className)}
     {...props}
   >
     <ChevronLeft className="h-4 w-4" />
-    <span>Previous</span>
+    <span className="hidden sm:inline">Anterior</span>
   </PaginationLink>
 )
 PaginationPrevious.displayName = "PaginationPrevious"
@@ -80,12 +81,12 @@ const PaginationNext = ({
   ...props
 }: React.ComponentProps<typeof PaginationLink>) => (
   <PaginationLink
-    aria-label="Go to next page"
+    aria-label="Ir para próxima página"
     size="default"
     className={cn("gap-1 pr-2.5", className)}
     {...props}
   >
-    <span>Next</span>
+    <span className="hidden sm:inline">Próxima</span>
     <ChevronRight className="h-4 w-4" />
   </PaginationLink>
 )
@@ -101,7 +102,7 @@ const PaginationEllipsis = ({
     {...props}
   >
     <MoreHorizontal className="h-4 w-4" />
-    <span className="sr-only">More pages</span>
+    <span className="sr-only">Mais páginas</span>
   </span>
 )
 PaginationEllipsis.displayName = "PaginationEllipsis"

@@ -1,29 +1,32 @@
-"use client"
-
-import { useMemo } from "react"
-
 interface CanvasGridProps {
-  viewport: { x: number; y: number; zoom: number }
+  width?: number
+  height?: number
+  spacing?: number
+  color?: string
 }
 
-export function CanvasGrid({ viewport }: CanvasGridProps) {
-  const gridStyle = useMemo(() => {
-    const { zoom } = viewport
-    const gridSize = 24 * zoom
-    const dotSize = Math.max(1, zoom * 1.5)
+export function CanvasGrid({ width = 20000, height = 20000, spacing = 20, color = "#e2e8f0" }: CanvasGridProps) {
+  // Create a pattern for the grid
+  const patternId = "grid-pattern"
 
-    // Subtle grid colors that adapt to zoom level
-    const opacity = Math.min(0.4, Math.max(0.1, zoom * 0.3))
-    const gridColor = `rgba(148, 163, 184, ${opacity})`
-
-    return {
-      backgroundSize: `${gridSize}px ${gridSize}px`,
-      backgroundImage: `
-        radial-gradient(circle, ${gridColor} ${dotSize}px, transparent ${dotSize}px)
-      `,
-      transform: `translate(${viewport.x % gridSize}px, ${viewport.y % gridSize}px)`,
-    }
-  }, [viewport])
-
-  return <div className="absolute inset-0 pointer-events-none" style={gridStyle} />
+  return (
+    <svg
+      className="absolute top-0 left-0"
+      width={width}
+      height={height}
+      style={{
+        position: "absolute",
+        top: -height / 2,
+        left: -width / 2,
+        pointerEvents: "none",
+      }}
+    >
+      <defs>
+        <pattern id={patternId} width={spacing} height={spacing} patternUnits="userSpaceOnUse">
+          <circle cx={spacing / 2} cy={spacing / 2} r={1} fill={color} />
+        </pattern>
+      </defs>
+      <rect width={width} height={height} fill={`url(#${patternId})`} />
+    </svg>
+  )
 }

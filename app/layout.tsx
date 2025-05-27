@@ -2,47 +2,72 @@ import type React from "react"
 import type { Metadata } from "next"
 import { Inter } from "next/font/google"
 import "./globals.css"
-import { ThemeProvider } from "@/contexts/theme-context"
-import { Toaster } from "@/components/ui/use-toast"
-import { TooltipProvider } from "@/components/ui/tooltip"
-import { CollapsibleSidebar } from "@/components/layout/collapsible-sidebar"
+import { SidebarProvider } from "@/context/sidebar-context"
+import { NodeDefinitionProvider } from "@/context/node-definition-context"
+import { WorkflowProvider } from "@/context/workflow-context"
+import { VariableProvider } from "@/context/variable-context"
+import { NodeTemplateProvider } from "@/context/node-template-context"
+import { CodeTemplateProvider } from "@/context/code-template-context"
+import { ThemeProvider } from "@/components/theme-provider"
+import { CustomCategoryProvider } from "@/context/custom-category-context"
+import { TemplateProvider } from "@/context/template-context"
+import { MarketplaceProvider } from "@/context/marketplace-context"
+import { Toaster } from "@/components/ui/toaster"
+import { ClientLayout } from "@/components/client-layout"
 
-const inter = Inter({
-  subsets: ["latin"],
-  display: "swap",
-  variable: "--font-inter",
-})
+// Carrega a fonte Inter com o subconjunto latino
+const inter = Inter({ subsets: ["latin"] })
 
+// Define metadados para SEO e abas do navegador
 export const metadata: Metadata = {
-  title: "Node Creator - Sistema de Criação de Nodes",
-  description: "Crie, teste e publique nodes personalizados para workflows de automação",
-  keywords: ["nodes", "workflow", "automação", "criação", "sistema"],
-  authors: [{ name: "Node Creator Team" }],
+  title: "Workflow Canvas",
+  description: "Construtor visual de workflows para automação estilo n8n",
   viewport: "width=device-width, initial-scale=1",
-    generator: 'v0.dev'
+  themeColor: [
+    { media: "(prefers-color-scheme: light)", color: "white" },
+    { media: "(prefers-color-scheme: dark)", color: "#111827" },
+  ],
+  generator: 'v0.dev'
 }
 
+/**
+ * Componente de Layout Raiz
+ *
+ * @param props - Propriedades do componente
+ * @param props.children - Conteúdo da página a ser renderizado
+ */
 export default function RootLayout({
   children,
-}: {
+}: Readonly<{
   children: React.ReactNode
-}) {
+}>) {
   return (
-    <html lang="pt-BR" suppressHydrationWarning className={inter.variable}>
+    <html lang="pt-BR" suppressHydrationWarning>
       <body className={inter.className}>
-        <ThemeProvider>
-          <TooltipProvider delayDuration={300}>
-            <div className="flex h-screen w-full overflow-hidden">
-              {/* Sidebar Minimizável */}
-              <CollapsibleSidebar showDevelopmentTools={true} />
-
-              {/* Main Content */}
-              <main className="flex-1 min-w-0 overflow-auto bg-gradient-to-br from-background to-muted/20">
-                {children}
-              </main>
-            </div>
-            <Toaster />
-          </TooltipProvider>
+        {/* Provedores de contexto - a ordem importa para dependências entre contextos */}
+        <ThemeProvider attribute="class" defaultTheme="light" enableSystem>
+          <SidebarProvider>
+            <NodeDefinitionProvider>
+              <WorkflowProvider>
+                <VariableProvider>
+                  <NodeTemplateProvider>
+                    <CodeTemplateProvider>
+                      <CustomCategoryProvider>
+                        <TemplateProvider>
+                          <MarketplaceProvider>
+                            <ClientLayout>
+                              {children}
+                            </ClientLayout>
+                            <Toaster />
+                          </MarketplaceProvider>
+                        </TemplateProvider>
+                      </CustomCategoryProvider>
+                    </CodeTemplateProvider>
+                  </NodeTemplateProvider>
+                </VariableProvider>
+              </WorkflowProvider>
+            </NodeDefinitionProvider>
+          </SidebarProvider>
         </ThemeProvider>
       </body>
     </html>

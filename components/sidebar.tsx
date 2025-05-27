@@ -5,28 +5,22 @@ import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
 import { 
-  LayoutGrid, 
-  FileText, 
-  MessageSquare, 
-  Users, 
-  Settings, 
   ChevronLeft,
   ChevronRight,
-  Download,
-  Home,
-  Layers,
-  Bot,
-  FileCode,
-  MessagesSquare,
-  UserRound,
-  Cog
+  ChevronDown
 } from "lucide-react"
 import { useSidebar } from "@/context/sidebar-context"
+
+// Importar a configuração de navegação integrada e função de renderização de ícones
+import navItems, { renderIcon } from "@/config/navigation"
 
 export function Sidebar() {
   const pathname = usePathname()
   const [isMobile, setIsMobile] = useState(false)
   const { isCollapsed, isOpen, toggle, toggleCollapse } = useSidebar()
+  
+  // Estado para controlar quais itens com subitens estão expandidos
+  const [expandedItems, setExpandedItems] = useState<Record<string, boolean>>({})
 
   // Detectar se é mobile
   useEffect(() => {
@@ -52,6 +46,21 @@ export function Sidebar() {
     }
   }, [pathname, isMobile, isOpen, toggle])
 
+  // Expandir automaticamente o item pai da rota atual
+  useEffect(() => {
+    const newExpandedItems = { ...expandedItems }
+    
+    navItems.forEach(item => {
+      if (item.children && item.children.some(child => 
+        pathname === child.href || pathname.startsWith(`${child.href}/`)
+      )) {
+        newExpandedItems[item.href] = true
+      }
+    })
+    
+    setExpandedItems(newExpandedItems)
+  }, [pathname])
+
   const toggleSidebar = () => {
     if (isMobile) {
       toggle()
@@ -60,50 +69,19 @@ export function Sidebar() {
     }
   }
 
+  const toggleExpanded = (href: string) => {
+    setExpandedItems(prev => ({
+      ...prev,
+      [href]: !prev[href]
+    }))
+  }
+
   const sidebarVariants = {
     expanded: { width: "16rem", transition: { duration: 0.3, ease: "easeInOut" } },
     collapsed: { width: "4.5rem", transition: { duration: 0.3, ease: "easeInOut" } },
     mobileOpen: { x: 0, transition: { duration: 0.3, ease: "easeInOut" } },
     mobileClosed: { x: "-100%", transition: { duration: 0.3, ease: "easeInOut" } }
   }
-
-  const navItems = [
-    {
-      name: "Editor de Workflow",
-      href: "/",
-      icon: <Home className="h-5 w-5" />,
-    },
-    {
-      name: "Canvas",
-      href: "/canvas",
-      icon: <Layers className="h-5 w-5" />,
-    },
-    {
-      name: "Agentes De IA",
-      href: "/agentes",
-      icon: <Bot className="h-5 w-5" />,
-    },
-    {
-      name: "Documentação",
-      href: "/docs",
-      icon: <FileCode className="h-5 w-5" />,
-    },
-    {
-      name: "Chat Interativo",
-      href: "/chat",
-      icon: <MessagesSquare className="h-5 w-5" />,
-    },
-    {
-      name: "Equipe",
-      href: "/team",
-      icon: <UserRound className="h-5 w-5" />,
-    },
-    {
-      name: "Configurações",
-      href: "/settings",
-      icon: <Cog className="h-5 w-5" />,
-    },
-  ]
 
   return (
     <>
@@ -165,36 +143,77 @@ export function Sidebar() {
           <ul className="space-y-1 px-2">
             {navItems.map((item) => {
               const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+              const hasChildren = item.children && item.children.length > 0
+              const isExpanded = expandedItems[item.href]
               
               return (
-                <li key={item.href}>
-                  <Link
-                    href={item.href}
-                    className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
-                      isActive 
-                        ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-medium shadow-sm" 
-                        : "text-muted-foreground hover:bg-muted hover:text-foreground"
-                    }`}
-                  >
-                    <motion.div
-                      whileHover={{ scale: 1.1 }}
-                      whileTap={{ scale: 0.95 }}
-                      className={isActive ? "text-primary" : "text-muted-foreground"}
+                <li key={item.href} className="flex flex-col">
+                  <div className="flex items-center">
+                    <Link
+                      href={hasChildren ? "#" : item.href}
+                      onClick={(e) => {
+                        if (hasChildren) {
+                          e.preventDefault()
+                          toggleExpanded(item.href)
+                        }
+                      }}
+                      className={`flex items-center gap-3 px-3 py-2.5 rounded-md transition-all duration-200 ${
+                        isActive 
+                          ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-medium shadow-sm" 
+                          : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                      } ${hasChildren ? "flex-1" : "w-full"}`}
                     >
-                      {item.icon}
-                    </motion.div>
-                    
-                    {(!isCollapsed || (isMobile && isOpen)) && (
-                      <motion.span
-                        initial={{ opacity: 0 }}
-                        animate={{ opacity: 1 }}
-                        exit={{ opacity: 0 }}
-                        transition={{ duration: 0.2 }}
+                      <motion.div
+                        whileHover={{ scale: 1.1 }}
+                        whileTap={{ scale: 0.95 }}
+                        className={isActive ? "text-primary" : "text-muted-foreground"}
                       >
-                        {item.name}
-                      </motion.span>
-                    )}
-                  </Link>
+                        {renderIcon(item.iconName)}
+                      </motion.div>
+                      
+                      {(!isCollapsed || (isMobile && isOpen)) && (
+                        <motion.span
+                          initial={{ opacity: 0 }}
+                          animate={{ opacity: 1 }}
+                          exit={{ opacity: 0 }}
+                          transition={{ duration: 0.2 }}
+                          className="flex-1"
+                        >
+                          {item.name}
+                        </motion.span>
+                      )}
+                      
+                      {hasChildren && (!isCollapsed || (isMobile && isOpen)) && (
+                        <ChevronDown 
+                          className={`h-4 w-4 transition-transform ${isExpanded ? 'rotate-180' : ''}`} 
+                        />
+                      )}
+                    </Link>
+                  </div>
+                  
+                  {/* Subitens */}
+                  {hasChildren && isExpanded && (!isCollapsed || (isMobile && isOpen)) && (
+                    <ul className="mt-1 ml-9 space-y-1 border-l border-border pl-2">
+                      {item.children.map((child) => {
+                        const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
+                        
+                        return (
+                          <li key={child.href}>
+                            <Link
+                              href={child.href}
+                              className={`flex items-center px-3 py-2 text-sm rounded-md transition-all duration-200 ${
+                                isChildActive 
+                                  ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-medium shadow-sm" 
+                                  : "text-muted-foreground hover:bg-muted hover:text-foreground"
+                              }`}
+                            >
+                              <span>{child.name}</span>
+                            </Link>
+                          </li>
+                        )
+                      })}
+                    </ul>
+                  )}
                 </li>
               )
             })}

@@ -54,7 +54,6 @@
     "embla-carousel-react": "8.5.1",
     "framer-motion": "latest",
     "gray-matter": "^4.0.3",
-    "immer": "^10.1.1",
     "input-otp": "1.4.1",
     "lucide-react": "^0.454.0",
     "nanoid": "latest",
@@ -77,8 +76,7 @@
     "tailwindcss-animate": "^1.0.7",
     "uuid": "latest",
     "vaul": "^0.9.6",
-    "zod": "latest",
-    "zustand": "^5.0.5"
+    "zod": "latest"
   },
   "devDependencies": {
     "@babel/preset-env": "^7.27.2",
