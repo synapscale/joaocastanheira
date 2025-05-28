@@ -39,14 +39,29 @@ export function ConnectionLine({
       <path
         d={path}
         fill="none"
-        stroke="#999999"
-        strokeWidth={2}
-        strokeDasharray="4,4"
+        stroke={isSelected ? "#3b82f6" : "#aaaaaa"}
+        strokeWidth={isSelected ? 2 : 1}
+        markerEnd={`url(#arrowhead-${id})`}
         className={cn(
-          isSelected && "stroke-blue-400 stroke-[3px]",
+          "transition-colors duration-200",
           isConnecting && "stroke-blue-400"
         )}
       />
+      
+      {/* Indicador de direção sutil */}
+      <defs>
+        <marker
+          id={`arrowhead-${id}`}
+          markerWidth="6"
+          markerHeight="6"
+          refX="5"
+          refY="3"
+          orient="auto"
+          markerUnits="strokeWidth"
+        >
+          <path d="M0,0 L0,6 L6,3 z" fill={isSelected ? "#3b82f6" : "#aaaaaa"} />
+        </marker>
+      </defs>
       
       {/* Área de detecção para interação */}
       {onSelect && (

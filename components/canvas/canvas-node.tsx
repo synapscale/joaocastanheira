@@ -1,12 +1,3 @@
-// Arquivo: components/canvas/canvas-node.tsx
-
-/**
- * Componente CanvasNode
- * 
- * Este componente representa um node no canvas, com suporte a
- * drag-and-drop, seleção, conexões e edição de propriedades.
- */
-
 "use client";
 
 import React, { useState } from "react";
@@ -49,6 +40,7 @@ export function CanvasNode({
   onPortEndConnect
 }: NodeProps) {
   const [isDragging, setIsDragging] = useState(false);
+  const [isHovered, setIsHovered] = useState(false);
 
   // Determinar tipo normalizado para consistência
   const normalizedType = node.type.toLowerCase();
@@ -63,9 +55,9 @@ export function CanvasNode({
   // Determinar cor do node com base no tipo
   const getNodeColor = () => {
     switch (nodeType) {
-      case "trigger": return "#FF5C00";
-      case "process": return "#6E6E6E";
-      case "ai-task": return "#7B68EE";
+      case "trigger": return "#FF7A00"; // Laranja mais vibrante
+      case "process": return "#7E7E86"; // Cinza mais refinado
+      case "ai-task": return "#8A63FF"; // Roxo mais vibrante
       default: return "#999999";
     }
   };
@@ -120,13 +112,14 @@ export function CanvasNode({
   return (
     <motion.div
       className={cn(
-        "absolute flex w-[150px] flex-col rounded-lg border shadow-md",
+        "absolute flex w-[150px] flex-col rounded-md border shadow-sm",
         "bg-white",
         isSelected && "ring-2 ring-blue-400",
         isDragging && "cursor-grabbing opacity-90"
       )}
       style={{
         borderColor: getNodeColor(),
+        borderWidth: "1px",
         left: node.position.x,
         top: node.position.y,
         zIndex: isDragging ? 10 : isSelected ? 5 : 1
@@ -145,6 +138,8 @@ export function CanvasNode({
         e.stopPropagation();
         onSelect(e.ctrlKey || e.shiftKey);
       }}
+      onMouseEnter={() => setIsHovered(true)}
+      onMouseLeave={() => setIsHovered(false)}
     >
       {/* Cabeçalho do node */}
       <div 
@@ -166,11 +161,72 @@ export function CanvasNode({
       <div className="p-3 bg-white">
         <div className="text-xs text-gray-500 mb-2">{getNodeTypeLabel()}</div>
         <div className="text-sm">Configurações do node</div>
-        
-        {/* Portas de conexão */}
-        <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-200 rounded-full border-2 border-white"></div>
-        <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-200 rounded-full border-2 border-white"></div>
       </div>
+      
+      {/* Portas de conexão */}
+      <div className="absolute -left-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-200 rounded-full border-2 border-white"></div>
+      <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-4 h-4 bg-gray-200 rounded-full border-2 border-white"></div>
+      
+      {/* Funcionalidades rápidas em cima dos nodes - visíveis quando selecionado ou hover */}
+      {(isSelected || isHovered) && (
+        <div className="absolute -top-10 left-1/2 transform -translate-x-1/2 flex items-center gap-1 bg-white rounded-md shadow-sm border border-gray-200 p-1 z-10">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Ação de play
+            }}
+            className="p-1 rounded-sm hover:bg-gray-100"
+            title="Executar node"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-green-600">
+              <polygon points="5 3 19 12 5 21 5 3"></polygon>
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Ação de edição
+            }}
+            className="p-1 rounded-sm hover:bg-gray-100"
+            title="Editar node"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+              <path d="M11 4H4a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2v-7"></path>
+              <path d="M18.5 2.5a2.121 2.121 0 0 1 3 3L12 15l-4 1 1-4 9.5-9.5z"></path>
+            </svg>
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              // Ação de exclusão
+            }}
+            className="p-1 rounded-sm hover:bg-gray-100"
+            title="Excluir node"
+          >
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-red-600">
+              <polyline points="3 6 5 6 21 6"></polyline>
+              <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path>
+            </svg>
+          </button>
+        </div>
+      )}
+      
+      {/* Botão de adição à direita do node - visível quando selecionado ou hover */}
+      {(isSelected || isHovered) && (
+        <div 
+          className="absolute right-0 top-1/2 transform translate-x-3 -translate-y-1/2 flex items-center justify-center w-6 h-6 bg-white rounded-full shadow-sm border border-gray-200 z-10 cursor-pointer"
+          onClick={(e) => {
+            e.stopPropagation();
+            // Ação de adicionar conexão
+          }}
+          title="Criar nova conexão"
+        >
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-600">
+            <line x1="12" y1="5" x2="12" y2="19"></line>
+            <line x1="5" y1="12" x2="19" y2="12"></line>
+          </svg>
+        </div>
+      )}
     </motion.div>
   );
 }

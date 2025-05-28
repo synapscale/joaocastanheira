@@ -4,7 +4,7 @@
  * Componente CanvasGrid
  * 
  * Este componente renderiza o grid de fundo do canvas,
- * com linhas para orientação visual conforme o design original.
+ * com padrão de bolinhas para orientação visual conforme o design original.
  */
 
 "use client";
@@ -18,26 +18,32 @@ interface CanvasGridProps {
 
 export function CanvasGrid({ scale = 1, position = { x: 0, y: 0 } }: CanvasGridProps) {
   // Tamanho da célula do grid - ajustado para corresponder ao design original
-  const gridSize = 20;
+  const gridSize = 40; // Aumentado o espaçamento entre as bolinhas conforme solicitado
   
   // Calcular offset do grid com base na posição do canvas
   const offsetX = position.x % (gridSize * scale);
   const offsetY = position.y % (gridSize * scale);
   
-  // Estilo para o grid de linhas - ajustado para corresponder exatamente ao design original
+  // Estilo para o grid de bolinhas - conforme design original
+  const dotSize = 1; // Tamanho das bolinhas em pixels
+  const dotColor = "rgba(0, 0, 0, 0.05)"; // Cor das bolinhas - cinza bem suave, quase invisível
+  
   const gridStyle = {
     backgroundSize: `${gridSize * scale}px ${gridSize * scale}px`,
-    backgroundImage: `
-      linear-gradient(to right, rgba(0, 0, 0, 0.05) 1px, transparent 1px),
-      linear-gradient(to bottom, rgba(0, 0, 0, 0.05) 1px, transparent 1px)
-    `,
-    backgroundPosition: `${offsetX}px ${offsetY}px`
+    backgroundImage: `radial-gradient(circle, ${dotColor} ${dotSize}px, transparent ${dotSize}px)`,
+    backgroundPosition: `${offsetX}px ${offsetY}px`,
+    backgroundColor: "#F9FAFB", // Cor exata do fundo conforme especificação
+    width: "200vw", // Usar 200vw para garantir cobertura em qualquer zoom
+    height: "200vh", // Usar 200vh para garantir cobertura em qualquer zoom
+    position: "absolute",
+    top: "-50vh",
+    left: "-50vw",
   };
   
   return (
-    <div className="absolute inset-0 bg-white">
-      {/* Grid de linhas */}
-      <div className="absolute inset-0" style={gridStyle} />
+    <div className="absolute inset-0 w-full h-full" style={{ backgroundColor: "#F9FAFB" }}>
+      {/* Grid de bolinhas */}
+      <div className="absolute inset-0 w-full h-full" style={gridStyle} />
     </div>
   );
 }
