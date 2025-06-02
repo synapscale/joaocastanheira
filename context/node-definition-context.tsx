@@ -171,7 +171,15 @@ return $input.map(item => {
   const getNodeDefinition = useCallback((id: string) => nodeDefinitions.find((def) => def.id === id), [nodeDefinitions])
 
   const addNodeDefinition = useCallback((definition: NodeDefinition) => {
-    setNodeDefinitions((prev) => [...prev, definition])
+    setNodeDefinitions((prev) => {
+      // Verificar se já existe um node com o mesmo ID
+      const exists = prev.some(def => def.id === definition.id)
+      if (exists) {
+        console.warn(`Node definition with ID "${definition.id}" already exists. Skipping addition.`)
+        return prev
+      }
+      return [...prev, definition]
+    })
   }, [])
 
   const updateNodeDefinition = useCallback((id: string, updates: Partial<NodeDefinition> | NodeDefinition) => {

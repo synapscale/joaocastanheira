@@ -30,6 +30,7 @@ import {
 import { useCanvasTransform } from "@/hooks/use-canvas-transform"
 import { SelectionBox } from "@/components/selection-box"
 import { useNodeManagement } from "@/hooks/use-node-management"
+import { useNodeDrag } from "@/hooks/use-node-drag"
 import { ConnectionPreview } from "@/components/canvas/connection-preview"
 import { nanoid } from "nanoid"
 import { ConnectionLabelEditor } from "@/components/canvas/connection-label-editor"
@@ -96,6 +97,27 @@ export function WorkflowCanvas() {
 
   // Add this after the plusIndicatorNodeId state
   const [connectionForNodePanel, setConnectionForNodePanel] = useState<string | null>(null)
+
+  // Function to open node panel for connection
+  const openNodePanelForConnection = useCallback((connectionId: string, position: Position) => {
+    setConnectionForNodePanel(connectionId)
+    setNodePanelPosition(position)
+    setShowNodePanel(true)
+  }, [setNodePanelPosition, setShowNodePanel])
+
+  // Expose function to window for ConnectionActionButtons
+  useEffect(() => {
+    if (typeof window !== 'undefined') {
+      window.workflowCanvas = {
+        openNodePanelForConnection
+      }
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        delete window.workflowCanvas
+      }
+    }
+  }, [openNodePanelForConnection])
 
   // State for selection box
   const [isSelecting, setIsSelecting] = useState(false)
@@ -905,6 +927,27 @@ export function WorkflowCanvas() {
     setShowKeyboardShortcuts,
   ])
 
+  // Add global event listeners for node dragging
+  useEffect(() => {
+    if (isDragging) {
+      const handleMouseMove = (e: MouseEvent) => {
+        handleNodeDrag(e as any)
+      }
+
+      const handleMouseUp = () => {
+        handleNodeDragEnd()
+      }
+
+      window.addEventListener("mousemove", handleMouseMove)
+      window.addEventListener("mouseup", handleMouseUp)
+
+      return () => {
+        window.removeEventListener("mousemove", handleMouseMove)
+        window.removeEventListener("mouseup", handleMouseUp)
+      }
+    }
+  }, [isDragging, handleNodeDrag, handleNodeDragEnd])
+
   // Render the canvas
   return (
     <div className="relative w-full h-full overflow-hidden bg-[#F9FAFB]">
@@ -923,7 +966,7 @@ export function WorkflowCanvas() {
         {/* SVG layer for connections */}
         <svg
           ref={svgRef}
-          className="absolute inset-0 pointer-events-none"
+          className="absolute inset-0 w-full h-full"
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
             transformOrigin: "0 0",
@@ -944,13 +987,29 @@ export function WorkflowCanvas() {
           {/* Connection preview */}
           {connectionPreview && (
             <ConnectionPreview
-              startX={connectionPreview.start.x}
-              startY={connectionPreview.start.y}
-              endX={connectionPreview.end.x}
-              endY={connectionPreview.end.y}
-              isValid={connectionPreview.isValid}
+              startX={connectionPreview.startX}
+              startY={connectionPreview.startY}
+              endX={connectionPreview.endX}
+              endY={connectionPreview.endY}
+              isValid={connectionPreview.isValidTarget}
             />
           )}
+
+          {/* Plus indicators for adding connected nodes */}
+          {nodes.map((node) => (
+            !checkHasOutputConnections(node.id) && (
+              <PlusIndicator
+                key={`plus-${node.id}`}
+                x={node.position.x + (node.width || 70) + 20}
+                y={node.position.y + (node.height || 70) / 2}
+                sourceNodeId={node.id}
+                onClick={(e) => handlePlusIndicatorClick(e, node.id)}
+                onDragStart={(sourceNodeId, position) => handlePlusIndicatorDragStart(sourceNodeId, position)}
+                onDrag={handlePlusIndicatorDrag}
+                onDragEnd={handlePlusIndicatorDragEnd}
+              />
+            )
+          ))}
         </svg>
 
         {/* Nodes */}
@@ -965,29 +1024,24 @@ export function WorkflowCanvas() {
             <WorkflowNode
               key={node.id}
               node={node}
-              selected={selectedNodes.includes(node.id)}
-              onSelect={() => {
-                setSelectedNode(node)
-                setSelectedNodes([node.id])
+              isSelected={selectedNodes.includes(node.id)}
+              onSelect={(nodeId, multiple) => {
+                if (multiple) {
+                  if (selectedNodes.includes(nodeId)) {
+                    setSelectedNodes(selectedNodes.filter(id => id !== nodeId))
+                  } else {
+                    setSelectedNodes([...selectedNodes, nodeId])
+                  }
+                } else {
+                  setSelectedNode(node)
+                  setSelectedNodes([nodeId])
+                }
               }}
-              onDragStart={(e) => handleNodeDragStart(e, node.id)}
-              onDrag={handleNodeDrag}
-              onDragEnd={handleNodeDragEnd}
+              onDragStart={(e, nodeId) => handleNodeDragStart(e, nodeId)}
+              onDoubleClick={() => openNodeEditor(node.id)}
               onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
-              onDoubleClick={() => openNodeEditor(node)}
               onPortDragStart={handlePortDragStart}
-            >
-              {/* Plus indicator for adding connected nodes */}
-              {!checkHasOutputConnections(node.id) && (
-                <PlusIndicator
-                  nodeId={node.id}
-                  onClick={(e) => handlePlusIndicatorClick(e, node.id)}
-                  onDragStart={(e) => handlePlusIndicatorDragStart(e, node.id)}
-                  onDrag={handlePlusIndicatorDrag}
-                  onDragEnd={handlePlusIndicatorDragEnd}
-                />
-              )}
-            </WorkflowNode>
+            />
           ))}
         </div>
 
@@ -1065,7 +1119,7 @@ export function WorkflowCanvas() {
         <NodePanel
           position={nodePanelPosition}
           onClose={() => setShowNodePanel(false)}
-          onNodeSelect={handleNodeSelection}
+          onAddNode={handleNodeSelection}
         />
       )}
 
@@ -1076,14 +1130,13 @@ export function WorkflowCanvas() {
       {showKeyboardShortcuts && <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />}
 
       {/* Node editor dialog */}
-      {isOpen && editingNode && (
-        <NodeEditorDialog
-          node={editingNode}
-          onClose={closeNodeEditor}
-          onSave={saveNode}
-          onDelete={deleteNode}
-        />
-      )}
+      <NodeEditorDialog
+        node={editingNode}
+        open={isOpen}
+        onClose={closeNodeEditor}
+        onSave={saveNode}
+        onDelete={deleteNode}
+      />
 
       {/* Connection label editor */}
       {labelEditorInfo && (

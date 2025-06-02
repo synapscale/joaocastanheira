@@ -489,7 +489,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           />
           
           {/* Tutorial e botões de ação - Ordem corrigida: Esconder Configurações à esquerda, Tutorial à direita */}
-          <div className="flex justify-between items-center mt-1">
+          <div className="flex justify-between items-center mt-0.5">
             <Button
               variant="ghost"
               size="sm"
@@ -520,7 +520,6 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onSelectConversation={handleSelectConversation}
         onDeleteConversation={handleDeleteConversation}
         onNewConversation={handleNewConversation}
-        onClearAllConversations={clearAllConversations}
       />
 
       {/* Modal de tutorial */}

@@ -123,9 +123,9 @@ export function NodeTemplateSelector({ onSelect, onClose }: NodeTemplateSelector
               <div key={category} className="mb-4">
                 <h3 className="text-sm font-medium px-4 py-2 bg-muted/50">{category}</h3>
                 <div className="divide-y">
-                  {definitions.map((def) => (
+                  {definitions.map((def, index) => (
                     <button
-                      key={def.id}
+                      key={`all-${category}-${def.id}-${index}`}
                       className="w-full flex items-start p-4 hover:bg-muted/50 text-left"
                       onClick={() => onSelect(def)}
                     >
@@ -160,9 +160,9 @@ export function NodeTemplateSelector({ onSelect, onClose }: NodeTemplateSelector
             <TabsContent key={category} value={category} className="m-0 p-0">
               {definitionsByCategory[category]?.length > 0 ? (
                 <div className="divide-y">
-                  {definitionsByCategory[category].map((def) => (
+                  {definitionsByCategory[category].map((def, index) => (
                     <button
-                      key={def.id}
+                      key={`${category}-${def.id}-${index}`}
                       className="w-full flex items-start p-4 hover:bg-muted/50 text-left"
                       onClick={() => onSelect(def)}
                     >

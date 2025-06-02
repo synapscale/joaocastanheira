@@ -180,6 +180,18 @@ export interface ChatMessageProps extends BaseComponentProps {
    * @param message The message to delete
    */
   onDelete?: (message: Message) => void
+
+  /**
+   * Whether focus mode is active
+   * @default false
+   */
+  focusMode?: boolean
+
+  /**
+   * Whether this is the latest message
+   * @default false
+   */
+  isLatest?: boolean
 }
 
 /**
@@ -218,6 +230,8 @@ export default function ChatMessage({
   onReaction,
   onRegenerate,
   onDelete,
+  focusMode = false,
+  isLatest = false,
 }: ChatMessageProps) {
   // SECTION: Local state
   const [copied, setCopied] = useState(false)
@@ -311,7 +325,18 @@ export default function ChatMessage({
   // SECTION: Render
   return (
     <ChatMessageContext.Provider value={contextValue}>
-      <div className={`mb-6 ${className}`} style={style} id={id} {...allDataAttributes}>
+      <div 
+        className={`mb-6 ${className} ${
+          focusMode && isLatest 
+            ? 'ring-2 ring-blue-500/20 bg-blue-50/30 dark:bg-blue-900/10 rounded-lg p-2 transition-all duration-300' 
+            : focusMode 
+            ? 'opacity-50 transition-all duration-300' 
+            : ''
+        }`} 
+        style={style} 
+        id={id} 
+        {...allDataAttributes}
+      >
         {message.role === "system" ? (
           <SystemMessage
             content={contentRenderer ? contentRenderer(message.content) : processMessageContent(message.content)}

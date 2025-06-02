@@ -123,7 +123,8 @@ export function Sidebar() {
         
         {/* Sidebar mobile */}
         <motion.nav
-          className="fixed top-0 left-0 h-full w-64 bg-card border-r border-border overflow-hidden shadow-md z-50"
+          className="fixed top-0 left-0 h-full w-64 border-r border-border overflow-hidden shadow-md z-50"
+          style={{ backgroundColor: '#F9F9F9' }}
           initial={{ x: "-100%" }}
           animate={{ x: isOpen ? 0 : "-100%" }}
           transition={{ duration: 0.3, ease: "easeInOut" }}
@@ -262,13 +263,13 @@ export function Sidebar() {
   console.log('Renderizando sidebar desktop');
   return (
     <motion.nav
-      className="h-full bg-card border-r border-border overflow-hidden shadow-md flex flex-col flex-shrink-0"
+      className="h-full border-r border-border overflow-hidden shadow-md flex flex-col flex-shrink-0"
+      style={{ backgroundColor: '#F9F9F9', position: 'static', zIndex: 'auto' }}
       initial={false}
       animate={{ 
         width: isCollapsed ? "4.5rem" : "16rem"
       }}
       transition={{ duration: 0.3, ease: "easeInOut" }}
-      style={{ position: 'static', zIndex: 'auto' }}
     >
       {/* Header */}
       <div className="flex items-center justify-between p-4 flex-shrink-0">

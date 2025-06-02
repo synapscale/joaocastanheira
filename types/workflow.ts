@@ -65,6 +65,7 @@ export interface Node {
   data?: Record<string, any>
   style?: NodeStyle
   locked?: boolean
+  disabled?: boolean
   groupId?: string
   zIndex?: number
   hidden?: boolean

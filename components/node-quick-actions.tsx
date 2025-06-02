@@ -46,7 +46,12 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
     (e: React.MouseEvent) => {
       e.stopPropagation()
       console.log("Execute node", nodeId)
-      // Implement node execution logic
+      // TODO: Implement actual node execution logic
+      // For now, just show a toast notification
+      if (typeof window !== 'undefined') {
+        // Simple notification for now
+        alert(`Executing node ${nodeId}`)
+      }
     },
     [nodeId],
   )
@@ -55,7 +60,12 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
     (e: React.MouseEvent) => {
       e.stopPropagation()
       console.log("Toggle node active state", nodeId)
-      // Implement node toggle logic
+      // TODO: Implement actual node toggle logic
+      // For now, just show a toast notification
+      if (typeof window !== 'undefined') {
+        // Simple notification for now
+        alert(`Toggling active state for node ${nodeId}`)
+      }
     },
     [nodeId],
   )
@@ -82,7 +92,7 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
 
   return (
     <div
-      className="flex items-center justify-center gap-1 pointer-events-auto bg-background/95 rounded-md shadow-sm border border-border p-0.5"
+      className="flex items-center justify-center gap-1 pointer-events-auto bg-transparent rounded-md shadow-sm border border-border/30 p-0.5"
       onClick={(e) => e.stopPropagation()}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={handleMouseLeave}

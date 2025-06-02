@@ -26,12 +26,13 @@ export default function ToolSelector({ tools, onToolSelect, size, buttonIcon, bu
         <Button
           variant="outline"
           size="sm"
-          className="text-xs flex items-center gap-1 h-6 px-2 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors duration-200 rounded-full"
+          className="text-sm flex items-center gap-1.5 h-7 px-3 bg-white dark:bg-gray-900 border-gray-200 dark:border-gray-700 hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors duration-200 rounded-full"
+          style={{ fontFamily: 'Arial, sans-serif' }}
           onClick={() => setIsOpen(true)}
         >
-          <span className="text-amber-500 dark:text-amber-400 mr-1 text-[8px]">✦</span>
-          <span className="text-[10px]">{buttonLabel || (toolsEnabled ? "Tools" : "No Tools")}</span>
-          <ChevronDown className="h-2 w-2 ml-1 text-gray-500 dark:text-gray-400 transform rotate-180" />
+          <span className="text-amber-500 dark:text-amber-400 mr-1 text-sm">✦</span>
+          <span className="text-sm font-medium">{buttonLabel || (toolsEnabled ? "Tools" : "No Tools")}</span>
+          <ChevronDown className="h-3 w-3 ml-auto text-gray-400 dark:text-gray-500" />
         </Button>
       </PopoverTrigger>
       <PopoverContent

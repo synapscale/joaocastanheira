@@ -43,6 +43,8 @@ interface WorkflowContextType {
   duplicateNode: (nodeId: string) => void
   lockNode: (nodeId: string) => void
   unlockNode: (nodeId: string) => void
+  toggleNodeDisabled: (nodeId: string) => void
+  executeNode: (nodeId: string) => void
   alignNodes: (nodeIds: string[], alignment: "left" | "right" | "top" | "bottom" | "center") => void
 
   // Connection operations

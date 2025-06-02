@@ -143,7 +143,7 @@ function WorkflowNodeComponent({
       {/* Quick action buttons - visible when hovered */}
       {(showQuickActions || isSelected) && (
         <div
-          className="node-quick-actions absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[calc(50%-1px)]"
+          className="node-quick-actions absolute top-0 left-1/2 transform -translate-x-1/2 -translate-y-[calc(100%+8px)]"
           style={{ zIndex: 30 }}
         >
           <NodeQuickActions

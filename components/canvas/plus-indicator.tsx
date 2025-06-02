@@ -122,7 +122,10 @@ export function PlusIndicator({ x, y, sourceNodeId, onClick, onDragStart, onDrag
       onMouseLeave={() => setIsHovered(false)}
       onMouseDown={handleMouseDown}
       onKeyDown={handleKeyDown}
-      style={{ cursor: isDragging ? "grabbing" : "pointer" }}
+      style={{ 
+        cursor: isDragging ? "grabbing" : "pointer",
+        pointerEvents: "auto"
+      }}
       aria-label="Add node or connection"
       role="button"
       tabIndex={0}
