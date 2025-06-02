@@ -5,54 +5,11 @@ import { createContext, useContext, useState, useCallback, useMemo } from "react
 import type { Node, Connection, Position } from "@/types/workflow"
 import { nanoid } from "nanoid"
 
-// Mock data for initial nodes
-const initialNodes: Node[] = [
-  {
-    id: "node-1",
-    name: "Trigger",
-    type: "trigger",
-    position: { x: 400, y: 300 },
-    inputs: [],
-    outputs: ["output-1"],
-    description: "Start workflow",
-  },
-  {
-    id: "node-2",
-    name: "Process",
-    type: "action",
-    position: { x: 600, y: 300 },
-    inputs: ["input-1"],
-    outputs: ["output-1"],
-    description: "Process data",
-  },
-  {
-    id: "node-3",
-    name: "AI Task",
-    type: "ai",
-    position: { x: 800, y: 300 },
-    inputs: ["input-1"],
-    outputs: ["output-1"],
-    description: "AI processing",
-  },
-]
+// Inicialização sem nodes pré-existentes
+const initialNodes: Node[] = []
 
-// Mock data for initial connections
-const initialConnections: Connection[] = [
-  {
-    id: "connection-1",
-    from: "node-1",
-    to: "node-2",
-    type: "bezier",
-    label: "Data flow",
-  },
-  {
-    id: "connection-2",
-    from: "node-2",
-    to: "node-3",
-    type: "bezier",
-    label: "Process result",
-  },
-]
+// Inicialização sem conexões pré-existentes
+const initialConnections: Connection[] = []
 
 /**
  * Interface for the workflow context
@@ -163,7 +120,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
 
   // State for workflow
   const [workflowName, setWorkflowName] = useState("Untitled Workflow")
-  const [isActive, setIsActive] = useState(true)
+  const [isActive, setIsActive] = useState(false) // Inicializa como inativo por padrão
 
   // Node operations
   const addNode = useCallback((node: Node) => {

@@ -15,35 +15,25 @@ export default function Home() {
               Você pode criar nodes personalizados no Canvas de Criação e utilizá-los no Canvas de Workflow.
             </p>
             
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6 mb-6">
-              <Link href="/node-creator" className="block">
-                <div className="bg-blue-50 dark:bg-blue-900/20 rounded-lg p-6 border border-blue-200 dark:border-blue-800 h-full hover:shadow-md transition-shadow">
-                  <h3 className="text-xl font-medium mb-2 text-blue-700 dark:text-blue-300">Canvas de Criação de Nodes</h3>
-                  <p className="text-gray-600 dark:text-gray-400">
-                    Crie e configure nodes personalizados com uma interface visual intuitiva.
-                    Defina entradas, saídas e propriedades para seus nodes.
-                  </p>
-                </div>
-              </Link>
-              
-              <Link href="/canvas" className="block">
+            <div className="grid grid-cols-1 gap-6 mb-6">
+              <Link href="/workflows" className="block">
                 <div className="bg-green-50 dark:bg-green-900/20 rounded-lg p-6 border border-green-200 dark:border-green-800 h-full hover:shadow-md transition-shadow">
-                  <h3 className="text-xl font-medium mb-2 text-green-700 dark:text-green-300">Canvas de Workflow</h3>
+                  <h3 className="text-xl font-medium mb-2 text-green-700 dark:text-green-300">Gerenciar Workflows</h3>
                   <p className="text-gray-600 dark:text-gray-400">
-                    Utilize os nodes personalizados no canvas de workflow principal.
-                    Veja a sincronização em tempo real entre os dois canvases.
+                    Acesse a área de Workflows para criar, editar e gerenciar seus workflows.
+                    Os Canvas de edição estão disponíveis ao criar ou editar um workflow específico.
                   </p>
                 </div>
               </Link>
             </div>
             
             <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-              <h3 className="text-lg font-medium mb-2 text-yellow-700 dark:text-yellow-300">Como testar a integração:</h3>
+              <h3 className="text-lg font-medium mb-2 text-yellow-700 dark:text-yellow-300">Como utilizar os Workflows:</h3>
               <ol className="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300">
-                <li>Acesse o <strong>Canvas de Criação</strong> e crie um node de teste</li>
-                <li>Publique o node criado usando o botão "Publicar Último Node"</li>
-                <li>Acesse o <strong>Canvas de Workflow</strong> para ver o node publicado disponível</li>
-                <li>O validador de integração mostrará informações sobre os nodes sincronizados</li>
+                <li>Acesse a área de <strong>Workflows</strong> para visualizar todos os seus workflows</li>
+                <li>Clique em <strong>Criar Workflow</strong> para iniciar um novo workflow</li>
+                <li>Para editar um workflow existente, selecione a opção <strong>Editar no Canvas</strong> no menu de ações</li>
+                <li>Dentro do Canvas, você poderá criar e conectar nodes para construir seu workflow</li>
               </ol>
             </div>
           </div>

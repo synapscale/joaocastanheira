@@ -1,3 +1,4 @@
+// Configuração unificada de navegação para o projeto SynapScale
 import React from 'react';
 import { 
   Home, 
@@ -8,11 +9,24 @@ import {
   UserRound, 
   Cog,
   Puzzle,
-  Store
+  Store,
+  Key,
+  LayoutGrid,
+  BookOpen,
+  Box,
+  BookTemplate,
+  Variable,
+  History,
+  Settings
 } from "lucide-react"
 
 // Função para renderizar ícones dinamicamente a partir do nome
 export function renderIcon(iconName: string, className: string = "h-5 w-5") {
+  // Garantir que iconName não seja undefined
+  if (!iconName) {
+    return <div className={className} />;
+  }
+  
   switch (iconName) {
     case "Home":
       return <Home className={className} />;
@@ -32,22 +46,65 @@ export function renderIcon(iconName: string, className: string = "h-5 w-5") {
       return <Puzzle className={className} />;
     case "Store":
       return <Store className={className} />;
+    case "Key":
+      return <Key className={className} />;
+    case "LayoutGrid":
+      return <LayoutGrid className={className} />;
+    case "BookOpen":
+      return <BookOpen className={className} />;
+    case "Box":
+      return <Box className={className} />;
+    case "BookTemplate":
+      return <BookTemplate className={className} />;
+    case "Variable":
+      return <Variable className={className} />;
+    case "History":
+      return <History className={className} />;
+    case "Settings":
+      return <Settings className={className} />;
     default:
-      return <div className={className} />;
+      // Fallback para ícones não encontrados
+      console.warn(`Ícone não encontrado: ${iconName}`);
+      return <div className={className}>{iconName.charAt(0)}</div>;
   }
 }
 
-// Configuração original de navegação usando strings para ícones
-export const originalNavItems = [
+// Configuração unificada de navegação
+const navItems = [
   {
     name: "Editor de Workflow",
     href: "/",
-    iconName: "Home",
+    iconName: "LayoutGrid",
   },
   {
-    name: "Canvas",
-    href: "/canvas",
+    name: "Workflows",
+    href: "/workflows",
     iconName: "Layers",
+  },
+  {
+    name: "Criação de Nodes",
+    href: "/node-creator",
+    iconName: "Puzzle",
+    children: [
+      {
+        name: "Biblioteca de Nodes",
+        href: "/node-creator/library",
+      },
+      {
+        name: "Publicar Node",
+        href: "/node-creator/publish",
+      },
+    ],
+  },
+  {
+    name: "Marketplace",
+    href: "/marketplace",
+    iconName: "Store",
+  },
+  {
+    name: "Variáveis do Usuário",
+    href: "/user-variables",
+    iconName: "Key",
   },
   {
     name: "Agentes De IA",
@@ -65,6 +122,44 @@ export const originalNavItems = [
     iconName: "MessagesSquare",
   },
   {
+    name: "Recursos",
+    href: "#recursos",
+    iconName: "BookTemplate",
+    children: [
+      {
+        name: "Templates",
+        href: "/templates",
+      },
+      {
+        name: "Templates de Código",
+        href: "/templates/code-templates",
+      },
+      {
+        name: "Variáveis",
+        href: "/variables",
+      },
+    ],
+  },
+  {
+    name: "Desenvolvimento",
+    href: "#desenvolvimento",
+    iconName: "FileCode",
+    children: [
+      {
+        name: "Execuções",
+        href: "/executions",
+      },
+      {
+        name: "Templates de Nós",
+        href: "/node-definitions",
+      },
+      {
+        name: "Componentes",
+        href: "/components",
+      },
+    ],
+  },
+  {
     name: "Equipe",
     href: "/team",
     iconName: "UserRound",
@@ -74,49 +169,6 @@ export const originalNavItems = [
     href: "/settings",
     iconName: "Cog",
   },
-]
+];
 
-// Novas entradas a serem adicionadas
-export const newNavItems = [
-  {
-    name: "Criação de Nodes",
-    href: "/node-creator",
-    iconName: "Puzzle",
-    children: [
-      {
-        name: "Canvas de Criação",
-        href: "/node-creator/canvas",
-      },
-      {
-        name: "Biblioteca de Nodes",
-        href: "/node-creator/library",
-      },
-      {
-        name: "Publicar Node",
-        href: "/node-creator/publish",
-      },
-    ],
-  },
-  {
-    name: "Marketplace",
-    href: "/marketplace",
-    iconName: "Store",
-  },
-]
-
-// Função para integrar as novas entradas na posição correta
-export function getIntegratedNavItems() {
-  // Inserir as novas entradas após "Canvas" e antes de "Agentes De IA"
-  const insertIndex = originalNavItems.findIndex(item => item.name === "Canvas") + 1;
-  
-  const integratedItems = [
-    ...originalNavItems.slice(0, insertIndex),
-    ...newNavItems,
-    ...originalNavItems.slice(insertIndex)
-  ];
-  
-  return integratedItems;
-}
-
-// Exportar os itens de navegação integrados como padrão
-export default getIntegratedNavItems();
+export default navItems;

@@ -1,9 +1,9 @@
 "use client"
 
-import type React from "react"
-
-import { useRef, useEffect, useState, useCallback, useMemo } from "react"
+import React from "react"
 import { useWorkflow } from "@/context/workflow-context"
+import { EmptyCanvasPlaceholder } from "@/components/canvas/empty-canvas-placeholder"
+import { useRef, useEffect, useState, useCallback, useMemo } from "react"
 import { WorkflowNode } from "@/components/workflow-node"
 import { WorkflowConnection } from "@/components/workflow-connection"
 import { CanvasGrid } from "@/components/canvas/canvas-grid"
@@ -210,6 +210,22 @@ export function WorkflowCanvas() {
       minY,
     })
   }, [nodes])
+
+  // Handle adding the first node when canvas is empty
+  const handleAddFirstNode = useCallback(() => {
+    // Open the node panel at the center of the canvas
+    const rect = canvasRef.current?.getBoundingClientRect()
+    if (!rect) return
+
+    // Calculate center position
+    const position = {
+      x: rect.width / 2,
+      y: rect.height / 2,
+    }
+
+    // Open the node panel
+    openNodePanelAtPosition(position)
+  }, [openNodePanelAtPosition])
 
   // Handle plus indicator click
   const handlePlusIndicatorClick = useCallback(
@@ -454,6 +470,32 @@ export function WorkflowCanvas() {
         // Reset the plus indicator node ID
         setPlusIndicatorNodeId(null)
       }
+      // If we're adding the first node to an empty canvas
+      else if (nodes.length === 0) {
+        // Create a new node ID
+        const newNodeId = `node-${nanoid(6)}`
+
+        // Calculate position for the new node (center of canvas)
+        const rect = canvasRef.current?.getBoundingClientRect()
+        const centerX = rect ? rect.width / 2 / transform.zoom - transform.x / transform.zoom : 500
+        const centerY = rect ? rect.height / 2 / transform.zoom - transform.y / transform.zoom : 300
+
+        // Create the new node
+        const newNode: WorkflowNodeType = {
+          id: newNodeId,
+          type,
+          name: data.name,
+          description: data.description,
+          position: { x: centerX, y: centerY },
+          inputs: data.inputs || ["default"],
+          outputs: data.outputs || ["default"],
+          width: 70,
+          height: 70,
+        }
+
+        // Add the new node to the workflow
+        addNode(newNode)
+      }
 
       // Close the node panel
       setShowNodePanel(false)
@@ -467,6 +509,7 @@ export function WorkflowCanvas() {
       addConnection,
       removeConnection,
       setShowNodePanel,
+      transform,
     ],
   )
 
@@ -492,492 +535,519 @@ export function WorkflowCanvas() {
         maxY = Math.max(maxY, node.position.y + nodeHeight)
       })
 
-      // Calculate center of nodes
-      const nodesCenterX = (minX + maxX) / 2
-      const nodesCenterY = (minY + maxY) / 2
+      // If we have valid bounds
+      if (minX !== Number.POSITIVE_INFINITY && minY !== Number.POSITIVE_INFINITY) {
+        // Calculate center of nodes
+        const centerX = (minX + maxX) / 2
+        const centerY = (minY + maxY) / 2
 
-      // Get canvas dimensions
-      const canvasRect = canvasRef.current.getBoundingClientRect()
-      const canvasCenterX = canvasRect.width / 2
-      const canvasCenterY = canvasRect.height / 2
+        // Calculate canvas center
+        const canvasWidth = canvasRef.current.clientWidth
+        const canvasHeight = canvasRef.current.clientHeight
+        const canvasCenterX = canvasWidth / 2
+        const canvasCenterY = canvasHeight / 2
 
-      // Calculate offset to center nodes in canvas
-      const offsetX = canvasCenterX - nodesCenterX
-      const offsetY = canvasCenterY - nodesCenterY
+        // Calculate new pan offset to center nodes
+        const newPanX = canvasCenterX - centerX * zoom
+        const newPanY = canvasCenterY - centerY * zoom
 
-      // Update transform with animation
-      setTransform({
-        x: offsetX,
-        y: offsetY,
-        zoom: 1,
-        animated: true,
-      })
+        // Update pan offset
+        setPanOffset({ x: newPanX, y: newPanY })
+        setTransform({ x: newPanX, y: newPanY, zoom })
+      }
+    }
 
-      // Update pan offset
-      setPanOffset({
-        x: offsetX,
-        y: offsetY,
-      })
-
-      // Mark centering as complete
+    // Center canvas if we haven't done so yet
+    if (!hasCentered && nodes.length > 0) {
+      centerCanvas()
       setHasCentered(true)
     }
+  }, [nodes, zoom, setPanOffset, hasCentered, setTransform])
 
-    // Only run once when component mounts and nodes are available
-    if (!hasCentered && nodes.length > 0) {
-      // Small delay to ensure DOM is ready
-      const timer = setTimeout(() => {
-        centerCanvas()
-      }, 100)
-
-      return () => clearTimeout(timer)
-    }
-  }, [nodes, hasCentered, setTransform, setPanOffset])
-
-  // Add this useEffect to force centering when component is mounted
-  useEffect(() => {
-    // Reset centering state when component is unmounted
-    return () => {
-      setHasCentered(false)
-    }
-  }, [])
-
-  // Handle canvas click to clear selections
-  const handleCanvasClick = useCallback(
+  // Handle canvas mouse down for selection box
+  const handleCanvasMouseDown = useCallback(
     (e: React.MouseEvent) => {
-      if (e.target === canvasRef.current || e.target === e.currentTarget) {
-        clearSelections()
-        clearContextMenus()
-      }
-    },
-    [clearSelections, clearContextMenus],
-  )
+      // Only handle left mouse button
+      if (e.button !== 0) return
 
-  // Handle canvas right click for context menu
-  const handleCanvasContextMenu = useCallback(
-    (e: React.MouseEvent) => {
+      // Ignore if we're clicking on a node or other interactive element
+      if ((e.target as HTMLElement).closest(".node, .plus-indicator, .port")) return
+
+      // Prevent default to avoid text selection
       e.preventDefault()
 
-      if (e.target === canvasRef.current || e.target === e.currentTarget) {
-        const rect = canvasRef.current?.getBoundingClientRect() || { left: 0, top: 0 }
-        const position = { x: e.clientX, y: e.clientY }
+      // Clear any existing selections
+      clearSelections()
 
-        const canvasPosition = {
-          x: (e.clientX - rect.left - transform.x) / transform.zoom,
-          y: (e.clientY - rect.top - transform.y) / transform.zoom,
+      // Calculate canvas position
+      const position = clientToCanvasPosition(e.clientX, e.clientY)
+
+      // Start selection
+      setIsSelecting(true)
+      setSelectionStart(position)
+      setSelectionEnd(position)
+
+      // Add event listeners for drag and drop
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        // Calculate canvas position
+        const movePosition = clientToCanvasPosition(moveEvent.clientX, moveEvent.clientY)
+
+        // Update selection end
+        setSelectionEnd(movePosition)
+      }
+
+      const handleMouseUp = (upEvent: MouseEvent) => {
+        // Calculate canvas position
+        const upPosition = clientToCanvasPosition(upEvent.clientX, upEvent.clientY)
+
+        // Update selection end
+        setSelectionEnd(upPosition)
+
+        // If we have a valid selection
+        if (selectionStart && selectionEnd) {
+          // Calculate selection bounds
+          const minX = Math.min(selectionStart.x, upPosition.x)
+          const minY = Math.min(selectionStart.y, upPosition.y)
+          const maxX = Math.max(selectionStart.x, upPosition.x)
+          const maxY = Math.max(selectionStart.y, upPosition.y)
+
+          // Find nodes within selection
+          const selectedNodeIds = nodes
+            .filter((node) => {
+              const nodeWidth = node.width || 70
+              const nodeHeight = node.height || 70
+
+              return (
+                node.position.x < maxX &&
+                node.position.x + nodeWidth > minX &&
+                node.position.y < maxY &&
+                node.position.y + nodeHeight > minY
+              )
+            })
+            .map((node) => node.id)
+
+          // Update selected nodes
+          setSelectedNodes(selectedNodeIds)
         }
 
-        setCanvasContextMenu({ position, canvasPosition })
-        setNodeContextMenu(null)
-        setConnectionContextMenu(null)
+        // End selection
+        setIsSelecting(false)
+        setSelectionStart(null)
+        setSelectionEnd(null)
+
+        // Remove event listeners
+        window.removeEventListener("mousemove", handleMouseMove)
+        window.removeEventListener("mouseup", handleMouseUp)
       }
+
+      // Add event listeners
+      window.addEventListener("mousemove", handleMouseMove)
+      window.addEventListener("mouseup", handleMouseUp)
     },
-    [transform, setCanvasContextMenu, setNodeContextMenu, setConnectionContextMenu],
+    [clientToCanvasPosition, clearSelections, nodes, selectionStart, selectionEnd, setSelectedNodes],
   )
 
-  // Close context menus when clicking outside
-  useEffect(() => {
-    const handleClickOutside = (e: MouseEvent) => {
-      // Only close if clicking outside menus
-      if (
-        !e.target ||
-        (!(e.target as Element).closest(".context-menu") && !(e.target as Element).closest(".dropdown-menu"))
-      ) {
-        clearContextMenus()
-      }
-    }
-
-    document.addEventListener("click", handleClickOutside)
-    return () => document.removeEventListener("click", handleClickOutside)
-  }, [clearContextMenus])
-
-  // Keyboard shortcuts
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      // Don't trigger shortcuts when typing in input fields
-      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) {
-        return
-      }
-
-      // Command/Ctrl + K to open command palette
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault()
-        setShowCommandPalette(true)
-      }
-
-      // ? to show keyboard shortcuts
-      if (e.key === "?" && !e.ctrlKey && !e.metaKey && !e.altKey) {
-        e.preventDefault()
-        setShowKeyboardShortcuts(true)
-      }
-
-      // Escape to close dialogs
-      if (e.key === "Escape") {
-        setShowCommandPalette(false)
-        setShowKeyboardShortcuts(false)
-        clearContextMenus()
-      }
-
-      // Delete to remove selected nodes
-      if (e.key === "Delete" && selectedNodes.length > 0) {
-        e.preventDefault()
-        selectedNodes.forEach((nodeId) => {
-          removeNode(nodeId)
-        })
-      }
-
-      // Arrow keys for panning
-      const panStep = 20
-      if (e.key === "ArrowUp") {
-        setPanOffset((prev) => ({ x: prev.x, y: prev.y + panStep }))
-        setTransform((prev) => ({ ...prev, y: prev.y + panStep }))
-      } else if (e.key === "ArrowDown") {
-        setPanOffset((prev) => ({ x: prev.x, y: prev.y - panStep }))
-        setTransform((prev) => ({ ...prev, y: prev.y - panStep }))
-      } else if (e.key === "ArrowLeft") {
-        setPanOffset((prev) => ({ x: prev.x + panStep, y: prev.y }))
-        setTransform((prev) => ({ ...prev, x: prev.x + panStep }))
-      } else if (e.key === "ArrowRight") {
-        setPanOffset((prev) => ({ x: prev.x - panStep, y: prev.y }))
-        setTransform((prev) => ({ ...prev, x: prev.x - panStep }))
-      }
-    }
-
-    window.addEventListener("keydown", handleKeyDown)
-    return () => window.removeEventListener("keydown", handleKeyDown)
-  }, [
-    setPanOffset,
-    setTransform,
-    selectedNodes,
-    removeNode,
-    setShowCommandPalette,
-    setShowKeyboardShortcuts,
-    clearContextMenus,
-  ])
-
-  // Handle mouse down for selection box
-  const handleMouseDown = useCallback(
+  // Handle canvas context menu
+  const handleCanvasContextMenu = useCallback(
     (e: React.MouseEvent) => {
-      // Only start selection if left button is pressed and not pressing Alt
-      if (e.button === 0 && !e.altKey && e.target === e.currentTarget) {
-        const rect = canvasRef.current?.getBoundingClientRect()
-        if (!rect) return
+      // Prevent default context menu
+      e.preventDefault()
 
-        const position = {
-          x: (e.clientX - rect.left - transform.x) / transform.zoom,
-          y: (e.clientY - rect.top - transform.y) / transform.zoom,
-        }
+      // Ignore if we're right-clicking on a node or other interactive element
+      if ((e.target as HTMLElement).closest(".node, .plus-indicator, .port")) return
 
-        setIsSelecting(true)
-        setSelectionStart(position)
-        setSelectionEnd(position)
-      }
+      // Calculate canvas position
+      const position = clientToCanvasPosition(e.clientX, e.clientY)
+
+      // Show canvas context menu
+      setCanvasContextMenu({
+        position: { x: e.clientX, y: e.clientY },
+        canvasPosition: position,
+      })
     },
-    [transform],
-  )
-
-  // Handle mouse move for selection box
-  const handleMouseMove = useCallback(
-    (e: React.MouseEvent) => {
-      if (isSelecting && selectionStart) {
-        const rect = canvasRef.current?.getBoundingClientRect()
-        if (!rect) return
-
-        const position = {
-          x: (e.clientX - rect.left - transform.x) / transform.zoom,
-          y: (e.clientY - rect.top - transform.y) / transform.zoom,
-        }
-
-        setSelectionEnd(position)
-      }
-    },
-    [isSelecting, selectionStart, transform],
-  )
-
-  // Handle mouse up for selection box
-  const handleMouseUp = useCallback(() => {
-    if (isSelecting && selectionStart && selectionEnd) {
-      // Calculate selection box coordinates
-      const left = Math.min(selectionStart.x, selectionEnd.x)
-      const right = Math.max(selectionStart.x, selectionEnd.x)
-      const top = Math.min(selectionStart.y, selectionEnd.y)
-      const bottom = Math.max(selectionStart.y, selectionEnd.y)
-
-      // Find nodes inside selection box
-      const selectedNodeIds = nodes
-        .filter((node) => {
-          const nodeLeft = node.position.x
-          const nodeRight = node.position.x + (node.width || 70)
-          const nodeTop = node.position.y
-          const nodeBottom = node.position.y + (node.height || 70)
-
-          return nodeLeft < right && nodeRight > left && nodeTop < bottom && nodeBottom > top
-        })
-        .map((node) => node.id)
-
-      // Update selected nodes
-      if (selectedNodeIds.length > 0) {
-        setSelectedNodes(selectedNodeIds)
-      }
-    }
-
-    // Reset selection state
-    setIsSelecting(false)
-    setSelectionStart(null)
-    setSelectionEnd(null)
-  }, [isSelecting, selectionStart, selectionEnd, nodes, setSelectedNodes])
-
-  // Handle node selection
-  const handleNodeSelect = useCallback(
-    (nodeId: string, multiple: boolean) => {
-      setSelectedNodes((prev) =>
-        multiple ? (prev.includes(nodeId) ? prev.filter((id) => id !== nodeId) : [...prev, nodeId]) : [nodeId],
-      )
-    },
-    [setSelectedNodes],
+    [clientToCanvasPosition, setCanvasContextMenu],
   )
 
   // Handle node context menu
   const handleNodeContextMenu = useCallback(
     (e: React.MouseEvent, nodeId: string) => {
+      // Prevent default context menu
       e.preventDefault()
-      e.stopPropagation()
+
+      // Calculate canvas position
+      const position = clientToCanvasPosition(e.clientX, e.clientY)
+
+      // Show node context menu
       setNodeContextMenu({
+        nodeIds: [nodeId],
         position: { x: e.clientX, y: e.clientY },
-        nodeIds: selectedNodes.includes(nodeId) ? selectedNodes : [nodeId],
       })
-      setConnectionContextMenu(null)
-      setCanvasContextMenu(null)
     },
-    [selectedNodes, setNodeContextMenu, setConnectionContextMenu, setCanvasContextMenu],
+    [clientToCanvasPosition, setNodeContextMenu],
   )
 
   // Handle connection context menu
   const handleConnectionContextMenu = useCallback(
     (e: React.MouseEvent, connectionId: string) => {
+      // Prevent default context menu
       e.preventDefault()
-      e.stopPropagation()
+
+      // Show connection context menu
       setConnectionContextMenu({
-        position: { x: e.clientX, y: e.clientY },
         connectionId,
+        position: { x: e.clientX, y: e.clientY },
       })
-      setNodeContextMenu(null)
-      setCanvasContextMenu(null)
     },
-    [setConnectionContextMenu, setNodeContextMenu, setCanvasContextMenu],
+    [setConnectionContextMenu],
   )
 
-  // Handle connection label edit request
-  const handleConnectionLabelEditRequest = useCallback((connectionId: string, position: Position) => {
-    setLabelEditorInfo({ connectionId, position })
-  }, [])
+  // Handle connection label click
+  const handleConnectionLabelClick = useCallback(
+    (e: React.MouseEvent, connectionId: string) => {
+      // Prevent default
+      e.preventDefault()
+      e.stopPropagation()
 
-  // Memoize nodes to render
-  const nodesToRender = useMemo(() => {
-    return nodes.map((node) => (
-      <WorkflowNode
-        key={node.id}
-        node={node}
-        isSelected={selectedNodes.includes(node.id)}
-        onSelect={handleNodeSelect}
-        onDragStart={handleNodeDragStart}
-        onDoubleClick={() => openNodeEditor(node.id)}
-        onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
-        onPortDragStart={handlePortDragStart}
-      />
-    ))
-  }, [
-    nodes,
-    selectedNodes,
-    handleNodeSelect,
-    handleNodeDragStart,
-    openNodeEditor,
-    handleNodeContextMenu,
-    handlePortDragStart,
-  ])
-
-  // Memoize connections to render
-  const connectionsToRender = useMemo(() => {
-    return connections.map((connection) => (
-      <WorkflowConnection
-        key={connection.id}
-        connection={connection}
-        isSelected={connectionContextMenu?.connectionId === connection.id}
-        onContextMenu={handleConnectionContextMenu}
-      />
-    ))
-  }, [connections, connectionContextMenu, handleConnectionContextMenu])
-
-  // Memoize plus indicators to render
-  const plusIndicatorsToRender = useMemo(() => {
-    return nodes
-      .filter((node) => !checkHasOutputConnections(node.id))
-      .map((node) => {
-        const x = node.position.x + (node.width || 70) + 16
-        const y = node.position.y + (node.height || 70) / 2
-        return (
-          <PlusIndicator
-            key={`plus-${node.id}`}
-            x={x}
-            y={y}
-            sourceNodeId={node.id}
-            onClick={handlePlusIndicatorClick}
-            onDragStart={handlePlusIndicatorDragStart}
-            onDrag={handlePlusIndicatorDrag}
-            onDragEnd={handlePlusIndicatorDragEnd}
-          />
-        )
+      // Show label editor
+      setLabelEditorInfo({
+        connectionId,
+        position: { x: e.clientX, y: e.clientY },
       })
+    },
+    [setLabelEditorInfo],
+  )
+
+  // Handle connection click for adding a node
+  const handleConnectionClick = useCallback(
+    (e: React.MouseEvent, connectionId: string) => {
+      // Prevent default
+      e.preventDefault()
+      e.stopPropagation()
+
+      // Set the connection for node panel
+      setConnectionForNodePanel(connectionId)
+
+      // Calculate position for the node panel
+      const rect = canvasRef.current?.getBoundingClientRect()
+      if (!rect) return
+
+      // Open the node panel at the click position
+      const position = {
+        x: e.clientX - rect.left,
+        y: e.clientY - rect.top,
+      }
+
+      openNodePanelAtPosition(position)
+    },
+    [openNodePanelAtPosition],
+  )
+
+  // Handle canvas pan
+  const handleCanvasPan = useCallback(
+    (e: React.MouseEvent) => {
+      // Only handle middle mouse button or space + left mouse button
+      if (e.button !== 1) return
+
+      // Prevent default
+      e.preventDefault()
+
+      // Start panning
+      panStart(e.clientX, e.clientY)
+
+      // Add event listeners for drag and drop
+      const handleMouseMove = (moveEvent: MouseEvent) => {
+        // Update pan
+        panMove(moveEvent.clientX, moveEvent.clientY)
+      }
+
+      const handleMouseUp = () => {
+        // End panning
+        panEnd()
+
+        // Remove event listeners
+        window.removeEventListener("mousemove", handleMouseMove)
+        window.removeEventListener("mouseup", handleMouseUp)
+      }
+
+      // Add event listeners
+      window.addEventListener("mousemove", handleMouseMove)
+      window.addEventListener("mouseup", handleMouseUp)
+    },
+    [panStart, panMove, panEnd],
+  )
+
+  // Handle keyboard shortcuts
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Ignore if we're in an input field
+      if (
+        document.activeElement &&
+        (document.activeElement.tagName === "INPUT" || document.activeElement.tagName === "TEXTAREA")
+      ) {
+        return
+      }
+
+      // Handle keyboard shortcuts
+      switch (e.key) {
+        case "Delete":
+        case "Backspace":
+          // Delete selected nodes
+          if (selectedNodes.length > 0) {
+            selectedNodes.forEach((nodeId) => removeNode(nodeId))
+            setSelectedNodes([])
+          }
+          break
+        case "Escape":
+          // Clear selections and context menus
+          clearSelections()
+          clearContextMenus()
+          break
+        case "a":
+          // Select all nodes if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            setSelectedNodes(nodes.map((node) => node.id))
+          }
+          break
+        case "c":
+          // Copy selected nodes if Ctrl/Cmd is pressed
+          if ((e.ctrlKey || e.metaKey) && selectedNodes.length > 0) {
+            e.preventDefault()
+            // TODO: Implement copy functionality
+          }
+          break
+        case "v":
+          // Paste copied nodes if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            // TODO: Implement paste functionality
+          }
+          break
+        case "z":
+          // Undo if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            // TODO: Implement undo functionality
+          }
+          break
+        case "y":
+          // Redo if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            // TODO: Implement redo functionality
+          }
+          break
+        case "=":
+        case "+":
+          // Zoom in if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            zoomIn()
+          }
+          break
+        case "-":
+          // Zoom out if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            zoomOut()
+          }
+          break
+        case "0":
+          // Reset zoom if Ctrl/Cmd is pressed
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            resetView()
+          }
+          break
+        case "d":
+          // Duplicate selected nodes if Ctrl/Cmd is pressed
+          if ((e.ctrlKey || e.metaKey) && selectedNodes.length > 0) {
+            e.preventDefault()
+            selectedNodes.forEach((nodeId) => duplicateNode(nodeId))
+          }
+          break
+        case "p":
+          // Show command palette
+          if (e.ctrlKey || e.metaKey) {
+            e.preventDefault()
+            setShowCommandPalette(true)
+          }
+          break
+        case "?":
+          // Show keyboard shortcuts
+          if (e.shiftKey) {
+            e.preventDefault()
+            setShowKeyboardShortcuts(true)
+          }
+          break
+      }
+    }
+
+    // Add event listener
+    window.addEventListener("keydown", handleKeyDown)
+
+    // Remove event listener on cleanup
+    return () => {
+      window.removeEventListener("keydown", handleKeyDown)
+    }
   }, [
+    selectedNodes,
+    removeNode,
+    setSelectedNodes,
+    clearSelections,
+    clearContextMenus,
     nodes,
-    checkHasOutputConnections,
-    handlePlusIndicatorClick,
-    handlePlusIndicatorDragStart,
-    handlePlusIndicatorDrag,
-    handlePlusIndicatorDragEnd,
+    zoomIn,
+    zoomOut,
+    resetView,
+    duplicateNode,
+    setShowCommandPalette,
+    setShowKeyboardShortcuts,
   ])
 
-  // Expose the label editor function globally for context menus
-  useEffect(() => {
-    window.workflowCanvas = {
-      editConnectionLabel: (connectionId: string, position: Position) => {
-        setLabelEditorInfo({ connectionId, position })
-      },
-      openNodePanelForConnection: (connectionId: string, position: Position) => {
-        setConnectionForNodePanel(connectionId)
-
-        // Convert canvas position to screen position for the panel
-        const rect = canvasRef.current?.getBoundingClientRect()
-        if (rect) {
-          const screenPosition = {
-            x: position.x * transform.zoom + transform.x + rect.left,
-            y: position.y * transform.zoom + transform.y + rect.top,
-          }
-          openNodePanelAtPosition(screenPosition)
-        }
-      },
-    }
-
-    return () => {
-      window.workflowCanvas = undefined
-    }
-  }, [openNodePanelAtPosition, transform])
-
+  // Render the canvas
   return (
-    <div className="relative h-full overflow-hidden bg-gray-50">
+    <div className="relative w-full h-full overflow-hidden bg-[#F9FAFB]">
+      {/* Canvas */}
       <div
         ref={canvasRef}
-        className="h-full w-full overflow-hidden"
-        onClick={handleCanvasClick}
+        className="absolute inset-0 cursor-grab active:cursor-grabbing"
+        onMouseDown={handleCanvasMouseDown}
         onContextMenu={handleCanvasContextMenu}
-        onMouseDown={(e) => {
-          panStart(e)
-          handleMouseDown(e)
-        }}
-        onMouseMove={(e) => {
-          panMove(e)
-          handleNodeDrag(e)
-          handleMouseMove(e)
-        }}
-        onMouseUp={() => {
-          panEnd()
-          handleNodeDragEnd()
-          handleMouseUp()
-        }}
+        onMouseDownCapture={handleCanvasPan}
         onWheel={handleWheel}
-        aria-label="Workflow canvas"
-        role="application"
       >
-        <div
-          className="relative w-full h-full"
+        {/* Canvas grid */}
+        <CanvasGrid zoom={transform.zoom} panOffset={transform.x} />
+
+        {/* SVG layer for connections */}
+        <svg
+          ref={svgRef}
+          className="absolute inset-0 pointer-events-none"
           style={{
             transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
             transformOrigin: "0 0",
-            transition: transform.animated ? "transform 0.1s ease-out" : "none",
           }}
         >
-          {/* Background grid */}
-          <CanvasGrid width={canvasDimensions.width} height={canvasDimensions.height} />
+          {/* Connections */}
+          {connections.map((connection) => (
+            <WorkflowConnection
+              key={connection.id}
+              connection={connection}
+              nodes={nodes}
+              onContextMenu={(e) => handleConnectionContextMenu(e, connection.id)}
+              onLabelClick={(e) => handleConnectionLabelClick(e, connection.id)}
+              onClick={(e) => handleConnectionClick(e, connection.id)}
+            />
+          ))}
 
-          {/* SVG container for connections */}
-          <svg
-            ref={svgRef}
-            className="absolute top-0 left-0"
-            style={{
-              zIndex: 5,
-              width: "100%",
-              height: "100%",
-              overflow: "visible",
-            }}
-            preserveAspectRatio="xMidYMid meet"
-          >
-            {/* Connections */}
-            {connectionsToRender}
+          {/* Connection preview */}
+          {connectionPreview && (
+            <ConnectionPreview
+              startX={connectionPreview.start.x}
+              startY={connectionPreview.start.y}
+              endX={connectionPreview.end.x}
+              endY={connectionPreview.end.y}
+              isValid={connectionPreview.isValid}
+            />
+          )}
+        </svg>
 
-            {/* Plus indicators for nodes without output connections */}
-            {plusIndicatorsToRender}
-
-            {/* Connection preview when dragging from plus indicator */}
-            {connectionPreview && (
-              <ConnectionPreview
-                startX={connectionPreview.startX}
-                startY={connectionPreview.startY}
-                endX={connectionPreview.endX}
-                endY={connectionPreview.endY}
-                type="bezier"
-                isDashed={!connectionPreview.isValidTarget}
-                isValidTarget={connectionPreview.isValidTarget}
-              />
-            )}
-
-            {/* Connection preview when dragging from port to port */}
-            {portConnectionDrag && (
-              <ConnectionPreview
-                startX={portConnectionDrag.startX}
-                startY={portConnectionDrag.startY}
-                endX={portConnectionDrag.endX}
-                endY={portConnectionDrag.endY}
-                type="bezier"
-                color={portConnectionDrag.sourcePortType === "output" ? "#4f46e5" : "#f97316"}
-                isDashed={!portConnectionDrag.isValidTarget}
-                isValidTarget={portConnectionDrag.isValidTarget}
-              />
-            )}
-          </svg>
-
-          {/* Nodes */}
-          {nodesToRender}
-
-          {/* Selection box */}
-          {isSelecting && selectionStart && selectionEnd && <SelectionBox start={selectionStart} end={selectionEnd} />}
+        {/* Nodes */}
+        <div
+          className="absolute inset-0 pointer-events-none"
+          style={{
+            transform: `translate(${transform.x}px, ${transform.y}px) scale(${transform.zoom})`,
+            transformOrigin: "0 0",
+          }}
+        >
+          {nodes.map((node) => (
+            <WorkflowNode
+              key={node.id}
+              node={node}
+              selected={selectedNodes.includes(node.id)}
+              onSelect={() => {
+                setSelectedNode(node)
+                setSelectedNodes([node.id])
+              }}
+              onDragStart={(e) => handleNodeDragStart(e, node.id)}
+              onDrag={handleNodeDrag}
+              onDragEnd={handleNodeDragEnd}
+              onContextMenu={(e) => handleNodeContextMenu(e, node.id)}
+              onDoubleClick={() => openNodeEditor(node)}
+              onPortDragStart={handlePortDragStart}
+            >
+              {/* Plus indicator for adding connected nodes */}
+              {!checkHasOutputConnections(node.id) && (
+                <PlusIndicator
+                  nodeId={node.id}
+                  onClick={(e) => handlePlusIndicatorClick(e, node.id)}
+                  onDragStart={(e) => handlePlusIndicatorDragStart(e, node.id)}
+                  onDrag={handlePlusIndicatorDrag}
+                  onDragEnd={handlePlusIndicatorDragEnd}
+                />
+              )}
+            </WorkflowNode>
+          ))}
         </div>
+
+        {/* Empty canvas placeholder */}
+        {nodes.length === 0 && (
+          <EmptyCanvasPlaceholder onAddFirstNode={handleAddFirstNode} />
+        )}
+
+        {/* Selection box */}
+        {isSelecting && selectionStart && selectionEnd && (
+          <SelectionBox
+            start={{
+              x: selectionStart.x * transform.zoom + transform.x,
+              y: selectionStart.y * transform.zoom + transform.y,
+            }}
+            end={{
+              x: selectionEnd.x * transform.zoom + transform.x,
+              y: selectionEnd.y * transform.zoom + transform.y,
+            }}
+          />
+        )}
       </div>
 
       {/* Canvas controls */}
-      <CanvasControls />
+      <CanvasControls
+        onZoomIn={zoomIn}
+        onZoomOut={zoomOut}
+        onResetView={resetView}
+        zoom={zoom}
+        onToggleNodePanel={toggleNodePanel}
+      />
 
-      {/* Quick actions button - positioned in top right corner */}
+      {/* Mini map */}
+      <MiniMap
+        nodes={nodes}
+        connections={connections}
+        viewportWidth={canvasRef.current?.clientWidth || 0}
+        viewportHeight={canvasRef.current?.clientHeight || 0}
+        transform={transform}
+        onViewportChange={setTransform}
+      />
+
+      {/* Quick actions */}
       <div className="absolute top-4 right-4 z-10">
         <CanvasQuickActions onOpenNodePanel={toggleNodePanel} />
       </div>
 
-      {/* Mini map */}
-      {nodes.length > 0 && <MiniMap />}
-
       {/* Context menus */}
       {nodeContextMenu && (
         <NodeContextMenu
-          position={nodeContextMenu.position}
           nodeIds={nodeContextMenu.nodeIds}
+          position={nodeContextMenu.position}
           onClose={() => setNodeContextMenu(null)}
-          onEdit={(nodeId) => openNodeEditor(nodeId)}
         />
       )}
 
       {connectionContextMenu && (
         <ConnectionContextMenu
-          position={connectionContextMenu.position}
           connectionId={connectionContextMenu.connectionId}
+          position={connectionContextMenu.position}
           onClose={() => setConnectionContextMenu(null)}
         />
       )}
@@ -990,38 +1060,32 @@ export function WorkflowCanvas() {
         />
       )}
 
-      {/* Command palette */}
-      {showCommandPalette && <CommandPalette onClose={() => setShowCommandPalette(false)} />}
-
-      {/* Keyboard shortcuts help */}
-      {showKeyboardShortcuts && <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />}
-
-      {/* Node panel - slides from right */}
+      {/* Node panel */}
       {showNodePanel && (
         <NodePanel
           position={nodePanelPosition}
-          onClose={() => {
-            setShowNodePanel(false)
-            setPlusIndicatorNodeId(null)
-            setConnectionForNodePanel(null)
-          }}
-          onAddNode={handleNodeSelection}
+          onClose={() => setShowNodePanel(false)}
+          onNodeSelect={handleNodeSelection}
         />
       )}
 
-      {/* Node Editor Dialog */}
-      {isOpen && editingNode ? (
+      {/* Command palette */}
+      {showCommandPalette && <CommandPalette onClose={() => setShowCommandPalette(false)} />}
+
+      {/* Keyboard shortcuts */}
+      {showKeyboardShortcuts && <KeyboardShortcuts onClose={() => setShowKeyboardShortcuts(false)} />}
+
+      {/* Node editor dialog */}
+      {isOpen && editingNode && (
         <NodeEditorDialog
-          key={editingNode.id}
           node={editingNode}
-          open={isOpen}
           onClose={closeNodeEditor}
           onSave={saveNode}
           onDelete={deleteNode}
         />
-      ) : null}
+      )}
 
-      {/* Connection Label Editor */}
+      {/* Connection label editor */}
       {labelEditorInfo && (
         <ConnectionLabelEditor
           connectionId={labelEditorInfo.connectionId}
