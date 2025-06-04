@@ -1,532 +1,402 @@
-"use client"
-
 /**
- * Contexto de Autenticação - SynapScale Frontend
- * Implementado por José - O melhor Full Stack do mundo
- * Sistema robusto de autenticação com JWT, refresh tokens e gestão de estado
+ * Contexto de autenticação
+ * Gerencia estado global de autenticação da aplicação
  */
 
-import React, { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
-import { useRouter } from "next/navigation"
+'use client'
 
-// Tipos para autenticação
-export interface User {
-  id: string
-  email: string
-  name: string
-  avatar?: string
-  role: string
-  isActive: boolean
-  createdAt: string
-  lastLoginAt?: string
-  preferences?: UserPreferences
+import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import { authService } from '../lib/services/auth'
+import type {
+  AuthContextType,
+  AuthUser,
+  LoginData,
+  RegisterData,
+  AuthResponse,
+  AuthState,
+  AuthAction,
+  AuthError,
+} from '../lib/types/auth'
+
+// Estado inicial
+const initialState: AuthState = {
+  user: null,
+  token: null,
+  refreshToken: null,
+  isLoading: false,
+  isInitialized: false,
+  error: null,
 }
 
-export interface UserPreferences {
-  theme: "light" | "dark" | "system"
-  language: string
-  timezone: string
-  notifications: {
-    email: boolean
-    push: boolean
-    workflow: boolean
+// Reducer para gerenciar estado de autenticação
+function authReducer(state: AuthState, action: AuthAction): AuthState {
+  switch (action.type) {
+    case 'AUTH_START':
+      return {
+        ...state,
+        isLoading: true,
+        error: null,
+      }
+
+    case 'AUTH_SUCCESS':
+      return {
+        ...state,
+        user: action.payload.user,
+        token: action.payload.tokens.accessToken,
+        refreshToken: action.payload.tokens.refreshToken,
+        isLoading: false,
+        error: null,
+      }
+
+    case 'AUTH_ERROR':
+      return {
+        ...state,
+        user: null,
+        token: null,
+        refreshToken: null,
+        isLoading: false,
+        error: action.payload,
+      }
+
+    case 'AUTH_LOGOUT':
+      return {
+        ...state,
+        user: null,
+        token: null,
+        refreshToken: null,
+        isLoading: false,
+        error: null,
+      }
+
+    case 'AUTH_REFRESH_TOKEN':
+      return {
+        ...state,
+        token: action.payload,
+        error: null,
+      }
+
+    case 'AUTH_UPDATE_USER':
+      return {
+        ...state,
+        user: action.payload,
+        error: null,
+      }
+
+    case 'AUTH_CLEAR_ERROR':
+      return {
+        ...state,
+        error: null,
+      }
+
+    case 'AUTH_INITIALIZE':
+      return {
+        ...state,
+        isInitialized: true,
+        isLoading: false,
+      }
+
+    default:
+      return state
   }
 }
 
-export interface AuthTokens {
-  accessToken: string
-  refreshToken: string
-  expiresAt: number
-}
-
-export interface LoginCredentials {
-  email: string
-  password: string
-}
-
-export interface RegisterData {
-  email: string
-  password: string
-  name: string
-}
-
-export interface AuthState {
-  user: User | null
-  tokens: AuthTokens | null
-  isAuthenticated: boolean
-  isLoading: boolean
-  error: string | null
-}
-
-export interface AuthContextType extends AuthState {
-  // Métodos de autenticação
-  login: (credentials: LoginCredentials) => Promise<boolean>
-  register: (data: RegisterData) => Promise<boolean>
-  logout: () => Promise<void>
-  refreshAuth: () => Promise<boolean>
-  
-  // Métodos de usuário
-  updateUser: (userData: Partial<User>) => Promise<boolean>
-  updatePreferences: (preferences: Partial<UserPreferences>) => Promise<boolean>
-  
-  // Métodos utilitários
-  clearError: () => void
-  checkAuthStatus: () => Promise<boolean>
-}
-
-// Configuração da API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000/api/v1"
-
-// Chaves para localStorage
-const STORAGE_KEYS = {
-  ACCESS_TOKEN: "synapscale_access_token",
-  REFRESH_TOKEN: "synapscale_refresh_token",
-  USER_DATA: "synapscale_user_data",
-  EXPIRES_AT: "synapscale_expires_at"
-} as const
-
-// Contexto de autenticação
+// Criar contexto
 const AuthContext = createContext<AuthContextType | undefined>(undefined)
 
-// Hook para usar o contexto de autenticação
-export const useAuth = (): AuthContextType => {
-  const context = useContext(AuthContext)
-  if (!context) {
-    throw new Error("useAuth deve ser usado dentro de um AuthProvider")
-  }
-  return context
+// Props do provider
+interface AuthProviderProps {
+  children: React.ReactNode
 }
 
-// Utilitários para localStorage
-const storage = {
-  get: (key: string): string | null => {
-    if (typeof window === "undefined") return null
-    try {
-      return localStorage.getItem(key)
-    } catch {
-      return null
-    }
-  },
-  
-  set: (key: string, value: string): void => {
-    if (typeof window === "undefined") return
-    try {
-      localStorage.setItem(key, value)
-    } catch (error) {
-      console.error("Erro ao salvar no localStorage:", error)
-    }
-  },
-  
-  remove: (key: string): void => {
-    if (typeof window === "undefined") return
-    try {
-      localStorage.removeItem(key)
-    } catch (error) {
-      console.error("Erro ao remover do localStorage:", error)
-    }
-  },
-  
-  clear: (): void => {
-    if (typeof window === "undefined") return
-    try {
-      Object.values(STORAGE_KEYS).forEach(key => localStorage.removeItem(key))
-    } catch (error) {
-      console.error("Erro ao limpar localStorage:", error)
-    }
-  }
-}
+/**
+ * Provider de autenticação
+ */
+export function AuthProvider({ children }: AuthProviderProps) {
+  const [state, dispatch] = useReducer(authReducer, initialState)
 
-// Utilitários para API
-const apiClient = {
-  async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const url = `${API_BASE_URL}${endpoint}`
-    
-    const defaultHeaders = {
-      "Content-Type": "application/json",
-    }
-    
-    // Adicionar token de autorização se disponível
-    const accessToken = storage.get(STORAGE_KEYS.ACCESS_TOKEN)
-    if (accessToken) {
-      defaultHeaders["Authorization"] = `Bearer ${accessToken}`
-    }
-    
-    const config: RequestInit = {
-      ...options,
-      headers: {
-        ...defaultHeaders,
-        ...options.headers,
-      },
-    }
-    
-    try {
-      const response = await fetch(url, config)
-      
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({ message: "Erro desconhecido" }))
-        throw new Error(errorData.message || `HTTP ${response.status}`)
-      }
-      
-      return await response.json()
-    } catch (error) {
-      console.error(`Erro na requisição para ${endpoint}:`, error)
-      throw error
-    }
-  },
-  
-  async post<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "POST",
-      body: data ? JSON.stringify(data) : undefined,
-    })
-  },
-  
-  async get<T>(endpoint: string): Promise<T> {
-    return this.request<T>(endpoint, { method: "GET" })
-  },
-  
-  async put<T>(endpoint: string, data?: any): Promise<T> {
-    return this.request<T>(endpoint, {
-      method: "PUT",
-      body: data ? JSON.stringify(data) : undefined,
-    })
-  }
-}
-
-// Provider de autenticação
-export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children }) => {
-  const router = useRouter()
-  
-  // Estado da autenticação
-  const [authState, setAuthState] = useState<AuthState>({
-    user: null,
-    tokens: null,
-    isAuthenticated: false,
-    isLoading: true,
-    error: null,
-  })
-  
-  // Carregar dados do localStorage
-  const loadStoredAuth = useCallback((): AuthTokens | null => {
-    const accessToken = storage.get(STORAGE_KEYS.ACCESS_TOKEN)
-    const refreshToken = storage.get(STORAGE_KEYS.REFRESH_TOKEN)
-    const expiresAt = storage.get(STORAGE_KEYS.EXPIRES_AT)
-    
-    if (!accessToken || !refreshToken || !expiresAt) {
-      return null
-    }
-    
-    return {
-      accessToken,
-      refreshToken,
-      expiresAt: parseInt(expiresAt, 10),
-    }
-  }, [])
-  
-  // Salvar tokens no localStorage
-  const saveTokens = useCallback((tokens: AuthTokens): void => {
-    storage.set(STORAGE_KEYS.ACCESS_TOKEN, tokens.accessToken)
-    storage.set(STORAGE_KEYS.REFRESH_TOKEN, tokens.refreshToken)
-    storage.set(STORAGE_KEYS.EXPIRES_AT, tokens.expiresAt.toString())
-  }, [])
-  
-  // Salvar dados do usuário
-  const saveUser = useCallback((user: User): void => {
-    storage.set(STORAGE_KEYS.USER_DATA, JSON.stringify(user))
-  }, [])
-  
-  // Carregar dados do usuário
-  const loadUser = useCallback((): User | null => {
-    const userData = storage.get(STORAGE_KEYS.USER_DATA)
-    if (!userData) return null
-    
-    try {
-      return JSON.parse(userData)
-    } catch {
-      return null
-    }
-  }, [])
-  
-  // Limpar dados de autenticação
-  const clearAuth = useCallback((): void => {
-    storage.clear()
-    setAuthState({
-      user: null,
-      tokens: null,
-      isAuthenticated: false,
-      isLoading: false,
-      error: null,
-    })
-  }, [])
-  
-  // Verificar se o token está expirado
-  const isTokenExpired = useCallback((tokens: AuthTokens): boolean => {
-    return Date.now() >= tokens.expiresAt
-  }, [])
-  
-  // Refresh do token
-  const refreshAuth = useCallback(async (): Promise<boolean> => {
-    try {
-      const storedTokens = loadStoredAuth()
-      if (!storedTokens?.refreshToken) {
-        return false
-      }
-      
-      const response = await apiClient.post<{
-        access_token: string
-        refresh_token: string
-        expires_in: number
-        user: User
-      }>("/auth/refresh", {
-        refresh_token: storedTokens.refreshToken
-      })
-      
-      const newTokens: AuthTokens = {
-        accessToken: response.access_token,
-        refreshToken: response.refresh_token,
-        expiresAt: Date.now() + (response.expires_in * 1000),
-      }
-      
-      saveTokens(newTokens)
-      saveUser(response.user)
-      
-      setAuthState(prev => ({
-        ...prev,
-        user: response.user,
-        tokens: newTokens,
-        isAuthenticated: true,
-        error: null,
-      }))
-      
-      return true
-    } catch (error) {
-      console.error("Erro ao renovar token:", error)
-      clearAuth()
-      return false
-    }
-  }, [loadStoredAuth, saveTokens, saveUser, clearAuth])
-  
-  // Login
-  const login = useCallback(async (credentials: LoginCredentials): Promise<boolean> => {
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      const response = await apiClient.post<{
-        access_token: string
-        refresh_token: string
-        expires_in: number
-        user: User
-      }>("/auth/login", credentials)
-      
-      const tokens: AuthTokens = {
-        accessToken: response.access_token,
-        refreshToken: response.refresh_token,
-        expiresAt: Date.now() + (response.expires_in * 1000),
-      }
-      
-      saveTokens(tokens)
-      saveUser(response.user)
-      
-      setAuthState({
-        user: response.user,
-        tokens,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      })
-      
-      return true
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro ao fazer login"
-      setAuthState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage,
-      }))
-      return false
-    }
-  }, [saveTokens, saveUser])
-  
-  // Registro
-  const register = useCallback(async (data: RegisterData): Promise<boolean> => {
-    try {
-      setAuthState(prev => ({ ...prev, isLoading: true, error: null }))
-      
-      const response = await apiClient.post<{
-        access_token: string
-        refresh_token: string
-        expires_in: number
-        user: User
-      }>("/auth/register", data)
-      
-      const tokens: AuthTokens = {
-        accessToken: response.access_token,
-        refreshToken: response.refresh_token,
-        expiresAt: Date.now() + (response.expires_in * 1000),
-      }
-      
-      saveTokens(tokens)
-      saveUser(response.user)
-      
-      setAuthState({
-        user: response.user,
-        tokens,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      })
-      
-      return true
-    } catch (error) {
-      const errorMessage = error instanceof Error ? error.message : "Erro ao criar conta"
-      setAuthState(prev => ({
-        ...prev,
-        isLoading: false,
-        error: errorMessage,
-      }))
-      return false
-    }
-  }, [saveTokens, saveUser])
-  
-  // Logout
-  const logout = useCallback(async (): Promise<void> => {
-    try {
-      // Tentar invalidar token no servidor
-      await apiClient.post("/auth/logout")
-    } catch (error) {
-      console.error("Erro ao fazer logout no servidor:", error)
-    } finally {
-      clearAuth()
-      router.push("/login")
-    }
-  }, [clearAuth, router])
-  
-  // Atualizar usuário
-  const updateUser = useCallback(async (userData: Partial<User>): Promise<boolean> => {
-    try {
-      const response = await apiClient.put<{ user: User }>("/auth/profile", userData)
-      
-      const updatedUser = response.user
-      saveUser(updatedUser)
-      
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-      }))
-      
-      return true
-    } catch (error) {
-      console.error("Erro ao atualizar usuário:", error)
-      return false
-    }
-  }, [saveUser])
-  
-  // Atualizar preferências
-  const updatePreferences = useCallback(async (preferences: Partial<UserPreferences>): Promise<boolean> => {
-    try {
-      const response = await apiClient.put<{ user: User }>("/auth/preferences", preferences)
-      
-      const updatedUser = response.user
-      saveUser(updatedUser)
-      
-      setAuthState(prev => ({
-        ...prev,
-        user: updatedUser,
-      }))
-      
-      return true
-    } catch (error) {
-      console.error("Erro ao atualizar preferências:", error)
-      return false
-    }
-  }, [saveUser])
-  
-  // Verificar status de autenticação
-  const checkAuthStatus = useCallback(async (): Promise<boolean> => {
-    try {
-      const storedTokens = loadStoredAuth()
-      const storedUser = loadUser()
-      
-      if (!storedTokens || !storedUser) {
-        setAuthState(prev => ({ ...prev, isLoading: false }))
-        return false
-      }
-      
-      // Verificar se o token está expirado
-      if (isTokenExpired(storedTokens)) {
-        // Tentar renovar o token
-        const refreshed = await refreshAuth()
-        if (!refreshed) {
-          setAuthState(prev => ({ ...prev, isLoading: false }))
-          return false
-        }
-        return true
-      }
-      
-      // Token válido, restaurar estado
-      setAuthState({
-        user: storedUser,
-        tokens: storedTokens,
-        isAuthenticated: true,
-        isLoading: false,
-        error: null,
-      })
-      
-      return true
-    } catch (error) {
-      console.error("Erro ao verificar autenticação:", error)
-      clearAuth()
-      return false
-    }
-  }, [loadStoredAuth, loadUser, isTokenExpired, refreshAuth, clearAuth])
-  
-  // Limpar erro
-  const clearError = useCallback((): void => {
-    setAuthState(prev => ({ ...prev, error: null }))
-  }, [])
-  
-  // Verificar autenticação na inicialização
+  // Inicializar autenticação ao carregar a aplicação
   useEffect(() => {
-    checkAuthStatus()
-  }, [checkAuthStatus])
-  
+    initializeAuth()
+  }, [])
+
   // Auto-refresh do token
   useEffect(() => {
-    if (!authState.tokens || !authState.isAuthenticated) return
+    if (state.token && state.isInitialized) {
+      const interval = setInterval(() => {
+        if (authService.isTokenExpiringSoon()) {
+          refreshAccessToken()
+        }
+      }, 60000) // Verificar a cada minuto
+
+      return () => clearInterval(interval)
+    }
+  }, [state.token, state.isInitialized])
+
+  /**
+   * Inicializa autenticação verificando dados salvos
+   */
+  const initializeAuth = useCallback(async () => {
+    try {
+      const storedUser = authService.getStoredUser()
+      const storedToken = authService.getStoredToken()
+      const storedRefreshToken = authService.getStoredRefreshToken()
+
+      if (storedUser && storedToken && storedRefreshToken) {
+        // Verificar se token ainda é válido
+        const isValid = await authService.checkAuthStatus()
+        
+        if (isValid) {
+          dispatch({
+            type: 'AUTH_SUCCESS',
+            payload: {
+              user: storedUser,
+              tokens: {
+                accessToken: storedToken,
+                refreshToken: storedRefreshToken,
+                expiresIn: 0,
+                tokenType: 'Bearer',
+              },
+            },
+          })
+        } else {
+          authService.clearAuthData()
+        }
+      }
+    } catch (error) {
+      console.error('Erro ao inicializar autenticação:', error)
+      authService.clearAuthData()
+    } finally {
+      dispatch({ type: 'AUTH_INITIALIZE' })
+    }
+  }, [])
+
+  /**
+   * Realiza login
+   */
+  const login = useCallback(async (data: LoginData): Promise<AuthResponse> => {
+    dispatch({ type: 'AUTH_START' })
     
-    const timeUntilExpiry = authState.tokens.expiresAt - Date.now()
-    const refreshTime = Math.max(timeUntilExpiry - 5 * 60 * 1000, 60 * 1000) // 5 min antes ou 1 min mínimo
+    try {
+      const response = await authService.login(data)
+      
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: {
+          user: response.user,
+          tokens: response.tokens,
+        },
+      })
+
+      return response
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'LOGIN_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao fazer login',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Realiza registro
+   */
+  const register = useCallback(async (data: RegisterData): Promise<AuthResponse> => {
+    dispatch({ type: 'AUTH_START' })
     
-    const timer = setTimeout(() => {
-      refreshAuth()
-    }, refreshTime)
-    
-    return () => clearTimeout(timer)
-  }, [authState.tokens, authState.isAuthenticated, refreshAuth])
-  
+    try {
+      const response = await authService.register(data)
+      
+      dispatch({
+        type: 'AUTH_SUCCESS',
+        payload: {
+          user: response.user,
+          tokens: response.tokens,
+        },
+      })
+
+      return response
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'REGISTER_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao criar conta',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Realiza logout
+   */
+  const logout = useCallback(async (): Promise<void> => {
+    try {
+      await authService.logout()
+    } catch (error) {
+      console.error('Erro ao fazer logout:', error)
+    } finally {
+      dispatch({ type: 'AUTH_LOGOUT' })
+    }
+  }, [])
+
+  /**
+   * Atualiza token de acesso
+   */
+  const refreshAccessToken = useCallback(async (): Promise<string | null> => {
+    try {
+      const newToken = await authService.refreshAccessToken()
+      
+      if (newToken) {
+        dispatch({ type: 'AUTH_REFRESH_TOKEN', payload: newToken })
+      }
+      
+      return newToken
+    } catch (error) {
+      console.error('Erro ao atualizar token:', error)
+      dispatch({ type: 'AUTH_LOGOUT' })
+      return null
+    }
+  }, [])
+
+  /**
+   * Atualiza dados do usuário
+   */
+  const updateUser = useCallback(async (data: Partial<AuthUser>): Promise<AuthUser> => {
+    try {
+      const updatedUser = await authService.updateUser(data)
+      dispatch({ type: 'AUTH_UPDATE_USER', payload: updatedUser })
+      return updatedUser
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'UPDATE_USER_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao atualizar usuário',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Altera senha
+   */
+  const changePassword = useCallback(async (currentPassword: string, newPassword: string): Promise<void> => {
+    try {
+      await authService.changePassword(currentPassword, newPassword)
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'CHANGE_PASSWORD_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao alterar senha',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Verifica email
+   */
+  const verifyEmail = useCallback(async (token: string): Promise<void> => {
+    try {
+      await authService.verifyEmail(token)
+      
+      // Atualizar dados do usuário após verificação
+      if (state.user) {
+        const updatedUser = await authService.getCurrentUser()
+        dispatch({ type: 'AUTH_UPDATE_USER', payload: updatedUser })
+      }
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'EMAIL_VERIFICATION_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao verificar email',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [state.user])
+
+  /**
+   * Solicita reset de senha
+   */
+  const requestPasswordReset = useCallback(async (email: string): Promise<void> => {
+    try {
+      await authService.requestPasswordReset(email)
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'PASSWORD_RESET_REQUEST_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao solicitar reset de senha',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Reseta senha
+   */
+  const resetPassword = useCallback(async (token: string, newPassword: string): Promise<void> => {
+    try {
+      await authService.resetPassword(token, newPassword)
+    } catch (error) {
+      const authError: AuthError = {
+        code: 'PASSWORD_RESET_FAILED',
+        message: error instanceof Error ? error.message : 'Erro ao resetar senha',
+      }
+      
+      dispatch({ type: 'AUTH_ERROR', payload: authError })
+      throw error
+    }
+  }, [])
+
+  /**
+   * Verifica status de autenticação
+   */
+  const checkAuthStatus = useCallback(async (): Promise<boolean> => {
+    try {
+      return await authService.checkAuthStatus()
+    } catch (error) {
+      console.error('Erro ao verificar status de autenticação:', error)
+      return false
+    }
+  }, [])
+
+  /**
+   * Limpa dados de autenticação
+   */
+  const clearAuthData = useCallback((): void => {
+    authService.clearAuthData()
+    dispatch({ type: 'AUTH_LOGOUT' })
+  }, [])
+
   // Valor do contexto
-  const contextValue = useMemo<AuthContextType>(() => ({
-    ...authState,
+  const contextValue: AuthContextType = {
+    // Estado
+    user: state.user,
+    token: state.token,
+    refreshToken: state.refreshToken,
+    isAuthenticated: !!state.user && !!state.token,
+    isLoading: state.isLoading,
+    isInitialized: state.isInitialized,
+    
+    // Métodos
     login,
     register,
     logout,
-    refreshAuth,
+    refreshAccessToken,
     updateUser,
-    updatePreferences,
-    clearError,
+    changePassword,
+    verifyEmail,
+    requestPasswordReset,
+    resetPassword,
     checkAuthStatus,
-  }), [
-    authState,
-    login,
-    register,
-    logout,
-    refreshAuth,
-    updateUser,
-    updatePreferences,
-    clearError,
-    checkAuthStatus,
-  ])
-  
+    clearAuthData,
+  }
+
   return (
     <AuthContext.Provider value={contextValue}>
       {children}
@@ -534,24 +404,33 @@ export const AuthProvider: React.FC<{ children: React.ReactNode }> = ({ children
   )
 }
 
-// Hook para verificar se o usuário está autenticado
-export const useRequireAuth = () => {
-  const { isAuthenticated, isLoading } = useAuth()
-  const router = useRouter()
+/**
+ * Hook para usar o contexto de autenticação
+ */
+export function useAuth(): AuthContextType {
+  const context = useContext(AuthContext)
   
-  useEffect(() => {
-    if (!isLoading && !isAuthenticated) {
-      router.push("/login")
-    }
-  }, [isAuthenticated, isLoading, router])
+  if (context === undefined) {
+    throw new Error('useAuth deve ser usado dentro de um AuthProvider')
+  }
   
-  return { isAuthenticated, isLoading }
+  return context
 }
 
-// Hook para dados do usuário
-export const useUser = () => {
-  const { user, updateUser, updatePreferences } = useAuth()
-  return { user, updateUser, updatePreferences }
+/**
+ * Hook para verificar se está autenticado
+ */
+export function useIsAuthenticated(): boolean {
+  const { isAuthenticated } = useAuth()
+  return isAuthenticated
+}
+
+/**
+ * Hook para obter dados do usuário
+ */
+export function useUser(): AuthUser | null {
+  const { user } = useAuth()
+  return user
 }
 
 export default AuthProvider
