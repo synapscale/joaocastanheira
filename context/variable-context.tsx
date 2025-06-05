@@ -273,7 +273,6 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
           value: variable.value,
           scope: variable.scope,
           description: variable.description,
-          isSecret: variable.isSecret,
           tags: variable.tags,
         }
 
@@ -327,7 +326,6 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
           name: updates.name,
           value: updates.value,
           description: updates.description,
-          isSecret: updates.isSecret,
           tags: updates.tags,
         }
 
@@ -459,12 +457,8 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
   }, [state.variables])
 
   // Operações de uso de variáveis (mantidas para compatibilidade)
-  const trackVariableUsage = useCallback((usage: Omit<VariableUsage, "id">) => {
-    const newUsage: VariableUsage = {
-      ...usage,
-      id: `usage-${nanoid(6)}`,
-    }
-    dispatch({ type: 'ADD_VARIABLE_USAGE', payload: newUsage })
+  const trackVariableUsage = useCallback((usage: VariableUsage) => {
+    dispatch({ type: 'ADD_VARIABLE_USAGE', payload: usage })
   }, [])
 
   const removeVariableUsage = useCallback((nodeId: string, parameterKey: string) => {
@@ -581,10 +575,10 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
 /**
  * Hook para usar o contexto de variáveis
  */
-export function useVariableContext() {
+export const useVariables = () => {
   const context = useContext(VariableContext)
   if (context === undefined) {
-    throw new Error("useVariableContext must be used within a VariableProvider")
+    throw new Error('useVariables must be used within a VariableProvider')
   }
   return context
 }

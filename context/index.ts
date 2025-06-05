@@ -8,7 +8,7 @@ export * from "./node-template-context"
 export * from "./workflow-context"
 
 // Contextos de gerenciamento de variáveis e código
-export * from "./variable-context"
+export { useVariables, VariableProvider } from './variable-context'
 export * from "./code-template-context"
 
 // Contextos de UI e navegação
