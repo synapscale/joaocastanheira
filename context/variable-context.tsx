@@ -30,7 +30,7 @@ interface VariableContextType {
   getVariablesByScope: (scope: VariableScope) => Variable[]
 
   // Uso de variáveis
-  trackVariableUsage: (usage: Omit<VariableUsage, "id">) => void
+  trackVariableUsage: (usage: VariableUsage) => void
   removeVariableUsage: (nodeId: string, parameterKey: string) => void
   getNodeVariableUsage: (nodeId: string) => VariableUsage[]
   getVariableUsage: (variableId: string) => VariableUsage[]

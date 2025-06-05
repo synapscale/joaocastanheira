@@ -7,7 +7,7 @@
 
 import { useEffect, useCallback, useState } from 'react'
 import { useAuth } from '@/context/auth-context'
-import { useVariableContext } from '@/context/variable-context'
+import { useVariables } from '@/context'
 import { toast } from 'sonner'
 
 /**
@@ -37,7 +37,7 @@ const defaultSyncConfig: SyncConfig = {
  */
 export function useAutoSync(config: Partial<SyncConfig> = {}) {
   const { isAuthenticated } = useAuth()
-  const { syncVariables, lastSync, syncing, error } = useVariableContext()
+  const { syncVariables, lastSync, syncing, error } = useVariables()
   const [syncConfig] = useState<SyncConfig>({ ...defaultSyncConfig, ...config })
   const [retryCount, setRetryCount] = useState(0)
 
@@ -147,7 +147,7 @@ export function VariableAutoSync(props: Partial<SyncConfig> = {}) {
  * Componente de indicador de status de sincronização
  */
 export function SyncStatusIndicator() {
-  const { syncing, lastSync, error } = useVariableContext()
+  const { syncing, lastSync, error } = useVariables()
   const { isAuthenticated } = useAuth()
 
   if (!isAuthenticated) return null
@@ -192,7 +192,7 @@ export function SyncStatusIndicator() {
  */
 export function useOfflineChanges() {
   const [hasOfflineChanges, setHasOfflineChanges] = useState(false)
-  const { variables, lastSync } = useVariableContext()
+  const { variables, lastSync } = useVariables()
 
   useEffect(() => {
     // Verifica se há variáveis modificadas após a última sincronização
@@ -213,7 +213,7 @@ export function useOfflineChanges() {
  */
 export function OfflineChangesNotification() {
   const { isAuthenticated } = useAuth()
-  const { syncVariables, syncing } = useVariableContext()
+  const { syncVariables, syncing } = useVariables()
   const hasOfflineChanges = useOfflineChanges()
   const [dismissed, setDismissed] = useState(false)
 
