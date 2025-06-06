@@ -1,0 +1,380 @@
+@tailwind base;
+@tailwind components;
+@tailwind utilities;
+
+@layer base {
+  :root {
+    /* Paleta de cores padrão - Modo Claro */
+    --background: 0 0% 100%; /* #FFFFFF */
+    --foreground: 0 0% 0%; /* #000000 */
+
+    --card: 0 0% 100%; /* #FFFFFF */
+    --card-foreground: 0 0% 0%; /* #000000 */
+
+    --popover: 0 0% 100%; /* #FFFFFF */
+    --popover-foreground: 0 0% 0%; /* #000000 */
+
+    /* Gradiente Laranja */
+    --primary: 20 100% 48%; /* #f35500 */
+    --primary-gradient: 28 100% 50%; /* #ff7e00 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --secondary: 240 5% 96%; /* #F7F7F8 */
+    --secondary-foreground: 0 0% 43%; /* #6E6E6E */
+
+    --muted: 240 5% 96%; /* #F7F7F8 */
+    --muted-foreground: 0 0% 43%; /* #6E6E6E */
+
+    --accent: 240 5% 96%; /* #F7F7F8 */
+    --accent-foreground: 0 0% 0%; /* #000000 */
+
+    --destructive: 0 84.2% 60.2%; /* #EF4444 */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --border: 0 0% 88%; /* #E0E0E0 */
+    --input: 0 0% 88%; /* #E0E0E0 */
+    --ring: 20 100% 48%; /* #f35500 */
+
+    --radius: 0.5rem;
+  }
+
+  .dark {
+    /* Paleta de cores padrão - Modo Escuro (corrigido para preto/cinza) */
+    --background: 0 0% 10%; /* #1A1A1A - Fundo principal */
+    --foreground: 0 0% 100%; /* #FFFFFF - Texto principal */
+
+    --card: 0 0% 15%; /* #262626 - Fundo de cartões */
+    --card-foreground: 0 0% 100%; /* #FFFFFF - Texto em cartões */
+
+    --popover: 0 0% 15%; /* #262626 - Fundo de popovers */
+    --popover-foreground: 0 0% 100%; /* #FFFFFF - Texto em popovers */
+
+    /* Gradiente Laranja (mantido) */
+    --primary: 20 100% 48%; /* #f35500 */
+    --primary-gradient: 28 100% 50%; /* #ff7e00 */
+    --primary-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --secondary: 0 0% 15%; /* #262626 - Fundo secundário */
+    --secondary-foreground: 0 0% 70%; /* #B3B3B3 - Texto secundário */
+
+    --muted: 0 0% 15%; /* #262626 - Fundo atenuado */
+    --muted-foreground: 0 0% 60%; /* #999999 - Texto atenuado */
+
+    --accent: 0 0% 20%; /* #333333 - Fundo de destaque */
+    --accent-foreground: 0 0% 100%; /* #FFFFFF - Texto de destaque */
+
+    --destructive: 0 62.8% 30.6%; /* #991B1B */
+    --destructive-foreground: 0 0% 100%; /* #FFFFFF */
+
+    --border: 0 0% 25%; /* #404040 - Bordas */
+    --input: 0 0% 25%; /* #404040 - Bordas de input */
+    --ring: 20 100% 48%; /* #f35500 */
+  }
+}
+
+@layer base {
+  * {
+    @apply border-border;
+  }
+  body {
+    @apply bg-background text-foreground;
+    font-feature-settings: "rlig" 1, "calt" 1;
+  }
+}
+
+@layer components {
+  /* Estilos do Chat */
+  .chat-container {
+    @apply max-w-[650px] mx-auto;
+  }
+  
+  .chat-message {
+    @apply py-6 px-4 transition-all duration-200;
+  }
+  
+  .chat-message-user {
+    @apply bg-secondary/50;
+  }
+  
+  .chat-message-assistant {
+    @apply bg-background;
+  }
+  
+  .chat-input-container {
+    @apply bg-background border border-border rounded-xl shadow-sm transition-all duration-200 hover:border-primary/30 focus-within:border-primary/50 focus-within:shadow-md mb-8;
+  }
+  
+  .chat-input-textarea {
+    @apply p-3 resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base;
+  }
+  
+  .chat-button {
+    @apply rounded-md p-2 text-muted-foreground hover:text-foreground transition-colors duration-200;
+  }
+  
+  .chat-button-primary {
+    @apply bg-gradient-to-r from-[#f35500] to-[#ff7e00] text-white rounded-md hover:opacity-90 transition-opacity duration-200;
+  }
+  
+  .chat-selector-button {
+    @apply flex items-center gap-2 bg-white dark:bg-gray-800 border border-border rounded-full px-3 py-1.5 text-sm hover:border-primary/30 hover:bg-primary/5 dark:hover:bg-primary/10 transition-colors duration-200;
+  }
+  
+  /* Transições suaves */
+  .smooth-transition {
+    @apply transition-all duration-200 ease-in-out;
+  }
+  
+  /* Sombras sutis */
+  .subtle-shadow {
+    @apply shadow-[0_1px_4px_rgba(0,0,0,0.1)];
+  }
+  
+  /* Efeito vidro */
+  .glass-effect {
+    @apply bg-white/80 dark:bg-gray-800/80 backdrop-blur-md border border-white/20 dark:border-gray-700/30;
+  }
+
+  .scrollbar-thin {
+    scrollbar-width: thin;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar {
+    width: 6px;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(156, 163, 175, 0.5);
+    border-radius: 3px;
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb {
+    background-color: rgba(75, 85, 99, 0.5);
+  }
+
+  .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(107, 114, 128, 0.7);
+  }
+
+  .dark .scrollbar-thin::-webkit-scrollbar-thumb:hover {
+    background-color: rgba(107, 114, 128, 0.7);
+  }
+
+  /* Estilos do modo foco */
+  .focus-mode .conversation-sidebar,
+  .focus-mode .component-selector-overlay {
+    display: none;
+  }
+
+  .focus-mode .message-actions-container {
+    position: relative;
+    opacity: 0;
+    transition: opacity 0.2s ease-in-out;
+  }
+
+  .focus-mode .message:hover .message-actions-container {
+    opacity: 1;
+  }
+
+  .focus-mode.message-actions-below .message-actions-container {
+    margin-top: 0.5rem;
+    display: flex;
+    justify-content: flex-start;
+  }
+
+  .focus-mode.message-actions-below .message[data-role="user"] .message-actions-container {
+    justify-content: flex-end;
+  }
+
+  /* Estilos específicos da interface de chat */
+  .chat-focus-mode .conversation-sidebar {
+    display: none;
+  }
+
+  .chat-focus-mode .message-actions-below .message-actions-container {
+    position: relative;
+    display: flex;
+    justify-content: flex-start;
+    margin-top: 0.5rem;
+  }
+
+  .chat-focus-mode .message-actions-below .message[data-role="user"] .message-actions-container {
+    justify-content: flex-end;
+  }
+
+  /* Animações */
+  .animate-in {
+    animation: fadeIn 0.3s ease-in-out;
+  }
+
+  @keyframes fadeIn {
+    from {
+      opacity: 0;
+      transform: translateY(5px);
+    }
+    to {
+      opacity: 1;
+      transform: translateY(0);
+    }
+  }
+
+  /* Estilos da sidebar */
+  .sidebar {
+    /* Removido position fixed para usar flexbox */
+    height: 100vh;
+    z-index: 50;
+    transition: width 0.3s ease, transform 0.3s ease;
+    flex-shrink: 0;
+  }
+
+  .sidebar.expanded {
+    width: 16rem;
+  }
+
+  .sidebar.collapsed {
+    width: 4.5rem;
+  }
+
+  /* Correção para o conteúdo principal se ajustar quando a sidebar é minimizada */
+  .main-content {
+    transition: all 0.3s ease;
+    flex: 1;
+    width: 100%;
+  }
+
+  /* Removidas as classes que aplicavam margin-left fixo */
+  .sidebar-expanded .main-content {
+    /* Conteúdo se ajusta automaticamente com flexbox */
+  }
+
+  .sidebar-collapsed .main-content {
+    /* Conteúdo se ajusta automaticamente com flexbox */
+  }
+
+  @media (max-width: 768px) {
+    .sidebar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      transform: translateX(-100%);
+    }
+    
+    .sidebar.mobile-visible {
+      transform: translateX(0);
+    }
+    
+    .sidebar-expanded .main-content,
+    .sidebar-collapsed .main-content {
+      margin-left: 0;
+      width: 100%;
+    }
+  }
+
+  /* Padronização de cores para todas as páginas */
+  .btn-primary {
+    @apply bg-gradient-to-r from-[#f35500] to-[#ff7e00] text-white hover:opacity-90;
+  }
+
+  .tag-active {
+    @apply bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100;
+  }
+
+  .tag-draft {
+    @apply bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100;
+  }
+
+  .tag-archived {
+    @apply bg-gray-100 text-gray-800 dark:bg-gray-700 dark:text-gray-100;
+  }
+
+  /* Padronização de cards */
+  .card {
+    @apply bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm hover:shadow-md transition-shadow duration-200;
+  }
+
+  /* Padronização de paginação */
+  .pagination-item {
+    @apply inline-flex items-center justify-center w-8 h-8 rounded-full;
+  }
+
+  .pagination-item.active {
+    @apply bg-primary text-white;
+  }
+
+  .pagination-item:not(.active) {
+    @apply text-gray-600 dark:text-gray-300 hover:bg-gray-100 dark:hover:bg-gray-700;
+  }
+
+  /* Padronização de inputs */
+  .input-standard {
+    @apply w-full px-4 py-2 border border-gray-300 dark:border-gray-600 rounded-lg bg-white dark:bg-gray-800 focus:ring-2 focus:ring-primary/50 focus:border-primary outline-none transition-all duration-200;
+  }
+
+  /* Padronização de botões */
+  .button-standard {
+    @apply px-4 py-2 rounded-lg font-medium transition-all duration-200;
+  }
+
+  /* Padronização de headers */
+  .page-header {
+    @apply mb-6 pb-4 border-b border-gray-200 dark:border-gray-700;
+  }
+
+  /* Padronização de espaçamentos */
+  .content-spacing {
+    @apply px-6 py-4;
+  }
+
+  /* Padronização de tabs */
+  .tab {
+    @apply px-4 py-2 rounded-full text-sm font-medium transition-all duration-200;
+  }
+
+  .tab.active {
+    @apply bg-gray-100 dark:bg-gray-700 text-gray-900 dark:text-white;
+  }
+
+  .tab:not(.active) {
+    @apply text-gray-600 dark:text-gray-300 hover:bg-gray-50 dark:hover:bg-gray-800;
+  }
+
+  /* Histórico de conversas sidebar */
+  .chat-history-sidebar {
+    @apply fixed top-0 right-0 h-full w-80 bg-white dark:bg-gray-800 border-l border-gray-200 dark:border-gray-700 z-50 transform translate-x-full transition-transform duration-300 ease-in-out;
+  }
+
+  .chat-history-sidebar.open {
+    @apply translate-x-0;
+  }
+  
+  /* Espaçamento entre funcionalidades e borda do bloco de enviar mensagem */
+  .chat-input-actions {
+    @apply pb-4 pt-2; /* Aumentado o padding inferior para criar mais espaço */
+  }
+}
+
+/* Estilos para o modo escuro corrigido */
+.dark {
+  --tw-bg-opacity: 1;
+  background-color: rgb(26 26 26 / var(--tw-bg-opacity)) !important;
+  color-scheme: dark;
+}
+
+.dark .bg-gray-900 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(26 26 26 / var(--tw-bg-opacity)) !important;
+}
+
+.dark .bg-gray-800 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(38 38 38 / var(--tw-bg-opacity)) !important;
+}
+
+.dark .bg-gray-700 {
+  --tw-bg-opacity: 1;
+  background-color: rgb(64 64 64 / var(--tw-bg-opacity)) !important;
+}
