@@ -5,7 +5,7 @@
 
 export const config = {
   // URLs base para comunicação com o backend
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_BASE_URL || 'http://localhost:8000',
+  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
   wsUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
   
   // Ambiente da aplicação
@@ -85,7 +85,7 @@ export function validateConfig(): { isValid: boolean; errors: string[] } {
   const errors: string[] = []
   
   if (!config.apiBaseUrl) {
-    errors.push('NEXT_PUBLIC_API_BASE_URL é obrigatório')
+    errors.push('NEXT_PUBLIC_API_URL é obrigatório')
   }
   
   if (!config.wsUrl) {
@@ -96,7 +96,7 @@ export function validateConfig(): { isValid: boolean; errors: string[] } {
   try {
     new URL(config.apiBaseUrl)
   } catch {
-    errors.push('NEXT_PUBLIC_API_BASE_URL deve ser uma URL válida')
+    errors.push('NEXT_PUBLIC_API_URL deve ser uma URL válida')
   }
   
   return {

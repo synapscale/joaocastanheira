@@ -9,6 +9,7 @@ import { config as appConfig } from './lib/config'
 
 // Rotas que requerem autenticação
 const protectedRoutes = [
+  '/', // Página inicial agora requer autenticação
   '/user-variables',
   '/workflows',
   '/chat',
@@ -17,6 +18,11 @@ const protectedRoutes = [
   '/monitoring',
   '/profile',
   '/settings',
+  '/canvas',
+  '/node-creator',
+  '/templates',
+  '/variables',
+  '/agentes',
 ]
 
 // Rotas de autenticação (redirecionam se já autenticado)
@@ -29,7 +35,6 @@ const authRoutes = [
 
 // Rotas públicas (sempre acessíveis)
 const publicRoutes = [
-  '/',
   '/docs',
   '/marketplace',
   '/about',
@@ -43,7 +48,10 @@ const publicRoutes = [
  * Verifica se uma rota está protegida
  */
 function isProtectedRoute(pathname: string): boolean {
-  return protectedRoutes.some(route => pathname.startsWith(route))
+  return protectedRoutes.some(route => 
+    pathname === route || 
+    pathname.startsWith(route + '/')
+  )
 }
 
 /**
@@ -100,7 +108,7 @@ export function middleware(request: NextRequest) {
     return NextResponse.next()
   }
 
-  // Redirecionar usuários autenticados das páginas de auth
+  // Redirecionar usuários autenticados das páginas de auth para dashboard
   if (isAuthRoute(pathname) && isUserAuthenticated) {
     const redirectUrl = request.nextUrl.searchParams.get('redirect') || '/'
     return NextResponse.redirect(new URL(redirectUrl, request.url))
