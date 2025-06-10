@@ -25,7 +25,7 @@ export function ChatInput({
   sessionId
 }: ChatInputIntegratedProps) {
   const [message, setMessage] = useState('')
-  const [attachments, setAttachments] = useState<File[]>([])
+  const [attachments, setAttachments] = useState<{ file: File; id: string }[]>([])
   const [isTypingActive, setIsTypingActive] = useState(false)
   const textareaRef = useRef<HTMLTextAreaElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -100,7 +100,8 @@ export function ChatInput({
     if (isLoading) return
 
     const messageToSend = message.trim()
-    const attachmentsToSend = [...attachments]
+    const prevAttachments = attachments
+    const attachmentsToSend = attachments.map(a => a.file)
 
     // Limpar input
     setMessage('')
@@ -122,7 +123,7 @@ export function ChatInput({
     } catch (error) {
       // Restaurar mensagem em caso de erro
       setMessage(messageToSend)
-      setAttachments(attachmentsToSend)
+      setAttachments(prevAttachments)
     }
   }
 
@@ -135,7 +136,11 @@ export function ChatInput({
 
   const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
     const files = Array.from(e.target.files || [])
-    setAttachments(prev => [...prev, ...files])
+    const attachmentsWithId = files.map(file => ({
+      file,
+      id: `${file.name}-${file.lastModified}`
+    }))
+    setAttachments(prev => [...prev, ...attachmentsWithId])
     
     // Limpar input
     if (fileInputRef.current) {
@@ -143,8 +148,8 @@ export function ChatInput({
     }
   }
 
-  const removeAttachment = (index: number) => {
-    setAttachments(prev => prev.filter((_, i) => i !== index))
+  const removeAttachment = (id: string) => {
+    setAttachments(prev => prev.filter(att => att.id !== id))
   }
 
   const canSend = (message.trim() || attachments.length > 0) && !isLoading
@@ -154,15 +159,15 @@ export function ChatInput({
       {/* Anexos */}
       {attachments.length > 0 && (
         <div className="flex flex-wrap gap-2">
-          {attachments.map((file, index) => (
+          {attachments.map(({ file, id }) => (
             <div
-              key={index}
+              key={id}
               className="flex items-center gap-2 bg-muted px-3 py-1 rounded-md text-sm"
             >
               <Paperclip className="h-3 w-3" />
               <span className="truncate max-w-32">{file.name}</span>
               <button
-                onClick={() => removeAttachment(index)}
+                onClick={() => removeAttachment(id)}
                 className="text-muted-foreground hover:text-foreground"
               >
                 ×
