@@ -117,6 +117,7 @@ npm install
 
 # Configurar variáveis de ambiente
 cp .env.example .env.local
+# Consulte `.env.example` para ver todas as variáveis disponíveis
 
 # Editar .env.local com suas configurações
 NEXT_PUBLIC_API_URL=http://localhost:8000
