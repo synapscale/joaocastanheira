@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useMemo } from "react"
+import { executeCodeSafely } from "@/services/node-execution-service"
 import type { Node, Connection, Position } from "@/types/workflow"
 import { nanoid } from "nanoid"
 
@@ -173,6 +174,27 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
   const unlockNode = useCallback((nodeId: string) => {
     setNodes((prevNodes) => prevNodes.map((node) => (node.id === nodeId ? { ...node, locked: false } : node)))
   }, [])
+
+  const executeNode = useCallback(
+    async (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId)
+      if (!node || !node.data?.code) return null
+
+      const timeoutMs = node.data.timeout ?? 5000
+      const useSandbox = node.data.useSandbox !== false
+
+      const captureConsole = () => {}
+
+      try {
+        const result = await executeCodeSafely(node.data.code, null, captureConsole, timeoutMs, useSandbox)
+        return result
+      } catch (error) {
+        console.error("Error executing node:", error)
+        return null
+      }
+    },
+    [nodes],
+  )
 
   const alignNodes = useCallback(
     (nodeIds: string[], alignment: "left" | "right" | "top" | "bottom" | "center") => {
@@ -379,6 +401,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,
@@ -420,6 +443,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,

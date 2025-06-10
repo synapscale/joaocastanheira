@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react"
 import { useVariables } from "@/context/variable-context"
 import { replaceVariablesInCode, trackVariablesInCode } from "@/utils/variable-utils"
+import { executeCodeSafely } from "@/services/node-execution-service"
 import type { Node } from "@/types/workflow"
 
 interface UseNodeExecutionProps {
@@ -63,89 +64,6 @@ export function useNodeExecution({ node, timeout = 5000, useSandbox = true }: Us
     [node.id, timeout, useSandbox, variables, resolveVariableValue, trackVariableUsage],
   )
 
-  // Execute code safely
-  const executeCodeSafely = async (
-    code: string,
-    input: any,
-    captureConsole: (message: string) => void,
-    timeoutMs: number,
-    useSandbox: boolean,
-  ): Promise<any> => {
-    return new Promise((resolve, reject) => {
-      // Create a timeout
-      const timeoutId = setTimeout(() => {
-        reject(new Error(`Execution timed out after ${timeoutMs}ms`))
-      }, timeoutMs)
-
-      try {
-        // Create a safe execution environment
-        const safeEval = (code: string, input: any): any => {
-          // Create a safe console object
-          const safeConsole = {
-            log: (...args: any[]) => {
-              const message = args
-                .map((arg) => {
-                  if (typeof arg === "object") {
-                    try {
-                      return JSON.stringify(arg, null, 2)
-                    } catch (e) {
-                      return String(arg)
-                    }
-                  }
-                  return String(arg)
-                })
-                .join(" ")
-              captureConsole(message)
-              console.log(...args) // Also log to the real console
-            },
-            error: (...args: any[]) => {
-              const message = args.map((arg) => String(arg)).join(" ")
-              captureConsole(`ERROR: ${message}`)
-              console.error(...args) // Also log to the real console
-            },
-            warn: (...args: any[]) => {
-              const message = args.map((arg) => String(arg)).join(" ")
-              captureConsole(`WARNING: ${message}`)
-              console.warn(...args) // Also log to the real console
-            },
-            info: (...args: any[]) => {
-              const message = args.map((arg) => String(arg)).join(" ")
-              captureConsole(`INFO: ${message}`)
-              console.info(...args) // Also log to the real console
-            },
-          }
-
-          // Create a function from the code
-          // eslint-disable-next-line no-new-func
-          const fn = new Function(
-            "input",
-            "console",
-            `
-            "use strict";
-            try {
-              ${code}
-              return input;
-            } catch (error) {
-              console.error("Execution error:", error.message);
-              throw error;
-            }
-          `,
-          )
-
-          // Execute the function
-          return fn(input, safeConsole)
-        }
-
-        // Execute the code
-        const result = safeEval(code, input)
-        clearTimeout(timeoutId)
-        resolve(result)
-      } catch (error) {
-        clearTimeout(timeoutId)
-        reject(error)
-      }
-    })
-  }
 
   // Set mock input data
   const setMockInput = useCallback((data: any) => {
