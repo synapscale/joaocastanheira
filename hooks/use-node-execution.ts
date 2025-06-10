@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from "react"
+import { logger } from "@/utils/logger"
 import { useVariables } from "@/context/variable-context"
 import { replaceVariablesInCode, trackVariablesInCode } from "@/utils/variable-utils"
 import type { Node } from "@/types/workflow"
@@ -96,7 +97,7 @@ export function useNodeExecution({ node, timeout = 5000, useSandbox = true }: Us
                 })
                 .join(" ")
               captureConsole(message)
-              console.log(...args) // Also log to the real console
+              logger.log(...args)
             },
             error: (...args: any[]) => {
               const message = args.map((arg) => String(arg)).join(" ")

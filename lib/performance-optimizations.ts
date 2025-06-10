@@ -23,6 +23,7 @@ import { DashboardSidebar } from '@/components/dashboard/sidebar'
 import { RecentProjects } from '@/components/dashboard/recent-projects'
 import { ProjectStats } from '@/components/dashboard/project-stats'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
+import { logger } from '@/utils/logger'
 
 // Função para buscar dados do servidor
 async function getProjectData() {
@@ -331,11 +332,11 @@ export function StreamingChat() {
     // Opções para streaming
     onResponse: (response) => {
       // Você pode processar a resposta aqui
-      console.log('Streaming started', response)
+      logger.log('Streaming started', response)
     },
     onFinish: (message) => {
       // Chamado quando o streaming termina
-      console.log('Streaming finished', message)
+      logger.log('Streaming finished', message)
     },
   })
   
@@ -842,7 +843,7 @@ export async function POST(req: Request) {
       })
     } else {
       // Em desenvolvimento, apenas loga os eventos
-      console.log('[Analytics] Received events:', data.events.length)
+      logger.log('[Analytics] Received events:', data.events.length)
     }
     
     return NextResponse.json({ success: true })

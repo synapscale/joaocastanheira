@@ -3,6 +3,7 @@
 import { useEffect } from 'react';
 import { useNodeDefinitions } from '@/context/node-definition-context';
 import { manualTriggerNode } from '@/data/manual-trigger-node';
+import { logger } from '@/utils/logger';
 
 /**
  * Hook para inicializar nodes padrão no sistema
@@ -18,7 +19,7 @@ export function useInitializeDefaultNodes() {
     
     // Se não existir, adicionar ao contexto
     if (!manualTriggerExists) {
-      console.log('Adicionando node de trigger manual ao sistema');
+      logger.log('Adicionando node de trigger manual ao sistema');
       
       // Converter NodeTemplate para NodeDefinition
       const nodeDefinition = {

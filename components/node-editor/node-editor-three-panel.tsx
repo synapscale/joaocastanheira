@@ -9,6 +9,7 @@ import { CodeEditor } from "./code-editor"
 import { DataViewer } from "./data-viewer"
 import { ConsoleOutput } from "./console-output"
 import { EmptyState } from "./empty-state"
+import { logger } from "@/utils/logger"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Label } from "@/components/ui/label"
 import { Input } from "@/components/ui/input"
@@ -117,7 +118,7 @@ export function NodeEditorThreePanel({
   // Handle execute previous nodes
   const handleExecutePrevious = () => {
     // This would be implemented based on workflow context
-    console.log("Execute previous nodes")
+    logger.log("Execute previous nodes")
   }
 
   // Handle set mock data

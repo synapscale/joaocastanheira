@@ -10,6 +10,7 @@ import {
 } from "@/components/ui/dropdown-menu"
 import { useCallback } from "react"
 import { useWorkflow } from "@/context/workflow-context"
+import { logger } from "@/utils/logger"
 
 interface NodeQuickActionsProps {
   /** Handler for edit button click */
@@ -45,7 +46,7 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
   const handleExecuteClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      console.log("Execute node", nodeId)
+      logger.log("Execute node", nodeId)
       // TODO: Implement actual node execution logic
       // For now, just show a toast notification
       if (typeof window !== 'undefined') {
@@ -59,7 +60,7 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
   const handleToggleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      console.log("Toggle node active state", nodeId)
+      logger.log("Toggle node active state", nodeId)
       // TODO: Implement actual node toggle logic
       // For now, just show a toast notification
       if (typeof window !== 'undefined') {

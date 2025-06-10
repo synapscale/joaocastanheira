@@ -1,6 +1,7 @@
 "use client"
 
 import { useCallback, useContext, useEffect } from 'react'
+import { logger } from '@/utils/logger'
 
 /**
  * Hook para utilizar analytics no projeto
@@ -9,12 +10,12 @@ import { useCallback, useContext, useEffect } from 'react'
 export function useAnalytics() {
   // Implementação mínima para resolver os imports
   const trackEvent = useCallback((eventName: string, properties?: Record<string, any>) => {
-    console.log('Analytics event tracked:', eventName, properties)
+    logger.log('Analytics event tracked:', eventName, properties)
     // Em produção, aqui seria implementada a integração real com analytics
   }, [])
 
   const trackPageView = useCallback((pageName: string, properties?: Record<string, any>) => {
-    console.log('Page view tracked:', pageName, properties)
+    logger.log('Page view tracked:', pageName, properties)
     // Em produção, aqui seria implementada a integração real com analytics
   }, [])
 

@@ -2,6 +2,7 @@
 
 import React, { createContext, useContext, useState, useCallback } from 'react'
 import { Message } from '@/types/chat'
+import { logger } from '@/utils/logger'
 
 interface FeedbackContextType {
   messageFeedback: Record<string, MessageFeedback>
@@ -38,7 +39,7 @@ export function FeedbackProvider({ children }: { children: React.ReactNode }) {
     }))
     
     // Enviar feedback para análise (poderia ser uma API real)
-    console.log(`Feedback enviado para mensagem ${messageId}:`, feedback)
+    logger.log(`Feedback enviado para mensagem ${messageId}:`, feedback)
     
     // Armazenar localmente para análise futura
     try {

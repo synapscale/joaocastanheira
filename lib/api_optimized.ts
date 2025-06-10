@@ -5,6 +5,7 @@
  */
 import axios, { AxiosInstance, AxiosRequestConfig, AxiosResponse, AxiosError } from 'axios'
 import { config } from './config_optimized'
+import { logger } from '@/utils/logger'
 
 // Types
 export interface ApiResponse<T = any> {
@@ -61,7 +62,7 @@ class ApiService {
 
         // Log in development
         if (this.isDevelopment()) {
-          console.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`)
+          logger.log(`🌐 API Request: ${config.method?.toUpperCase()} ${config.url}`)
         }
 
         return config
@@ -77,7 +78,7 @@ class ApiService {
       (response) => {
         // Log in development
         if (this.isDevelopment()) {
-          console.log(`✅ API Response: ${response.status} ${response.config.url}`)
+          logger.log(`✅ API Response: ${response.status} ${response.config.url}`)
         }
 
         return response

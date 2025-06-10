@@ -4,6 +4,7 @@ import { useState, useEffect } from "react"
 import Link from "next/link"
 import { usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
+import { logger } from "@/utils/logger"
 import { 
   ChevronLeft,
   ChevronRight,
@@ -260,7 +261,7 @@ export function Sidebar() {
   }
 
   // Para desktop, usar layout flexbox sem position fixed
-  console.log('Renderizando sidebar desktop');
+  logger.log('Renderizando sidebar desktop');
   return (
     <motion.nav
       className="h-full border-r border-border overflow-hidden shadow-md flex flex-col flex-shrink-0"

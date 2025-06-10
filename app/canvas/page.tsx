@@ -4,6 +4,7 @@ import React, { useState, useCallback, useEffect } from 'react';
 import { useNodeDefinitionIntegration } from '@/hooks/use-node-definition-integration';
 import { useInitializeDefaultNodes } from '@/app/node-creator/init';
 import { WorkflowCanvas } from '@/components/workflow-canvas';
+import { logger } from '@/utils/logger';
 import { 
   Plus, 
   Share, 
@@ -96,7 +97,7 @@ export default function CanvasPage() {
   // Handler para abrir a biblioteca de nodes
   const handleOpenNodeLibrary = useCallback(() => {
     // Implementação da abertura da biblioteca de nodes
-    console.log('Abrindo biblioteca de nodes');
+    logger.log('Abrindo biblioteca de nodes');
     // Aqui seria implementada a lógica para abrir a biblioteca de nodes
   }, []);
 

@@ -8,6 +8,7 @@ import { CommandPalette } from "@/components/command-palette"
 import { useWorkflow } from "@/context/workflow-context"
 import { useState, useCallback } from "react"
 import type { Position } from "@/types/workflow"
+import { logger } from "@/utils/logger"
 
 export function WorkflowEditor() {
   const { selectedNodeId } = useWorkflow()
@@ -43,7 +44,7 @@ export function WorkflowEditor() {
               onClose={handleCloseNodePanel}
               onAddNode={(type, data) => {
                 // Implementação da adição de nó
-                console.log("Adding node:", type, data)
+                logger.log("Adding node:", type, data)
                 handleCloseNodePanel()
               }}
             />

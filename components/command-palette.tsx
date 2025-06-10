@@ -5,6 +5,7 @@ import type React from "react"
 import { useState, useEffect, useRef } from "react"
 import { Command } from "cmdk"
 import { Search, X } from "lucide-react"
+import { logger } from "@/utils/logger"
 
 // Extrair os itens de comando para um componente separado
 import { CommandItem } from "@/components/command/command-item"
@@ -60,7 +61,7 @@ export function CommandPalette({ onClose = () => {} }: CommandPaletteProps) {
 
   // Handle command selection
   const handleSelect = (id: string) => {
-    console.log(`Selected command: ${id}`)
+    logger.log(`Selected command: ${id}`)
     handleClose()
   }
 

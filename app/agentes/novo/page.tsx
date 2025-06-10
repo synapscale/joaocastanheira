@@ -10,6 +10,7 @@ import { AgentConnectionsTab } from "@/components/agents/agent-connections-tab"
 import { Button } from "@/components/ui/button"
 import { ArrowLeft, Save, X } from "lucide-react"
 import { Section } from "@/components/ui/section"
+import { logger } from "@/utils/logger"
 
 export default function NovoAgentePage() {
   const router = useRouter()
@@ -33,7 +34,7 @@ export default function NovoAgentePage() {
 
   const handleSave = () => {
     // Aqui seria implementada a lógica para salvar o agente
-    console.log("Salvando agente:", agent)
+    logger.log("Salvando agente:", agent)
     router.push("/agentes")
   }
 

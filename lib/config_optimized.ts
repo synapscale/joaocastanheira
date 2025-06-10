@@ -3,6 +3,7 @@
  * Criado por José - O melhor Full Stack do mundo
  * Implementa todas as melhores práticas de configuração
  */
+import { logger } from '@/utils/logger'
 
 interface Config {
   // URLs
@@ -110,7 +111,7 @@ export const config = getConfig()
 
 // Validations
 if (config.isDevelopment) {
-  console.log('🔧 Configurações de desenvolvimento carregadas:', {
+  logger.log('🔧 Configurações de desenvolvimento carregadas:', {
     apiUrl: config.apiUrl,
     wsUrl: config.wsUrl,
     features: config.features,

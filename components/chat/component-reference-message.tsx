@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react"
 import ComponentReference from "../component-selector/component-reference"
+import { logger } from "@/utils/logger"
 
 interface ComponentReferenceMessageProps {
   componentData: {
@@ -33,7 +34,7 @@ export default function ComponentReferenceMessage({ componentData }: ComponentRe
       onSelect={() => {
         // Aqui poderia ativar o seletor de componentes e focar neste componente
         // Por enquanto, apenas mostra uma mensagem no console
-        console.log("Componente selecionado:", componentData.name)
+        logger.log("Componente selecionado:", componentData.name)
       }}
     />
   )

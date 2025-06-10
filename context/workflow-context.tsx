@@ -2,6 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useMemo } from "react"
+import { logger } from "@/utils/logger"
 import type { Node, Connection, Position } from "@/types/workflow"
 import { nanoid } from "nanoid"
 
@@ -354,7 +355,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
 
   const saveWorkflow = useCallback(() => {
     // Mock save function
-    console.log("Saving workflow:", { nodes, connections, workflowName })
+    logger.log("Saving workflow:", { nodes, connections, workflowName })
     alert("Workflow saved!")
   }, [nodes, connections, workflowName])
 

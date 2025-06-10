@@ -12,6 +12,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { logger } from "@/utils/logger"
 import type { NodeTemplate } from "@/types/node-template"
 
 /**
@@ -127,7 +128,7 @@ export function NodeTemplateProvider({ children }: { children: React.ReactNode }
         return
       }
       // In a real app, you would apply the template to the workflow
-      console.log(`Applying template ${template.name}`)
+      logger.log(`Applying template ${template.name}`)
     },
     [templates],
   )

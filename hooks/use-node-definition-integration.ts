@@ -1,6 +1,7 @@
 "use client";
 
 import { useEffect, useCallback } from 'react';
+import { logger } from '@/utils/logger';
 import { useSharedNodes } from '@/contexts/node-creator/shared-nodes-context';
 import { useNodeCreator } from '@/contexts/node-creator/node-creator-context';
 
@@ -24,7 +25,7 @@ export function useNodeDefinitionIntegration() {
     
     // Adicionar cada template publicado ao SharedNodes
     publishedTemplates.forEach(template => {
-      console.log('Sincronizando node publicado para o Canvas Principal:', template.name);
+      logger.log('Sincronizando node publicado para o Canvas Principal:', template.name);
       addNodeToWorkflow(template);
     });
   }, [nodeCreatorState.nodeTemplates, sharedNodesState.sharedNodes, addNodeToWorkflow]);
@@ -39,7 +40,7 @@ export function useNodeDefinitionIntegration() {
     const customNodes = sharedNodesState.sharedNodes.filter(node => node.isCustom);
     
     if (customNodes.length > 0) {
-      console.log('Nodes personalizados disponíveis para o Canvas Principal:', customNodes.length);
+      logger.log('Nodes personalizados disponíveis para o Canvas Principal:', customNodes.length);
     }
   }, [sharedNodesState.sharedNodes]);
 

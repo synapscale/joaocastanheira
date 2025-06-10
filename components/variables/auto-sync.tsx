@@ -9,6 +9,7 @@ import { useEffect, useCallback, useState } from 'react'
 import { useAuth } from '@/context/auth-context'
 import { useVariables } from '@/context'
 import { toast } from 'sonner'
+import { logger } from '@/utils/logger'
 
 /**
  * Interface para configurações de sincronização
@@ -52,7 +53,7 @@ export function useAutoSync(config: Partial<SyncConfig> = {}) {
       
       if (success) {
         setRetryCount(0)
-        console.log('Variáveis sincronizadas automaticamente')
+        logger.log('Variáveis sincronizadas automaticamente')
       } else {
         throw new Error('Falha na sincronização')
       }

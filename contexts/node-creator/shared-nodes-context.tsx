@@ -5,6 +5,7 @@ import { useLocalStorage } from '@/hooks/use-local-storage';
 import { NodeTemplate } from './types';
 import { SharedNodesState, SharedNodesAction, WorkflowNodeDefinition } from './shared-nodes-types';
 import { convertToWorkflowFormat } from '@/lib/adapters/node-format-adapter';
+import { logger } from '@/utils/logger';
 
 // Estado inicial
 const initialState: SharedNodesState = {
@@ -103,7 +104,7 @@ export function SharedNodesProvider({ children }: { children: React.ReactNode })
 
   const syncNodesWithWorkflow = () => {
     // Implementação futura: sincronizar com API ou outro mecanismo
-    console.log('Syncing nodes with workflow...');
+    logger.log('Syncing nodes with workflow...');
   };
 
   return (

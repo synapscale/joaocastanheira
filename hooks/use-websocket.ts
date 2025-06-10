@@ -5,6 +5,7 @@
  */
 
 import { useState, useEffect, useRef, useCallback } from 'react';
+import { logger } from '@/utils/logger';
 import { useAuth } from '@/context/auth-context';
 
 export interface WebSocketEvent {
@@ -95,7 +96,7 @@ export function useExecutionWebSocket(
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log(`🔗 WebSocket conectado para execução ${executionId}`);
+        logger.log(`🔗 WebSocket conectado para execução ${executionId}`);
         setConnectionStatus('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -125,7 +126,7 @@ export function useExecutionWebSocket(
           
           // Processa tipos específicos de eventos
           if (data.event_type === 'subscription_confirmed') {
-            console.log('✅ Subscrição confirmada:', data.data);
+            logger.log('✅ Subscrição confirmada:', data.data);
           } else if (data.event_type === 'stats_response') {
             setStats(data.data as ExecutionStats);
           }
@@ -136,7 +137,7 @@ export function useExecutionWebSocket(
       };
 
       ws.onclose = (event) => {
-        console.log(`🔌 WebSocket desconectado (código: ${event.code})`);
+        logger.log(`🔌 WebSocket desconectado (código: ${event.code})`);
         setConnectionStatus('disconnected');
         
         // Limpa heartbeat
@@ -148,7 +149,7 @@ export function useExecutionWebSocket(
         // Tenta reconectar se habilitado
         if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          console.log(`🔄 Tentativa de reconexão ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
+          logger.log(`🔄 Tentativa de reconexão ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();
@@ -278,7 +279,7 @@ export function useGlobalWebSocket(
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
-        console.log('🌐 WebSocket global conectado');
+        logger.log('🌐 WebSocket global conectado');
         setConnectionStatus('connected');
         setError(null);
         reconnectAttemptsRef.current = 0;
@@ -306,7 +307,7 @@ export function useGlobalWebSocket(
           setLastEvent(data);
           
           if (data.event_type === 'subscription_confirmed') {
-            console.log('✅ Subscrição global confirmada:', data.data);
+            logger.log('✅ Subscrição global confirmada:', data.data);
           } else if (data.event_type === 'global_stats_response') {
             setStats(data.data as GlobalStats);
           }
@@ -317,7 +318,7 @@ export function useGlobalWebSocket(
       };
 
       ws.onclose = (event) => {
-        console.log(`🔌 WebSocket global desconectado (código: ${event.code})`);
+        logger.log(`🔌 WebSocket global desconectado (código: ${event.code})`);
         setConnectionStatus('disconnected');
         
         if (heartbeatIntervalRef.current) {
@@ -327,7 +328,7 @@ export function useGlobalWebSocket(
         
         if (autoReconnect && reconnectAttemptsRef.current < maxReconnectAttempts) {
           reconnectAttemptsRef.current++;
-          console.log(`🔄 Tentativa de reconexão global ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
+          logger.log(`🔄 Tentativa de reconexão global ${reconnectAttemptsRef.current}/${maxReconnectAttempts}`);
           
           reconnectTimeoutRef.current = setTimeout(() => {
             connect();

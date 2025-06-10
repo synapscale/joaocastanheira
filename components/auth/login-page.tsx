@@ -16,6 +16,7 @@ import { Label } from '@/components/ui/label'
 import { Card, CardContent, CardDescription, CardFooter, CardHeader, CardTitle } from '@/components/ui/card'
 import { Alert, AlertDescription } from '@/components/ui/alert'
 import { Eye, EyeOff, Mail, Lock, Zap } from 'lucide-react'
+import { logger } from '@/utils/logger'
 import { cn } from '@/lib/utils'
 
 export const LoginPage: React.FC = () => {
@@ -305,7 +306,7 @@ export const LoginPage: React.FC = () => {
                     disabled={isLoading}
                     onClick={() => {
                       // TODO: Implementar recuperação de senha
-                      console.log('Recuperar senha')
+                      logger.log('Recuperar senha')
                     }}
                   >
                     Esqueceu sua senha?

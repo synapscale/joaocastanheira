@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useCallback } from 'react'
+import { logger } from '@/utils/logger'
 import { Message } from '@/types/chat'
 
 /**
@@ -22,7 +23,7 @@ export function useChatMessage(message?: Message) {
 
   const regenerateResponse = useCallback(() => {
     // Implementação simplificada
-    console.log('Regenerar resposta para:', message?.id)
+    logger.log('Regenerar resposta para:', message?.id)
   }, [message])
 
   return {

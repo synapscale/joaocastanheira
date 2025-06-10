@@ -4,6 +4,7 @@
  * Sistema avançado de monitoramento de performance para detectar
  * gargalos, medir métricas e otimizar a aplicação em tempo real.
  */
+import { logger } from '@/utils/logger'
 
 interface PerformanceMetric {
   name: string
@@ -67,7 +68,7 @@ class PerformanceMonitor {
     this.startNetworkMonitoring()
     this.startUserInteractionMonitoring()
 
-    console.log('🚀 Performance Monitor iniciado')
+    logger.log('🚀 Performance Monitor iniciado')
   }
 
   /**
@@ -80,7 +81,7 @@ class PerformanceMonitor {
     this.observers.forEach(observer => observer.disconnect())
     this.observers = []
 
-    console.log('⏹️ Performance Monitor parado')
+    logger.log('⏹️ Performance Monitor parado')
   }
 
   /**
@@ -503,7 +504,7 @@ class PerformanceMonitor {
   clearMetrics(): void {
     this.metrics = []
     this.alerts = []
-    console.log('🧹 Métricas de performance limpas')
+    logger.log('🧹 Métricas de performance limpas')
   }
 }
 

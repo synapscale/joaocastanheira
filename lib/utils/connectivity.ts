@@ -6,6 +6,7 @@
 import { apiService } from '../api'
 import { config } from '../config'
 import type { HealthResponse } from '../types/api'
+import { logger } from '@/utils/logger'
 
 export interface ConnectivityTestResult {
   success: boolean
@@ -231,7 +232,7 @@ export async function testApiEndpoints(): Promise<ConnectivityTestResult> {
  * Executa todos os testes de conectividade
  */
 export async function runConnectivityTests(): Promise<ConnectivityReport> {
-  console.log('🔍 Iniciando testes de conectividade...')
+  logger.log('🔍 Iniciando testes de conectividade...')
 
   const tests = {
     healthCheck: await testHealthCheck(),
@@ -264,15 +265,15 @@ export async function runConnectivityTests(): Promise<ConnectivityReport> {
   }
 
   // Log dos resultados
-  console.log('📊 Relatório de Conectividade:')
-  console.log(`   Status Geral: ${overall.toUpperCase()}`)
-  console.log(`   Testes Passaram: ${passed}/${total}`)
+  logger.log('📊 Relatório de Conectividade:')
+  logger.log(`   Status Geral: ${overall.toUpperCase()}`)
+  logger.log(`   Testes Passaram: ${passed}/${total}`)
   
   Object.entries(tests).forEach(([testName, result]) => {
     const icon = result.success ? '✅' : '❌'
-    console.log(`   ${icon} ${testName}: ${result.message}`)
+    logger.log(`   ${icon} ${testName}: ${result.message}`)
     if (!result.success && result.details) {
-      console.log(`      Detalhes:`, result.details)
+      logger.log(`      Detalhes:`, result.details)
     }
   })
 
@@ -283,7 +284,7 @@ export async function runConnectivityTests(): Promise<ConnectivityReport> {
  * Monitora conectividade continuamente
  */
 export function startConnectivityMonitoring(intervalMs = 30000): () => void {
-  console.log('🔄 Iniciando monitoramento de conectividade...')
+  logger.log('🔄 Iniciando monitoramento de conectividade...')
   
   const interval = setInterval(async () => {
     try {
@@ -299,7 +300,7 @@ export function startConnectivityMonitoring(intervalMs = 30000): () => void {
   // Retorna função para parar o monitoramento
   return () => {
     clearInterval(interval)
-    console.log('⏹️ Monitoramento de conectividade parado')
+    logger.log('⏹️ Monitoramento de conectividade parado')
   }
 }
 

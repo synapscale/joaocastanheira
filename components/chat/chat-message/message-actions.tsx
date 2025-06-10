@@ -6,6 +6,7 @@ import { Copy, ThumbsUp, ThumbsDown, MoreVertical, Repeat, CheckCircle } from "l
 import { Button } from "@/components/ui/button"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { logger } from "@/utils/logger"
 
 interface MessageActionsProps {
   message: Message
@@ -26,7 +27,7 @@ export function MessageActions({ message }: MessageActionsProps) {
 
   const regenerateResponse = () => {
     // Implementação simplificada
-    console.log('Regenerar resposta')
+    logger.log('Regenerar resposta')
   }
 
   return (

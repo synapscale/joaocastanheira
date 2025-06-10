@@ -3,6 +3,7 @@
  */
 
 // Configuração base da API
+import { logger } from '@/utils/logger';
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
 
@@ -557,7 +558,7 @@ export class WebSocketService {
         this.ws = new WebSocket(wsUrl);
 
         this.ws.onopen = () => {
-          console.log('WebSocket connected');
+          logger.log('WebSocket connected');
           this.reconnectAttempts = 0;
           this.startHeartbeat();
           resolve();
@@ -573,7 +574,7 @@ export class WebSocketService {
         };
 
         this.ws.onclose = () => {
-          console.log('WebSocket disconnected');
+          logger.log('WebSocket disconnected');
           this.stopHeartbeat();
           this.attemptReconnect(token);
         };
@@ -635,7 +636,7 @@ export class WebSocketService {
   private attemptReconnect(token: string): void {
     if (this.reconnectAttempts < this.maxReconnectAttempts) {
       this.reconnectAttempts++;
-      console.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
+      logger.log(`Attempting to reconnect (${this.reconnectAttempts}/${this.maxReconnectAttempts})...`);
       
       setTimeout(() => {
         this.connect(token).catch(() => {
