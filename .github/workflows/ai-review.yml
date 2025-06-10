@@ -3,22 +3,53 @@ name: AI Review
 on:
   pull_request_target:
     types: [opened, synchronize, reopened, ready_for_review]
+    branches: [main, develop]
   issue_comment:
     types: [created]
 
 permissions:
   contents: read
   pull-requests: write
+  issues: write
+
+concurrency:
+  group: ai-review-${{ github.event.pull_request.number || github.event.issue.number }}
+  cancel-in-progress: true
 
 jobs:
   ai-review:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
     if: >-
-      github.event_name == 'pull_request_target' ||
+      (
+        github.event_name == 'pull_request_target' &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.state == 'open'
+      ) ||
       (
         github.event_name == 'issue_comment' &&
         contains(github.event.comment.body, '/ai-review') &&
-        github.event.issue.pull_request
+        github.event.issue.pull_request &&
+        github.event.issue.state == 'open'
       )
 
-    uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
-    secrets: inherit
+    steps:
+      - name: Security Check
+        if: github.event_name == 'pull_request_target'
+        run: |
+          echo "::notice::Reviewing PR #${{ github.event.pull_request.number }} from ${{ github.event.pull_request.head.repo.full_name }}"
+          
+      - name: Cache AI Review
+        uses: actions/cache@v4
+        with:
+          path: ~/.ai-review-cache
+          key: ai-review-${{ github.event.pull_request.head.sha || github.event.issue.number }}
+          restore-keys: |
+            ai-review-
+
+      - name: AI Review
+        uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
+        secrets: inherit
+        with:
+          skip_draft: true
+          max_files: 50
