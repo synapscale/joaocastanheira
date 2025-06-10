@@ -174,24 +174,10 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
-  const executeNode = useCallback(
-    async (nodeId: string) => {
-      const node = nodes.find((n) => n.id === nodeId)
-      if (!node) return
-
-      const code = node.data?.code
-      if (!code) return
-
-      try {
-        // eslint-disable-next-line no-new-func
-        const fn = new Function('input', code)
-        await fn(node.data?.input)
-      } catch (error) {
-        console.error('Error executing node:', error)
-      }
-    },
-    [nodes],
-  )
+  const executeNode = useCallback((nodeId: string) => {
+    // Placeholder for future execution logic
+    console.log(`Execute node ${nodeId}`)
+  }, [])
 
   const lockNode = useCallback((nodeId: string) => {
     setNodes((prevNodes) => prevNodes.map((node) => (node.id === nodeId ? { ...node, locked: true } : node)))
