@@ -4,23 +4,21 @@ set -e
 echo "🌐 INICIANDO FRONTEND JOÃO CASTANHEIRA"
 echo "====================================="
 
-# Verificar se .env.local existe
-if [ ! -f ".env.local" ]; then
-    echo ""
-    echo "⚙️  Configurando variáveis de ambiente..."
-    if [ -f ".env.example" ]; then
-        cp .env.example .env.local
-        echo "   ✅ Arquivo .env.local criado a partir do .env.example"
-    else
-        echo "   ⚠️  Arquivo .env.example não encontrado, criando .env.local básico"
-        cat > .env.local << EOF
-NEXT_PUBLIC_API_URL=http://localhost:8000
-NEXT_PUBLIC_WS_URL=ws://localhost:8000
-NEXT_PUBLIC_APP_ENV=development
-EOF
-    fi
-    echo "   📝 Configure as variáveis em .env.local se necessário"
+# Determinar arquivo de variáveis de ambiente
+if [ -f ".env.local" ]; then
+    ENV_FILE=".env.local"
+elif [ -f ".env.production" ]; then
+    ENV_FILE=".env.production"
+else
+    echo "❌ Nenhum arquivo .env.local ou .env.production encontrado."
+    echo "    Crie um arquivo de variáveis de ambiente antes de iniciar."
+    exit 1
 fi
+
+# Carregar variáveis para uso no script
+set -o allexport
+source "$ENV_FILE"
+set +o allexport
 
 # Verificar se node_modules existe
 if [ ! -d node_modules ]; then
@@ -28,15 +26,19 @@ if [ ! -d node_modules ]; then
     npm install --legacy-peer-deps
 fi
 
-# Verificar se backend está rodando
-echo "🔍 Verificando se backend está rodando..."
-if ! curl -s http://localhost:8000/health > /dev/null; then
-    echo "⚠️ Backend não está rodando. Inicie o backend primeiro."
-    echo "Execute: cd ../synapse-backend-agents-jc-main && ./start_backend.sh"
-    exit 1
+# Verificar se backend está rodando, se a URL estiver definida
+if [ -n "$NEXT_PUBLIC_API_URL" ]; then
+    API_HEALTH_URL="${NEXT_PUBLIC_API_URL%/}/health"
+    echo "🔍 Verificando se backend está rodando em $NEXT_PUBLIC_API_URL..."
+    if ! curl -fsS --max-time 5 "$API_HEALTH_URL" > /dev/null; then
+        echo "⚠️ Backend não está rodando em $NEXT_PUBLIC_API_URL."
+        echo "    Certifique-se de iniciar o backend ou ajuste NEXT_PUBLIC_API_URL."
+        exit 1
+    fi
+    echo "✅ Backend está rodando"
+else
+    echo "⚠️ NEXT_PUBLIC_API_URL não definida. Pulando verificação do backend."
 fi
-
-echo "✅ Backend está rodando"
 
 # Limpar cache do Next.js
 echo "🧹 Limpando cache..."
