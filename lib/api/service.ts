@@ -3,7 +3,8 @@
  */
 
 // Configuração base da API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000';
+const API_PREFIX = '/api/v1';
 const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
 
 // Tipos TypeScript
@@ -228,7 +229,7 @@ class ApiService {
     formData.append('username', email);
     formData.append('password', password);
 
-    const tokens = await this.request<AuthTokens>('/auth/login', {
+    const tokens = await this.request<AuthTokens>(`${API_PREFIX}/auth/login`, {
       method: 'POST',
       headers: {},
       body: formData,
@@ -244,7 +245,7 @@ class ApiService {
     first_name?: string;
     last_name?: string;
   }): Promise<User> {
-    return await this.request<User>('/auth/register', {
+    return await this.request<User>(`${API_PREFIX}/auth/register`, {
       method: 'POST',
       body: JSON.stringify(userData),
     });
@@ -254,7 +255,7 @@ class ApiService {
     if (!this.refreshToken) return null;
 
     try {
-      const tokens = await this.request<AuthTokens>('/auth/refresh', {
+      const tokens = await this.request<AuthTokens>(`${API_PREFIX}/auth/refresh`, {
         method: 'POST',
         body: JSON.stringify({ refresh_token: this.refreshToken }),
       });
@@ -270,7 +271,7 @@ class ApiService {
   async logout(): Promise<void> {
     if (this.refreshToken) {
       try {
-        await this.request('/auth/logout', {
+        await this.request(`${API_PREFIX}/auth/logout`, {
           method: 'POST',
           body: JSON.stringify({ refresh_token: this.refreshToken }),
         });
@@ -282,7 +283,7 @@ class ApiService {
   }
 
   async getCurrentUser(): Promise<User> {
-    return await this.request<User>('/auth/me');
+    return await this.request<User>(`${API_PREFIX}/auth/me`);
   }
 
   // Workflows
@@ -298,11 +299,11 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.is_public !== undefined) queryParams.append('is_public', params.is_public.toString());
 
-    return await this.request<any>(`/workflows?${queryParams.toString()}`);
+    return await this.request<any>(`${API_PREFIX}/workflows?${queryParams.toString()}`);
   }
 
   async getWorkflow(id: string): Promise<Workflow> {
-    return await this.request<Workflow>(`/workflows/${id}`);
+    return await this.request<Workflow>(`${API_PREFIX}/workflows/${id}`);
   }
 
   async createWorkflow(workflowData: {
@@ -313,27 +314,27 @@ class ApiService {
     is_public?: boolean;
     definition: any;
   }): Promise<Workflow> {
-    return await this.request<Workflow>('/workflows', {
+    return await this.request<Workflow>(`${API_PREFIX}/workflows`, {
       method: 'POST',
       body: JSON.stringify(workflowData),
     });
   }
 
   async updateWorkflow(id: string, workflowData: Partial<Workflow>): Promise<Workflow> {
-    return await this.request<Workflow>(`/workflows/${id}`, {
+    return await this.request<Workflow>(`${API_PREFIX}/workflows/${id}`, {
       method: 'PUT',
       body: JSON.stringify(workflowData),
     });
   }
 
   async deleteWorkflow(id: string): Promise<void> {
-    await this.request(`/workflows/${id}`, {
+    await this.request(`${API_PREFIX}/workflows/${id}`, {
       method: 'DELETE',
     });
   }
 
   async executeWorkflow(id: string, inputs?: any): Promise<{ execution_id: string }> {
-    return await this.request<{ execution_id: string }>(`/workflows/${id}/execute`, {
+    return await this.request<{ execution_id: string }>(`${API_PREFIX}/workflows/${id}/execute`, {
       method: 'POST',
       body: JSON.stringify({ inputs }),
     });
@@ -354,11 +355,11 @@ class ApiService {
     if (params?.category) queryParams.append('category', params.category);
     if (params?.is_public !== undefined) queryParams.append('is_public', params.is_public.toString());
 
-    return await this.request<any>(`/nodes?${queryParams.toString()}`);
+    return await this.request<any>(`${API_PREFIX}/nodes?${queryParams.toString()}`);
   }
 
   async getNode(id: string): Promise<Node> {
-    return await this.request<Node>(`/nodes/${id}`);
+    return await this.request<Node>(`${API_PREFIX}/nodes/${id}`);
   }
 
   async createNode(nodeData: {
@@ -376,21 +377,21 @@ class ApiService {
     documentation?: string;
     examples?: any[];
   }): Promise<Node> {
-    return await this.request<Node>('/nodes', {
+    return await this.request<Node>(`${API_PREFIX}/nodes`, {
       method: 'POST',
       body: JSON.stringify(nodeData),
     });
   }
 
   async updateNode(id: string, nodeData: Partial<Node>): Promise<Node> {
-    return await this.request<Node>(`/nodes/${id}`, {
+    return await this.request<Node>(`${API_PREFIX}/nodes/${id}`, {
       method: 'PUT',
       body: JSON.stringify(nodeData),
     });
   }
 
   async deleteNode(id: string): Promise<void> {
-    await this.request(`/nodes/${id}`, {
+    await this.request(`${API_PREFIX}/nodes/${id}`, {
       method: 'DELETE',
     });
   }
@@ -406,11 +407,11 @@ class ApiService {
     if (params?.size) queryParams.append('size', params.size.toString());
     if (params?.agent_type) queryParams.append('agent_type', params.agent_type);
 
-    return await this.request<any>(`/agents?${queryParams.toString()}`);
+    return await this.request<any>(`${API_PREFIX}/agents?${queryParams.toString()}`);
   }
 
   async getAgent(id: string): Promise<Agent> {
-    return await this.request<Agent>(`/agents/${id}`);
+    return await this.request<Agent>(`${API_PREFIX}/agents/${id}`);
   }
 
   async createAgent(agentData: {
@@ -427,21 +428,21 @@ class ApiService {
     knowledge_base?: any;
     avatar_url?: string;
   }): Promise<Agent> {
-    return await this.request<Agent>('/agents', {
+    return await this.request<Agent>(`${API_PREFIX}/agents`, {
       method: 'POST',
       body: JSON.stringify(agentData),
     });
   }
 
   async updateAgent(id: string, agentData: Partial<Agent>): Promise<Agent> {
-    return await this.request<Agent>(`/agents/${id}`, {
+    return await this.request<Agent>(`${API_PREFIX}/agents/${id}`, {
       method: 'PUT',
       body: JSON.stringify(agentData),
     });
   }
 
   async deleteAgent(id: string): Promise<void> {
-    await this.request(`/agents/${id}`, {
+    await this.request(`${API_PREFIX}/agents/${id}`, {
       method: 'DELETE',
     });
   }
@@ -457,11 +458,11 @@ class ApiService {
     if (params?.size) queryParams.append('size', params.size.toString());
     if (params?.agent_id) queryParams.append('agent_id', params.agent_id);
 
-    return await this.request<any>(`/conversations?${queryParams.toString()}`);
+    return await this.request<any>(`${API_PREFIX}/conversations?${queryParams.toString()}`);
   }
 
   async getConversation(id: string): Promise<Conversation> {
-    return await this.request<Conversation>(`/conversations/${id}`);
+    return await this.request<Conversation>(`${API_PREFIX}/conversations/${id}`);
   }
 
   async createConversation(conversationData: {
@@ -469,14 +470,14 @@ class ApiService {
     title?: string;
     context?: any;
   }): Promise<Conversation> {
-    return await this.request<Conversation>('/conversations', {
+    return await this.request<Conversation>(`${API_PREFIX}/conversations`, {
       method: 'POST',
       body: JSON.stringify(conversationData),
     });
   }
 
   async deleteConversation(id: string): Promise<void> {
-    await this.request(`/conversations/${id}`, {
+    await this.request(`${API_PREFIX}/conversations/${id}`, {
       method: 'DELETE',
     });
   }
@@ -490,14 +491,14 @@ class ApiService {
     if (params?.page) queryParams.append('page', params.page.toString());
     if (params?.size) queryParams.append('size', params.size.toString());
 
-    return await this.request<any>(`/conversations/${conversationId}/messages?${queryParams.toString()}`);
+    return await this.request<any>(`${API_PREFIX}/conversations/${conversationId}/messages?${queryParams.toString()}`);
   }
 
   async sendMessage(conversationId: string, messageData: {
     content: string;
     attachments?: any[];
   }): Promise<Message> {
-    return await this.request<Message>(`/conversations/${conversationId}/messages`, {
+    return await this.request<Message>(`${API_PREFIX}/conversations/${conversationId}/messages`, {
       method: 'POST',
       body: JSON.stringify(messageData),
     });
@@ -511,7 +512,7 @@ class ApiService {
       formData.append('metadata', JSON.stringify(metadata));
     }
 
-    return await this.request<any>('/files/upload', {
+    return await this.request<any>(`${API_PREFIX}/files/upload`, {
       method: 'POST',
       headers: {},
       body: formData,
@@ -519,11 +520,11 @@ class ApiService {
   }
 
   async getFile(id: string): Promise<{ id: string; url: string; filename: string; metadata: any }> {
-    return await this.request<any>(`/files/${id}`);
+    return await this.request<any>(`${API_PREFIX}/files/${id}`);
   }
 
   async deleteFile(id: string): Promise<void> {
-    await this.request(`/files/${id}`, {
+    await this.request(`${API_PREFIX}/files/${id}`, {
       method: 'DELETE',
     });
   }
