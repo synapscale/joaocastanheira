@@ -30,7 +30,7 @@ interface NodeQuickActionsProps {
  * and a dropdown menu for additional options.
  */
 export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverChange }: NodeQuickActionsProps) {
-  const { removeNode, duplicateNode, executeNode, toggleNodeDisabled } = useWorkflow()
+  const { nodes, removeNode, duplicateNode, executeNode, toggleNodeDisabled } = useWorkflow()
 
   // Handle mouse enter event
   const handleMouseEnter = useCallback(() => {
@@ -46,10 +46,12 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
     (e: React.MouseEvent) => {
       e.stopPropagation()
       if (nodeId) {
+        const node = nodes.find((n) => n.id === nodeId)
+        if (node?.disabled) return
         executeNode(nodeId)
       }
     },
-    [nodeId, executeNode],
+    [nodeId, executeNode, nodes],
   )
 
   const handleToggleClick = useCallback(

@@ -14,6 +14,9 @@ module.exports = {
       ],
     }],
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(nanoid)/)'
+  ],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
@@ -35,6 +38,7 @@ module.exports = {
     }
   },
   testMatch: [
-    '<rootDir>/tests/unit/**/*.test.(ts|tsx)'
+    '<rootDir>/tests/unit/**/*.test.(ts|tsx)',
+    '<rootDir>/tests/components/**/*.test.(ts|tsx)'
   ]
 }

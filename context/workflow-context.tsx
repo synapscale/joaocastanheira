@@ -6,10 +6,10 @@ import type { Node, Connection, Position } from "@/types/workflow"
 import { nanoid } from "nanoid"
 
 // Inicialização sem nodes pré-existentes
-const initialNodes: Node[] = []
+const defaultNodes: Node[] = []
 
 // Inicialização sem conexões pré-existentes
-const initialConnections: Connection[] = []
+const defaultConnections: Connection[] = []
 
 /**
  * Interface for the workflow context
@@ -89,10 +89,18 @@ const WorkflowContext = createContext<WorkflowContextType | undefined>(undefined
 /**
  * Provider component for the workflow context
  */
-export function WorkflowProvider({ children }: { children: React.ReactNode }) {
+export function WorkflowProvider({
+  children,
+  initialNodes: initNodes = defaultNodes,
+  initialConnections: initConnections = defaultConnections,
+}: {
+  children: React.ReactNode
+  initialNodes?: Node[]
+  initialConnections?: Connection[]
+}) {
   // State for nodes and connections
-  const [nodes, setNodes] = useState<Node[]>(initialNodes)
-  const [connections, setConnections] = useState<Connection[]>(initialConnections)
+  const [nodes, setNodes] = useState<Node[]>(initNodes)
+  const [connections, setConnections] = useState<Connection[]>(initConnections)
 
   // State for selection
   const [selectedNode, setSelectedNode] = useState<Node | null>(null)
