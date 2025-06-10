@@ -111,6 +111,10 @@ export function NodeEditorThreePanel({
 
   // Handle test node execution
   const handleTestNodeExecution = async () => {
+    if (node.disabled) {
+      console.warn(`Node ${node.id} is disabled and cannot be executed`)
+      return
+    }
     await executeNode(codeValue, inputData)
   }
 

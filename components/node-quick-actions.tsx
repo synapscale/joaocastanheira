@@ -30,7 +30,7 @@ interface NodeQuickActionsProps {
  * and a dropdown menu for additional options.
  */
 export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverChange }: NodeQuickActionsProps) {
-  const { removeNode, duplicateNode } = useWorkflow()
+  const { removeNode, duplicateNode, toggleNodeDisabled, nodes } = useWorkflow()
 
   // Handle mouse enter event
   const handleMouseEnter = useCallback(() => {
@@ -45,29 +45,25 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
   const handleExecuteClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
+      const node = nodes.find((n) => n.id === nodeId)
+      if (node?.disabled) {
+        console.warn(`Node ${nodeId} is disabled and will not execute`)
+        return
+      }
       console.log("Execute node", nodeId)
-      // TODO: Implement actual node execution logic
-      // For now, just show a toast notification
-      if (typeof window !== 'undefined') {
-        // Simple notification for now
+      if (typeof window !== "undefined") {
         alert(`Executing node ${nodeId}`)
       }
     },
-    [nodeId],
+    [nodeId, nodes],
   )
 
   const handleToggleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      console.log("Toggle node active state", nodeId)
-      // TODO: Implement actual node toggle logic
-      // For now, just show a toast notification
-      if (typeof window !== 'undefined') {
-        // Simple notification for now
-        alert(`Toggling active state for node ${nodeId}`)
-      }
+      if (nodeId) toggleNodeDisabled(nodeId)
     },
-    [nodeId],
+    [nodeId, toggleNodeDisabled],
   )
 
   const handleDeleteClick = useCallback(

@@ -6,14 +6,17 @@ import '@testing-library/jest-dom';
 import { ChatInput } from '@/components/chat/chat-input';
 
 // Mock dos hooks e funções necessárias
-jest.mock('@/hooks/use-textarea', () => ({
-  useTextarea: () => ({
-    textareaRef: { current: document.createElement('textarea') },
-    value: '',
-    setValue: jest.fn(),
-    handleChange: jest.fn()
-  })
-}));
+jest.mock('@/hooks/use-textarea', () => {
+  const textarea = document.createElement('textarea')
+  return {
+    useTextarea: () => ({
+      textareaRef: { current: textarea },
+      value: '',
+      setValue: jest.fn(),
+      handleChange: jest.fn(),
+    }),
+  }
+})
 
 describe('ChatInput', () => {
   const mockSendMessage = jest.fn();

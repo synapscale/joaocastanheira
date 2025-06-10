@@ -22,6 +22,12 @@ export function useNodeExecution({ node, timeout = 5000, useSandbox = true }: Us
   // Execute the node
   const executeNode = useCallback(
     async (code: string, input: any = null) => {
+      if (node.disabled) {
+        console.warn(`Node ${node.id} is disabled and will not execute`)
+        setExecutionStatus("warning")
+        setConsoleOutput((prev) => [...prev, "Node disabled: execution skipped"])
+        return null
+      }
       setIsExecuting(true)
       setExecutionStatus("running")
       setConsoleOutput([])
@@ -60,7 +66,7 @@ export function useNodeExecution({ node, timeout = 5000, useSandbox = true }: Us
         setIsExecuting(false)
       }
     },
-    [node.id, timeout, useSandbox, variables, resolveVariableValue, trackVariableUsage],
+    [node.id, node.disabled, timeout, useSandbox, variables, resolveVariableValue, trackVariableUsage],
   )
 
   // Execute code safely
