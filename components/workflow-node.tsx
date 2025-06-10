@@ -151,6 +151,7 @@ function WorkflowNodeComponent({
             nodeWidth={nodeWidth}
             nodeId={node.id}
             onHoverChange={handleActionsHoverChange}
+            disabled={node.disabled}
           />
         </div>
       )}
@@ -160,6 +161,7 @@ function WorkflowNodeComponent({
         className={cn(
           "relative rounded-md border shadow-sm bg-white cursor-move pointer-events-auto flex items-center justify-center",
           isSelected ? "ring-2 ring-primary shadow-md" : showQuickActions ? "ring-1 ring-primary/40 shadow-sm" : "",
+          node.disabled && "opacity-50"
         )}
         style={{
           width: nodeWidth,
@@ -246,7 +248,13 @@ function WorkflowNodeComponent({
       </div>
 
       {/* Node label - always shown below the node */}
-      <div className="mt-2 text-sm font-medium text-center text-foreground/80 truncate max-w-full" title={node.name}>
+      <div
+        className={cn(
+          "mt-2 text-sm font-medium text-center text-foreground/80 truncate max-w-full",
+          node.disabled && "opacity-50"
+        )}
+        title={node.name}
+      >
         {node.name}
       </div>
     </div>

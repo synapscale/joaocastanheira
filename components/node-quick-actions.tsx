@@ -20,6 +20,8 @@ interface NodeQuickActionsProps {
   nodeId?: string
   /** Callback for hover state changes */
   onHoverChange?: (hovered: boolean) => void
+  /** Whether the node is disabled */
+  disabled?: boolean
 }
 
 /**
@@ -29,7 +31,7 @@ interface NodeQuickActionsProps {
  * Includes buttons for common operations like execute, toggle active state, delete,
  * and a dropdown menu for additional options.
  */
-export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverChange }: NodeQuickActionsProps) {
+export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverChange, disabled = false }: NodeQuickActionsProps) {
   const { removeNode, duplicateNode } = useWorkflow()
 
   // Handle mouse enter event
@@ -162,7 +164,7 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
               <div className="ml-auto text-xs text-muted-foreground">F2</div>
             </DropdownMenuItem>
             <DropdownMenuItem onClick={handleToggleClick}>
-              Deactivate
+              {disabled ? "Activate" : "Deactivate"}
               <div className="ml-auto text-xs text-muted-foreground">D</div>
             </DropdownMenuItem>
             <DropdownMenuItem>

@@ -224,7 +224,12 @@ function WorkflowNodeComponent({
       {/* Ações rápidas - visíveis quando hover */}
       {showQuickActions && (
         <div className="node-quick-actions">
-          <NodeQuickActions onEditClick={onDoubleClick} nodeWidth={nodeWidth} nodeId={node.id} />
+          <NodeQuickActions
+            onEditClick={onDoubleClick}
+            nodeWidth={nodeWidth}
+            nodeId={node.id}
+            disabled={node.disabled}
+          />
         </div>
       )}
 
@@ -233,6 +238,7 @@ function WorkflowNodeComponent({
         className={cn(
           "relative rounded-md border shadow-sm bg-white cursor-move pointer-events-auto flex items-center justify-center transition-all duration-150",
           isSelected ? "ring-2 ring-primary shadow-md" : isHovered ? "ring-1 ring-primary/40 shadow-sm" : "",
+          node.disabled && "opacity-50"
         )}
         style={{
           width: nodeWidth,
@@ -260,7 +266,13 @@ function WorkflowNodeComponent({
       </div>
 
       {/* Rótulo do nó - sempre mostrado abaixo do nó */}
-      <div className="mt-2 text-sm font-medium text-center text-foreground/80 truncate max-w-full" title={node.name}>
+      <div
+        className={cn(
+          "mt-2 text-sm font-medium text-center text-foreground/80 truncate max-w-full",
+          node.disabled && "opacity-50"
+        )}
+        title={node.name}
+      >
         {node.name}
       </div>
     </div>
