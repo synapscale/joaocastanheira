@@ -17,35 +17,21 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  security-check:
-    runs-on: ubuntu-latest
-    if: >-
-      github.event_name == 'pull_request_target' &&
-      github.event.pull_request.head.repo.full_name != github.repository
-    steps:
-      - name: Security Check
-        run: |
-          echo "::notice::Reviewing PR #${{ github.event.pull_request.number }} from ${{ github.event.pull_request.head.repo.full_name }}"
-
   ai-review:
     uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
-    needs: [security-check]
     if: >-
-      always() &&
       (
-        (
-          github.event_name == 'pull_request_target' &&
-          github.event.pull_request.draft == false &&
-          github.event.pull_request.state == 'open'
-        ) ||
-        (
-          github.event_name == 'issue_comment' &&
-          contains(github.event.comment.body, '/ai-review') &&
-          github.event.issue.pull_request &&
-          github.event.issue.state == 'open'
-        )
+        github.event_name == 'pull_request_target' &&
+        github.event.pull_request.draft == false &&
+        github.event.pull_request.state == 'open'
+      ) ||
+      (
+        github.event_name == 'issue_comment' &&
+        contains(github.event.comment.body, '/ai-review') &&
+        github.event.issue.pull_request &&
+        github.event.issue.state == 'open'
       )
-    secrets: inherit
     with:
       skip_draft: true
       max_files: 50
+    secrets: inherit
