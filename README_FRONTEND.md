@@ -29,10 +29,11 @@ Este repositório contém o frontend **João Castanheira** completamente otimiza
 - `start_frontend.sh` - Script de inicialização
 
 ### 🔌 **Conectividade:**
-- Backend URL: `http://localhost:8000`
-- WebSocket URL: `ws://localhost:8000`
+ - Backend URL: `https://synapse-backend-agents-jc.onrender.com`
+ - WebSocket URL: `wss://synapse-backend-agents-jc.onrender.com`
 - Frontend URL: `http://localhost:3000`
 - CORS configurado corretamente
+- Altere as URLs acima se precisar apontar para um backend local
 
 ---
 
