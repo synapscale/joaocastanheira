@@ -294,6 +294,19 @@ npm run test:coverage
 npm run test:e2e
 ```
 
+## 📝 Logs de Debug
+
+Use o utilitário `utils/logger.ts` para registrar mensagens de depuração:
+
+```ts
+import { debug } from "@/utils/logger"
+
+debug("Valor da variável", foo)
+```
+
+Quando `NEXT_PUBLIC_APP_ENV` for `production`, essas mensagens são
+automaticamente ignoradas.
+
 ## 📈 Performance
 
 ### **Otimizações Implementadas**
