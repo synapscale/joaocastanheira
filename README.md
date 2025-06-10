@@ -45,89 +45,30 @@ O SynapScale Frontend é uma aplicação moderna construída com Next.js 15 e Re
 
 ### **Pré-requisitos**
 - Node.js 18+ 
-- npm (recomendado) ou yarn
-- Terminal/Bash
+- npm ou yarn
+- Backend SynapScale rodando
 
-### **🎯 Comando Único para Iniciar**
-
-Para configurar e iniciar o projeto perfeitamente na primeira vez e sempre:
+### **Instalação**
 
 ```bash
-# Tornar o script executável (apenas na primeira vez)
-chmod +x setup-dev.sh
+# 1. Clonar/extrair o projeto
+cd synapscale-frontend
 
-# COMANDO PRINCIPAL - Configura e inicia tudo automaticamente
-./setup-dev.sh
-```
+# 2. Instalar dependências
+npm install
 
-### **📋 Opções Avançadas**
-
-```bash
-# Apenas instalar dependências (sem iniciar servidor)
-./setup-dev.sh --install-only
-
-# Forçar reinstalação completa das dependências
-./setup-dev.sh --force
-
-# Ver todas as opções disponíveis
-./setup-dev.sh --help
-```
-
-### **🔧 Comandos Manuais (se necessário)**
-
-```bash
-# 1. Instalar dependências (resolve conflitos automaticamente)
-npm install --legacy-peer-deps
-
-# 2. Configurar variáveis de ambiente (se não existir)
+# 3. Configurar variáveis de ambiente
 cp .env.example .env.local
 
-# 3. Iniciar desenvolvimento
+# 4. Editar .env.local com suas configurações
+# NEXT_PUBLIC_API_URL=http://localhost:8000
+# NEXT_PUBLIC_WS_URL=ws://localhost:8000
+
+# 5. Executar em desenvolvimento
 npm run dev
 
-# 4. Build para produção
-npm run build
-
-# 5. Executar build de produção
-npm start
-```
-
-### **✅ O que o setup-dev.sh faz automaticamente:**
-
-- ✅ Verifica versões Node.js e npm
-- ✅ Desabilita Corepack (evita conflitos)
-- ✅ Cria .env.local se não existir
-- ✅ Limpa cache quando necessário
-- ✅ Instala dependências com resolução de conflitos
-- ✅ Verifica integridade do build
-- ✅ Inicia servidor de desenvolvimento
-- ✅ Mostra URLs de acesso
-
-### **🌐 Acesso à Aplicação**
-
-Após executar `./setup-dev.sh`, a aplicação estará disponível em:
-- **Local**: http://localhost:3000 (ou próxima porta disponível)
-- **Network**: http://[seu-ip]:3000
-
-### **⚡ Resolução de Problemas**
-
-Se encontrar erros, use estas soluções:
-
-```bash
-# Problema com dependências conflitantes
-./setup-dev.sh --force
-
-# Problema com cache corrompido
-npm cache clean --force
-./setup-dev.sh
-
-# Problema com Corepack/Yarn
-corepack disable
-./setup-dev.sh
-
-# Reset completo (última opção)
-rm -rf node_modules package-lock.json
-./setup-dev.sh --force
+# 6. Acessar
+# http://localhost:3000
 ```
 
 ### **Build para Produção**
@@ -166,33 +107,6 @@ pm2 start ecosystem.config.js
 ├── public/               # Arquivos estáticos
 ├── types/                # Definições TypeScript
 └── middleware.ts         # Middleware de autenticação
-```
-
-## 🛠️ Runtime Setup
-
-### **📝 Configurações Aplicadas Automaticamente**
-
-O script `setup-dev.sh` resolve automaticamente os seguintes problemas comuns:
-
-- **Corepack Conflicts**: Desabilita Corepack que pode causar erro HTTP 503
-- **Dependency Conflicts**: Usa `--legacy-peer-deps` para React 19 + bibliotecas antigas
-- **Cache Issues**: Limpa cache do npm quando necessário
-- **Environment Setup**: Cria `.env.local` automaticamente
-
-### **📋 Dependências com Resolução Especial**
-
-- `@testing-library/react@16.x` - Compatível com React 19
-- `@tremor/react` - Usa legacy peer deps temporariamente
-- Todas as dependências Radix UI funcionam perfeitamente
-
-### **⚙️ Configurações npm Otimizadas**
-
-O arquivo `.npmrc` é criado automaticamente com:
-```
-registry=https://registry.npmjs.org/
-legacy-peer-deps=true
-fetch-retries=3
-fetch-retry-factor=2
 ```
 
 ## 🔧 Configuração
