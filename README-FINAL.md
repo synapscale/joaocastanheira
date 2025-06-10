@@ -22,9 +22,8 @@ Esta é a versão final do frontend SynapScale, completamente revisada, atualiza
 - ✅ **Lucide Icons**: Ícones modernos e consistentes
 
 ### 🔧 **Configurações Atualizadas**
- - ✅ **URLs da API**: `https://synapse-backend-agents-jc.onrender.com`
- - ✅ **WebSocket**: `wss://synapse-backend-agents-jc.onrender.com`
-- ⚙️  Ajuste para desenvolvimento local, se necessário
+- ✅ **URLs da API**: `https://synapse-backend-agents-jc.onrender.com` (ajuste para sua URL local se necessário)
+- ✅ **WebSocket**: `wss://synapse-backend-agents-jc.onrender.com` (modifique se estiver usando backend local)
 - ✅ **Variáveis de Ambiente**: Arquivo `.env.local` completo
 
 ### 🏗️ **Funcionalidades Completas**

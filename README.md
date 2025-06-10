@@ -64,7 +64,7 @@ cp .env.example .env.local
 # 4. Editar .env.local com suas configurações
 # NEXT_PUBLIC_API_URL=https://synapse-backend-agents-jc.onrender.com
 # NEXT_PUBLIC_WS_URL=wss://synapse-backend-agents-jc.onrender.com
-# (altere para sua URL local se estiver desenvolvendo)
+# Ajuste essas URLs caso utilize um backend local
 
 # 5. Executar em desenvolvimento
 npm run dev
@@ -119,7 +119,7 @@ pm2 start ecosystem.config.js
 # .env.local
 NEXT_PUBLIC_API_URL=https://synapse-backend-agents-jc.onrender.com
 NEXT_PUBLIC_WS_URL=wss://synapse-backend-agents-jc.onrender.com
-# Modifique se utilizar backend local
+# Ajuste as URLs acima caso utilize um backend local
 NEXT_PUBLIC_APP_ENV=development
 ```
 Consulte o arquivo `.env.example` para todas as variáveis disponíveis.

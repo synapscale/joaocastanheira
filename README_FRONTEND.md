@@ -31,9 +31,9 @@ Este repositório contém o frontend **João Castanheira** completamente otimiza
 ### 🔌 **Conectividade:**
  - Backend URL: `https://synapse-backend-agents-jc.onrender.com`
  - WebSocket URL: `wss://synapse-backend-agents-jc.onrender.com`
-- Frontend URL: `http://localhost:3000`
-- CORS configurado corretamente
-- Altere as URLs acima se precisar apontar para um backend local
+ - Frontend URL: `http://localhost:3000`
+ - CORS configurado corretamente
+ - Ajuste as URLs acima caso utilize um backend local
 
 ---
 
