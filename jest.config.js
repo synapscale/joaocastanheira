@@ -14,6 +14,9 @@ module.exports = {
       ],
     }],
   },
+  transformIgnorePatterns: [
+    '/node_modules/(?!(nanoid)/)'
+  ],
   testPathIgnorePatterns: [
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
