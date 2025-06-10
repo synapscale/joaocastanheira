@@ -21,6 +21,8 @@ interface ChatInputProps {
   onDrop: (e: React.DragEvent<HTMLDivElement>) => void
   showConfig: boolean
   onToggleConfig?: () => void
+  /** Texto do placeholder do campo de mensagem */
+  placeholder?: string
 }
 
 export function ChatInput({
@@ -33,6 +35,7 @@ export function ChatInput({
   onDrop,
   showConfig,
   onToggleConfig,
+  placeholder = "Digite sua mensagem...",
 }: ChatInputProps) {
   const chatAreaRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -65,9 +68,7 @@ export function ChatInput({
           value={textarea.value}
           onChange={textarea.handleInput}
           onKeyDown={textarea.handleKeyDown}
-          placeholder={
-            isDragOver ? "Solte o componente aqui..." : "Pergunte alguma coisa..."
-          }
+          placeholder={isDragOver ? "Solte o componente aqui..." : placeholder}
           className="chat-input-textarea w-full resize-none border-0 bg-transparent p-3 outline-none focus:ring-0 dark:text-gray-100"
           style={{ height: "auto", minHeight: "52px" }}
           disabled={disabled}
@@ -167,6 +168,7 @@ export function ChatInput({
             style={{ background: 'linear-gradient(to right, #f35500, #ff7e00)' }}
             onClick={handleSubmit}
             disabled={!textarea.value.trim() || isLoading || disabled}
+            aria-label="enviar mensagem"
           >
             <ArrowRight className="h-[0.8rem] w-[0.8rem]" />
           </Button>
