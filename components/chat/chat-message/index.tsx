@@ -10,6 +10,7 @@
 import React from "react"
 import { Message } from "@/types/chat"
 import { User, Bot } from "lucide-react"
+import logger from "@/utils/logger"
 
 /**
  * Componente para mensagens do usuário
@@ -68,10 +69,10 @@ export function MessageActions({ message }: { message: Message }) {
     navigator.clipboard.writeText(message.content)
       .then(() => {
         // Poderia mostrar uma notificação de sucesso aqui
-        console.log("Conteúdo copiado para a área de transferência")
+        logger.log("Conteúdo copiado para a área de transferência")
       })
       .catch(err => {
-        console.error("Erro ao copiar conteúdo:", err)
+        logger.error("Erro ao copiar conteúdo:", err)
       })
   }
   
