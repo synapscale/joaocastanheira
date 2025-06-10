@@ -9,11 +9,9 @@ on:
 permissions:
   contents: read
   pull-requests: write
-  issues: write
 
 jobs:
   ai-review:
-    runs-on: ubuntu-latest
     if: >-
       github.event_name == 'pull_request_target' ||
       (
@@ -22,7 +20,5 @@ jobs:
         github.event.issue.pull_request
       )
 
-    steps:
-      - name: AI Review
-        uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
-        secrets: inherit
+    uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
+    secrets: inherit
