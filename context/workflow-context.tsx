@@ -166,6 +166,33 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     [nodes],
   )
 
+  const toggleNodeDisabled = useCallback((nodeId: string) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) =>
+        node.id === nodeId ? { ...node, disabled: !node.disabled } : node,
+      ),
+    )
+  }, [])
+
+  const executeNode = useCallback(
+    async (nodeId: string) => {
+      const node = nodes.find((n) => n.id === nodeId)
+      if (!node) return
+
+      const code = node.data?.code
+      if (!code) return
+
+      try {
+        // eslint-disable-next-line no-new-func
+        const fn = new Function('input', code)
+        await fn(node.data?.input)
+      } catch (error) {
+        console.error('Error executing node:', error)
+      }
+    },
+    [nodes],
+  )
+
   const lockNode = useCallback((nodeId: string) => {
     setNodes((prevNodes) => prevNodes.map((node) => (node.id === nodeId ? { ...node, locked: true } : node)))
   }, [])
@@ -379,6 +406,8 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,
@@ -420,6 +449,8 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,
