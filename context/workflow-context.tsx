@@ -174,6 +174,14 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     setNodes((prevNodes) => prevNodes.map((node) => (node.id === nodeId ? { ...node, locked: false } : node)))
   }, [])
 
+  const toggleNodeDisabled = useCallback((nodeId: string) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) =>
+        node.id === nodeId ? { ...node, disabled: !node.disabled } : node,
+      ),
+    )
+  }, [])
+
   const alignNodes = useCallback(
     (nodeIds: string[], alignment: "left" | "right" | "top" | "bottom" | "center") => {
       if (nodeIds.length < 2) return
@@ -379,6 +387,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
       alignNodes,
       addConnection,
       removeConnection,
@@ -420,6 +429,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
       alignNodes,
       addConnection,
       removeConnection,

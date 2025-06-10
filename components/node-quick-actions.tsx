@@ -30,7 +30,7 @@ interface NodeQuickActionsProps {
  * and a dropdown menu for additional options.
  */
 export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverChange }: NodeQuickActionsProps) {
-  const { removeNode, duplicateNode } = useWorkflow()
+  const { removeNode, duplicateNode, toggleNodeDisabled } = useWorkflow()
 
   // Handle mouse enter event
   const handleMouseEnter = useCallback(() => {
@@ -59,15 +59,11 @@ export function NodeQuickActions({ onEditClick, nodeWidth = 70, nodeId, onHoverC
   const handleToggleClick = useCallback(
     (e: React.MouseEvent) => {
       e.stopPropagation()
-      console.log("Toggle node active state", nodeId)
-      // TODO: Implement actual node toggle logic
-      // For now, just show a toast notification
-      if (typeof window !== 'undefined') {
-        // Simple notification for now
-        alert(`Toggling active state for node ${nodeId}`)
+      if (nodeId) {
+        toggleNodeDisabled(nodeId)
       }
     },
-    [nodeId],
+    [nodeId, toggleNodeDisabled],
   )
 
   const handleDeleteClick = useCallback(
