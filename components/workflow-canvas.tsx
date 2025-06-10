@@ -19,7 +19,7 @@ import { useNodeEditorDialog } from "@/hooks/use-node-editor-dialog"
 import { NodeEditorDialog } from "@/components/node-editor-dialog"
 import { CanvasQuickActions } from "@/components/canvas-quick-actions"
 import { PlusIndicator } from "@/components/canvas/plus-indicator"
-import type { Position, Node as WorkflowNodeType } from "@/types/workflow"
+import type { Position, Node as WorkflowNodeType, Connection } from "@/types/workflow"
 import {
   hasOutputConnections,
   getNodeOutputPosition,
@@ -58,11 +58,13 @@ export function WorkflowCanvas() {
     panOffset,
     setPanOffset,
     updateNodePosition,
+    updateNode,
     removeNode,
     duplicateNode,
     addConnection,
     addNode,
     removeConnection,
+    updateConnection,
   } = useWorkflow()
 
   const { isOpen, editingNode, openNodeEditor, closeNodeEditor, saveNode, deleteNode } = useNodeEditorDialog()
@@ -97,6 +99,15 @@ export function WorkflowCanvas() {
 
   // Add this after the plusIndicatorNodeId state
   const [connectionForNodePanel, setConnectionForNodePanel] = useState<string | null>(null)
+
+  // Clipboard state for copy/paste
+  const [clipboard, setClipboard] = useState<{ nodes: WorkflowNodeType[]; connections: Connection[] } | null>(null)
+  const pasteCountRef = useRef(0)
+
+  // History stack for undo/redo
+  const [history, setHistory] = useState<{ nodes: WorkflowNodeType[]; connections: Connection[] }[]>([])
+  const [historyIndex, setHistoryIndex] = useState(-1)
+  const isApplyingHistory = useRef(false)
 
   // Function to open node panel for connection
   const openNodePanelForConnection = useCallback((connectionId: string, position: Position) => {
@@ -192,6 +203,118 @@ export function WorkflowCanvas() {
     () => (nodeId: string) => hasOutputConnections(nodeId, connections),
     [connections],
   )
+
+  const copySelectedNodes = useCallback(() => {
+    const nodesToCopy = nodes.filter((n) => selectedNodes.includes(n.id))
+    if (nodesToCopy.length === 0) return
+    const ids = nodesToCopy.map((n) => n.id)
+    const connsToCopy = connections.filter(
+      (c) => ids.includes(c.from) && ids.includes(c.to),
+    )
+    setClipboard({
+      nodes: nodesToCopy.map((n) => ({ ...n })),
+      connections: connsToCopy.map((c) => ({ ...c })),
+    })
+    pasteCountRef.current = 0
+  }, [nodes, connections, selectedNodes])
+
+  const pasteNodes = useCallback(() => {
+    if (!clipboard) return
+    pasteCountRef.current += 1
+    const offset = 40 * pasteCountRef.current
+    const idMap = new Map<string, string>()
+    const newIds: string[] = []
+    clipboard.nodes.forEach((node) => {
+      const newId = `node-${nanoid(6)}`
+      idMap.set(node.id, newId)
+      addNode({
+        ...node,
+        id: newId,
+        position: {
+          x: node.position.x + offset,
+          y: node.position.y + offset,
+        },
+      })
+      newIds.push(newId)
+    })
+    clipboard.connections.forEach((conn) => {
+      const from = idMap.get(conn.from)
+      const to = idMap.get(conn.to)
+      if (from && to) {
+        addConnection(from, to, conn.type, `conn-${nanoid(6)}`, conn.label)
+      }
+    })
+    setSelectedNodes(newIds)
+  }, [clipboard, addNode, addConnection, setSelectedNodes])
+
+  const applySnapshot = useCallback(
+    (snapshot: { nodes: WorkflowNodeType[]; connections: Connection[] }) => {
+      isApplyingHistory.current = true
+
+      nodes.forEach((node) => {
+        if (!snapshot.nodes.find((n) => n.id === node.id)) {
+          removeNode(node.id)
+        }
+      })
+
+      snapshot.nodes.forEach((sn) => {
+        const existing = nodes.find((n) => n.id === sn.id)
+        if (!existing) {
+          addNode({ ...sn })
+        } else {
+          updateNode(sn.id, { ...sn })
+        }
+      })
+
+      connections.forEach((conn) => {
+        if (!snapshot.connections.find((c) => c.id === conn.id)) {
+          removeConnection(conn.id)
+        }
+      })
+
+      snapshot.connections.forEach((sc) => {
+        const existing = connections.find((c) => c.id === sc.id)
+        if (!existing) {
+          addConnection(sc.from, sc.to, sc.type, sc.id, sc.label)
+        } else {
+          updateConnection(sc.id, sc)
+        }
+      })
+    },
+    [nodes, connections, removeNode, addNode, updateNode, removeConnection, addConnection, updateConnection],
+  )
+
+  const undo = useCallback(() => {
+    if (historyIndex <= 0) return
+    const newIndex = historyIndex - 1
+    setHistoryIndex(newIndex)
+    applySnapshot(history[newIndex])
+  }, [history, historyIndex, applySnapshot])
+
+  const redo = useCallback(() => {
+    if (historyIndex >= history.length - 1) return
+    const newIndex = historyIndex + 1
+    setHistoryIndex(newIndex)
+    applySnapshot(history[newIndex])
+  }, [history, historyIndex, applySnapshot])
+
+  const canUndo = historyIndex > 0
+  const canRedo = historyIndex < history.length - 1
+
+  // Record history on state changes
+  useEffect(() => {
+    if (isApplyingHistory.current) {
+      isApplyingHistory.current = false
+      return
+    }
+    const snapshot = {
+      nodes: nodes.map((n) => ({ ...n })),
+      connections: connections.map((c) => ({ ...c })),
+    }
+    setHistory((prev) => [...prev.slice(0, historyIndex + 1), snapshot])
+    setHistoryIndex((prev) => prev + 1)
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [nodes, connections])
 
   // Calculate canvas dimensions based on nodes
   useEffect(() => {
@@ -835,28 +958,28 @@ export function WorkflowCanvas() {
           // Copy selected nodes if Ctrl/Cmd is pressed
           if ((e.ctrlKey || e.metaKey) && selectedNodes.length > 0) {
             e.preventDefault()
-            // TODO: Implement copy functionality
+            copySelectedNodes()
           }
           break
         case "v":
           // Paste copied nodes if Ctrl/Cmd is pressed
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault()
-            // TODO: Implement paste functionality
+            pasteNodes()
           }
           break
         case "z":
           // Undo if Ctrl/Cmd is pressed
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault()
-            // TODO: Implement undo functionality
+            undo()
           }
           break
         case "y":
           // Redo if Ctrl/Cmd is pressed
           if (e.ctrlKey || e.metaKey) {
             e.preventDefault()
-            // TODO: Implement redo functionality
+            redo()
           }
           break
         case "=":
@@ -923,6 +1046,10 @@ export function WorkflowCanvas() {
     zoomOut,
     resetView,
     duplicateNode,
+    copySelectedNodes,
+    pasteNodes,
+    undo,
+    redo,
     setShowCommandPalette,
     setShowKeyboardShortcuts,
   ])

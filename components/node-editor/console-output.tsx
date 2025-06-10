@@ -39,7 +39,7 @@ export function ConsoleOutput({ logs, onClear, maxHeight = "200px" }: ConsoleOut
         </Button>
       </div>
       <div className="bg-black text-white p-3 font-mono text-sm overflow-auto" style={{ maxHeight: maxHeight }}>
-        {logs.map((log, index) => {
+        {logs.map((log) => {
           // Determine if it's an error message
           const isError = log.toLowerCase().includes("error") || log.toLowerCase().includes("exception")
 
@@ -58,7 +58,7 @@ export function ConsoleOutput({ logs, onClear, maxHeight = "200px" }: ConsoleOut
           )
 
           return (
-            <div key={index} className={className}>
+            <div key={log} className={className}>
               {log}
             </div>
           )

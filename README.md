@@ -59,6 +59,7 @@ npm install
 
 # 3. Configurar variáveis de ambiente
 cp .env.example .env.local
+### Veja o arquivo `.env.example` para a lista completa de variáveis disponíveis.
 
 # 4. Editar .env.local com suas configurações
 # NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -119,6 +120,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WS_URL=ws://localhost:8000
 NEXT_PUBLIC_APP_ENV=development
 ```
+Consulte o arquivo `.env.example` para todas as variáveis disponíveis.
 
 ### **Configuração da API**
 
@@ -195,10 +197,13 @@ npm start
 pm2 start npm --name "synapscale-frontend" -- start
 ```
 
-## 🧪 Testes
+## 🧪 Lint e Testes
 
 ```bash
-# Executar testes
+# Verificar regras de estilo
+npm run lint
+
+# Executar testes unitários
 npm test
 
 # Testes com coverage
@@ -207,6 +212,8 @@ npm run test:coverage
 # Testes E2E
 npm run test:e2e
 ```
+
+GitHub Actions executa automaticamente `npm run lint` e `npm test` em todos os pull requests.
 
 ## 📈 Performance
 

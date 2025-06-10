@@ -117,6 +117,7 @@ npm install
 
 # Configurar variáveis de ambiente
 cp .env.example .env.local
+# Consulte `.env.example` para ver todas as variáveis disponíveis
 
 # Editar .env.local com suas configurações
 NEXT_PUBLIC_API_URL=http://localhost:8000
@@ -195,6 +196,9 @@ curl http://localhost:8000/health
 ### Testes do Frontend
 
 ```bash
+# Verificar regras de estilo
+npm run lint
+
 # Testes unitários
 npm run test
 
@@ -207,6 +211,8 @@ npm run test:coverage
 # Testes em modo watch
 npm run test:watch
 ```
+
+GitHub Actions executa automaticamente `npm run lint` e `npm test` em cada pull request.
 
 ### Testes do Backend
 

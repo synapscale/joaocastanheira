@@ -48,6 +48,8 @@ npm install --legacy-peer-deps
 ```bash
 # Método 1: Script automático
 ./start_frontend.sh
+# O script cria automaticamente o arquivo `.env.local` com valores
+padrão caso ele não exista
 
 # Método 2: Manual
 npm run dev

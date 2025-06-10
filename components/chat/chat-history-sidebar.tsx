@@ -5,6 +5,7 @@ import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Search, X, Clock, Star, Trash, ChevronLeft, MoreHorizontal, Edit, Copy, Archive } from "lucide-react"
+import logger from "@/utils/logger"
 import type { Conversation } from "@/types/chat"
 import { motion, AnimatePresence } from "framer-motion"
 import {
@@ -216,7 +217,7 @@ export function ChatHistorySidebar({
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       // Implementar editar título
-                                      console.log('Editar título:', conversation.id)
+                                      logger.log('Editar título:', conversation.id)
                                     }}
                                   >
                                     <Edit className="h-4 w-4 mr-2" />
@@ -226,7 +227,7 @@ export function ChatHistorySidebar({
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       // Implementar copiar link
-                                      console.log('Copiar link:', conversation.id)
+                                      logger.log('Copiar link:', conversation.id)
                                     }}
                                   >
                                     <Copy className="h-4 w-4 mr-2" />
@@ -236,7 +237,7 @@ export function ChatHistorySidebar({
                                     onClick={(e) => {
                                       e.stopPropagation()
                                       // Implementar arquivar
-                                      console.log('Arquivar:', conversation.id)
+                                      logger.log('Arquivar:', conversation.id)
                                     }}
                                   >
                                     <Archive className="h-4 w-4 mr-2" />

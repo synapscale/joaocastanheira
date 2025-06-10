@@ -166,6 +166,19 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     [nodes],
   )
 
+  const toggleNodeDisabled = useCallback((nodeId: string) => {
+    setNodes((prevNodes) =>
+      prevNodes.map((node) =>
+        node.id === nodeId ? { ...node, disabled: !node.disabled } : node,
+      ),
+    )
+  }, [])
+
+  const executeNode = useCallback((nodeId: string) => {
+    // Placeholder for future execution logic
+    console.log(`Execute node ${nodeId}`)
+  }, [])
+
   const lockNode = useCallback((nodeId: string) => {
     setNodes((prevNodes) => prevNodes.map((node) => (node.id === nodeId ? { ...node, locked: true } : node)))
   }, [])
@@ -379,6 +392,8 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,
@@ -420,6 +435,8 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       duplicateNode,
       lockNode,
       unlockNode,
+      toggleNodeDisabled,
+      executeNode,
       alignNodes,
       addConnection,
       removeConnection,

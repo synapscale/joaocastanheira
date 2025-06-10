@@ -108,9 +108,9 @@ export function DataViewer({ data, onCopy, height = "auto" }: DataViewerProps) {
               <table className="min-w-full divide-y divide-gray-200">
                 <thead className="bg-gray-50">
                   <tr>
-                    {tableHeaders.map((header, index) => (
+                    {tableHeaders.map((header) => (
                       <th
-                        key={index}
+                        key={header}
                         scope="col"
                         className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
                       >
@@ -120,10 +120,10 @@ export function DataViewer({ data, onCopy, height = "auto" }: DataViewerProps) {
                   </tr>
                 </thead>
                 <tbody className="bg-white divide-y divide-gray-200">
-                  {data.map((row: any, rowIndex: number) => (
-                    <tr key={rowIndex}>
-                      {tableHeaders.map((header, cellIndex) => (
-                        <td key={cellIndex} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                  {data.map((row: any) => (
+                    <tr key={JSON.stringify(row)}>
+                      {tableHeaders.map((header) => (
+                        <td key={header} className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                           {typeof row[header] === "object" ? JSON.stringify(row[header]) : String(row[header])}
                         </td>
                       ))}
@@ -138,13 +138,16 @@ export function DataViewer({ data, onCopy, height = "auto" }: DataViewerProps) {
         <TabsContent value="list" className="m-0">
           <ul className="divide-y divide-gray-200">
             {Array.isArray(data)
-              ? data.map((item, index) => (
-                  <li key={index} className="px-4 py-3 text-sm">
+              ? data.map((item) => (
+                  <li
+                    key={typeof item === "object" ? JSON.stringify(item) : String(item)}
+                    className="px-4 py-3 text-sm"
+                  >
                     {typeof item === "object" ? JSON.stringify(item) : String(item)}
                   </li>
                 ))
-              : Object.entries(data).map(([key, value], index) => (
-                  <li key={index} className="px-4 py-3 text-sm">
+              : Object.entries(data).map(([key, value]) => (
+                  <li key={key} className="px-4 py-3 text-sm">
                     <span className="font-medium">{key}: </span>
                     {typeof value === "object" ? JSON.stringify(value) : String(value)}
                   </li>
@@ -166,11 +169,11 @@ export function DataViewer({ data, onCopy, height = "auto" }: DataViewerProps) {
                         item.startsWith("data:image/") ||
                         item.includes("image")),
                   )
-                  .map((url, index) => (
-                    <div key={index} className="border rounded overflow-hidden">
+                  .map((url) => (
+                    <div key={url} className="border rounded overflow-hidden">
                       <img
                         src={url || "/placeholder.svg"}
-                        alt={`Image ${index}`}
+                        alt={`Image ${url}`}
                         className="w-full h-auto object-contain"
                         onError={(e) => {
                           const target = e.target as HTMLImageElement
