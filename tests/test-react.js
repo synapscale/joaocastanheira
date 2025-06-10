@@ -1,5 +1,6 @@
 const { act } = require('react-dom/test-utils');
 const ReactDOMClient = require('react-dom/client');
+const React = require('react');
 
 exports.render = (ui) => {
   const container = globalThis.document.createElement('div');
@@ -40,4 +41,15 @@ exports.fireEvent = {
       element.dispatchEvent(new Event('input', { bubbles: true }));
     });
   },
+};
+
+exports.renderHook = (callback, { wrapper: Wrapper } = {}) => {
+  let result;
+  function TestComponent() {
+    result = callback();
+    return null;
+  }
+  const element = Wrapper ? <Wrapper><TestComponent /></Wrapper> : <TestComponent />;
+  exports.render(element);
+  return { result: { current: result } };
 };
