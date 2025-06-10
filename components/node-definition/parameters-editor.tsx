@@ -332,7 +332,7 @@ export function ParametersEditor({ parameters, onChange }: ParametersEditorProps
                             </TableHeader>
                             <TableBody>
                               {parameterOptions.map((option, index) => (
-                                <TableRow key={index}>
+                                <TableRow key={option.value || index}>
                                   <TableCell>{option.label}</TableCell>
                                   <TableCell>{option.value}</TableCell>
                                   <TableCell>
