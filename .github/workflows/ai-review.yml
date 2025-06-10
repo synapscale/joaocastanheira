@@ -32,6 +32,3 @@ jobs:
     
     uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
     secrets: inherit
-    with:
-      skip_draft: true
-      max_files: 50
