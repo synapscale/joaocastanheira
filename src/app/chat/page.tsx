@@ -1,6 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef, FormEvent } from 'react';
+import { config, getApiUrl } from '@/lib/config';
 
 interface Message {
   id: string;
@@ -32,25 +33,35 @@ export default function ChatPage() {
     setIsLoading(true);
 
     try {
-      // TODO: Substituir pelo endpoint da API real
-      // const response = await fetch('/api/chat', {
-      //   method: 'POST',
-      //   headers: {
-      //     'Content-Type': 'application/json',
-      //   },
-      //   body: JSON.stringify({ message: input, history: messages }), // Enviar histórico se necessário
-      // });
+      const response = await fetch(getApiUrl(config.endpoints.chat.http), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({
+          message: userInput.text,
+          history: messages.map((m) => ({ role: m.sender, content: m.text }))
+        })
+      });
 
-      // if (!response.ok) {
-      //   throw new Error('Falha ao obter resposta do agente');
-      // }
+      if (!response.ok) {
+        throw new Error('Falha ao obter resposta do agente');
+      }
 
-      // const data = await response.json();
-      // const agentResponse: Message = { id: Date.now().toString() + '_agent', text: data.reply, sender: 'agent' };
-      
-      // Simulação de resposta do agente
-      await new Promise(resolve => setTimeout(resolve, 1500));
-      const agentResponse: Message = { id: Date.now().toString() + '_agent', text: `Resposta simulada para: "${userInput.text}"`, sender: 'agent' };
+      const data = await response.json();
+      const replyText =
+        (typeof data === 'string' && data) ||
+        data.reply ||
+        data.message?.content ||
+        data.message ||
+        data.content ||
+        '';
+
+      const agentResponse: Message = {
+        id: Date.now().toString() + '_agent',
+        text: replyText,
+        sender: 'agent'
+      };
 
       setMessages((prevMessages) => [...prevMessages, agentResponse]);
     } catch (error) {
