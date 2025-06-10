@@ -4,15 +4,19 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ChatInput } from '@/components/chat/chat-input';
+import { AppProvider } from '@/context/app-context';
 
 // Mock dos hooks e funções necessárias
 jest.mock('@/hooks/use-textarea', () => ({
-  useTextarea: () => ({
-    textareaRef: { current: document.createElement('textarea') },
+  useTextarea: jest.fn().mockImplementation(() => ({
+    textareaRef: { current: global.document.createElement('textarea') },
     value: '',
     setValue: jest.fn(),
-    handleChange: jest.fn()
-  })
+    handleChange: jest.fn(),
+    resetTextarea: jest.fn(),
+    handleInput: jest.fn(),
+    handleKeyDown: jest.fn(),
+  })),
 }));
 
 describe('ChatInput', () => {
@@ -24,12 +28,14 @@ describe('ChatInput', () => {
   
   it('renderiza o componente de entrada de chat', () => {
     render(
-      <ChatInput 
-        onSendMessage={mockSendMessage} 
-        isLoading={false} 
-        placeholder="Digite sua mensagem..." 
-        maxTokens={4096}
-      />
+      <AppProvider>
+        <ChatInput
+          onSendMessage={mockSendMessage}
+          isLoading={false}
+          placeholder="Digite sua mensagem..."
+          maxTokens={4096}
+        />
+      </AppProvider>
     );
     
     // Verifica se o textarea está presente
@@ -43,12 +49,14 @@ describe('ChatInput', () => {
   
   it('desabilita o botão de enviar quando está carregando', () => {
     render(
-      <ChatInput 
-        onSendMessage={mockSendMessage} 
-        isLoading={true} 
-        placeholder="Digite sua mensagem..." 
-        maxTokens={4096}
-      />
+      <AppProvider>
+        <ChatInput
+          onSendMessage={mockSendMessage}
+          isLoading={true}
+          placeholder="Digite sua mensagem..."
+          maxTokens={4096}
+        />
+      </AppProvider>
     );
     
     // Verifica se o botão de enviar está desabilitado

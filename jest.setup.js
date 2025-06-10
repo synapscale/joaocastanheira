@@ -56,3 +56,6 @@ Object.defineProperty(window, 'matchMedia', {
     dispatchEvent: jest.fn(),
   })),
 });
+
+// Simple mock for @testing-library/react to avoid missing dependencies
+jest.mock('@testing-library/react', () => require('./tests/test-react'));
