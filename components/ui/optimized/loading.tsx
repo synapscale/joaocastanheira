@@ -300,17 +300,14 @@ export const useLoading = (initialState = false) => {
     setLoadingText(undefined)
   }, [])
 
-  const withLoading = React.useCallback(async <T>(
+  const withLoading = React.useCallback(<T,>(
     operation: () => Promise<T>,
     text?: string
-  ): Promise<T> => {
+  ) => {
     startLoading(text)
-    try {
-      const result = await operation()
-      return result
-    } finally {
+    return operation().finally(() => {
       stopLoading()
-    }
+    })
   }, [startLoading, stopLoading])
 
   return {
