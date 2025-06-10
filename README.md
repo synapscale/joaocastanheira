@@ -283,10 +283,13 @@ npm start
 pm2 start npm --name "synapscale-frontend" -- start
 ```
 
-## 🧪 Testes
+## 🧪 Lint e Testes
 
 ```bash
-# Executar testes
+# Verificar regras de estilo
+npm run lint
+
+# Executar testes unitários
 npm test
 
 # Testes com coverage
@@ -295,6 +298,8 @@ npm run test:coverage
 # Testes E2E
 npm run test:e2e
 ```
+
+GitHub Actions executa automaticamente `npm run lint` e `npm test` em todos os pull requests.
 
 ## 📈 Performance
 
