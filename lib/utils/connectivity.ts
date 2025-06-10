@@ -316,12 +316,12 @@ export function validateEnvironmentConfig(): {
 
   // Validar URLs obrigatórias
   if (!config.apiBaseUrl) {
-    errors.push('NEXT_PUBLIC_API_BASE_URL não está configurada')
+    errors.push('NEXT_PUBLIC_API_URL não está configurada')
   } else {
     try {
       new URL(config.apiBaseUrl)
     } catch {
-      errors.push('NEXT_PUBLIC_API_BASE_URL não é uma URL válida')
+      errors.push('NEXT_PUBLIC_API_URL não é uma URL válida')
     }
   }
 
