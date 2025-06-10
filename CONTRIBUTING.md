@@ -148,6 +148,10 @@ test: adiciona ou corrige testes
 chore: tarefas de manutenção
 ```
 
+Além de seguir o padrão acima, resuma sempre as alterações efetivamente
+incluídas no commit para facilitar a revisão. Exemplo: `Add dev-only logger
+and guard debug logs`.
+
 Exemplos:
 ```
 feat(auth): adiciona autenticação JWT
