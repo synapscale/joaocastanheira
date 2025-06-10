@@ -82,7 +82,7 @@ export function KeyboardShortcutsDialog({ triggerClassName = '' }: KeyboardShort
                         <span className="text-sm">{description}</span>
                         <div className="flex gap-1">
                           {keys.map((key, index) => (
-                            <React.Fragment key={index}>
+                            <React.Fragment key={key}>
                               {index > 0 && <span className="text-gray-500">+</span>}
                               {renderKey(key)}
                             </React.Fragment>

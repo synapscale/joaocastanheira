@@ -127,14 +127,14 @@ export function OnboardingTour({ tourId }: OnboardingTourProps) {
         </DialogHeader>
         <div className="flex items-center justify-center py-4">
           <div className="flex gap-1">
-            {steps.map((_, index) => (
-              <div 
-                key={index} 
+            {steps.map((step, index) => (
+              <div
+                key={step.id}
                 className={`h-1.5 w-5 rounded-full ${
-                  index === currentStep 
-                    ? 'bg-primary' 
-                    : index < currentStep 
-                      ? 'bg-primary/40' 
+                  index === currentStep
+                    ? 'bg-primary'
+                    : index < currentStep
+                      ? 'bg-primary/40'
                       : 'bg-gray-200 dark:bg-gray-700'
                 }`}
               />

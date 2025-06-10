@@ -197,8 +197,8 @@ export default function Explainability({
             <div>
               <h4 className="text-sm font-medium mb-2">Passos de raciocínio</h4>
               <ol className="space-y-2 pl-5 list-decimal">
-                {explanation.reasoning.steps.map((step, index) => (
-                  <li key={index} className="text-sm">{step}</li>
+                {explanation.reasoning.steps.map((step) => (
+                  <li key={step} className="text-sm">{step}</li>
                 ))}
               </ol>
             </div>
@@ -206,8 +206,8 @@ export default function Explainability({
             <div>
               <h4 className="text-sm font-medium mb-2">Fatores-chave considerados</h4>
               <ul className="space-y-1 pl-5 list-disc">
-                {explanation.reasoning.keyFactors.map((factor, index) => (
-                  <li key={index} className="text-sm">{factor}</li>
+                {explanation.reasoning.keyFactors.map((factor) => (
+                  <li key={factor} className="text-sm">{factor}</li>
                 ))}
               </ul>
             </div>
@@ -221,8 +221,8 @@ export default function Explainability({
               <h4 className="text-sm font-medium mb-2">Citações</h4>
               {explanation.sources.citations.length > 0 ? (
                 <div className="space-y-2">
-                  {explanation.sources.citations.map((citation, index) => (
-                    <div key={index} className="text-sm border-l-2 border-muted-foreground/20 pl-3 py-1">
+                  {explanation.sources.citations.map((citation) => (
+                    <div key={citation.text} className="text-sm border-l-2 border-muted-foreground/20 pl-3 py-1">
                       <p className="italic mb-1">{citation.text}</p>
                       {citation.title && (
                         <p className="text-xs text-muted-foreground">
@@ -252,8 +252,8 @@ export default function Explainability({
               <div>
                 <h4 className="text-sm font-medium mb-2">Consultas de pesquisa</h4>
                 <div className="space-y-1">
-                  {explanation.sources.searchQueries.map((query, index) => (
-                    <div key={index} className="text-sm bg-muted px-2 py-1 rounded-md inline-block mr-2 mb-2">
+                  {explanation.sources.searchQueries.map((query) => (
+                    <div key={query} className="text-sm bg-muted px-2 py-1 rounded-md inline-block mr-2 mb-2">
                       {query}
                     </div>
                   ))}
@@ -288,8 +288,8 @@ export default function Explainability({
             <div>
               <h4 className="text-sm font-medium mb-2">Detalhamento</h4>
               <div className="space-y-3">
-                {explanation.confidence.breakdown.map((item, index) => (
-                  <div key={index}>
+                {explanation.confidence.breakdown.map((item) => (
+                  <div key={item.category}>
                     <div className="flex items-center justify-between mb-1">
                       <span className="text-sm">{item.category}</span>
                       <span className="text-sm font-medium">{item.score}%</span>
@@ -318,8 +318,8 @@ export default function Explainability({
             <h4 className="text-sm font-medium mb-2">Limitações da resposta</h4>
             {explanation.limitations.length > 0 ? (
               <ul className="space-y-1 pl-5 list-disc">
-                {explanation.limitations.map((limitation, index) => (
-                  <li key={index} className="text-sm">{limitation}</li>
+                {explanation.limitations.map((limitation) => (
+                  <li key={limitation} className="text-sm">{limitation}</li>
                 ))}
               </ul>
             ) : (

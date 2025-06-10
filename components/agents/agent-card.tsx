@@ -145,12 +145,12 @@ export function AgentCard({
                   <Copy className="mr-2 h-4 w-4" aria-hidden="true" />
                   Duplicar
                 </DropdownMenuItem>
-                {customActions.map((action, index) => (
+                {customActions.map((action) => (
                   <DropdownMenuItem
-                    key={index}
+                    key={action.label}
                     onClick={() => action.onClick(agent)}
                     className={action.className}
-                    data-testid={`${componentId}-custom-action-${index}`}
+                    data-testid={`${componentId}-custom-action-${action.label}`}
                   >
                     {action.icon && <span className="mr-2">{action.icon}</span>}
                     {action.label}

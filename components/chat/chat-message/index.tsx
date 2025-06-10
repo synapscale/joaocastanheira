@@ -26,8 +26,8 @@ export function UserMessage({ message }: { message: Message }) {
       {/* Exibe arquivos anexados, se houver */}
       {message.files && message.files.length > 0 && (
         <div className="mt-2 space-y-1">
-          {message.files.map((file, index) => (
-            <div key={index} className="flex items-center text-sm">
+          {message.files.map((file) => (
+            <div key={file.url} className="flex items-center text-sm">
               <a 
                 href={file.url} 
                 target="_blank" 

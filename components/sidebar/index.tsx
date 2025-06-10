@@ -178,7 +178,7 @@ export default function Sidebar() {
                   "Jornada do Cliente",
                 ].map((workflow, index) => (
                   <div
-                    key={index}
+                    key={workflow}
                     className="flex items-center rounded-md px-4 py-2 text-sm text-muted-foreground hover:bg-muted hover:text-foreground cursor-pointer"
                     role="listitem"
                   >

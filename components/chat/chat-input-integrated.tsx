@@ -156,7 +156,7 @@ export function ChatInput({
         <div className="flex flex-wrap gap-2">
           {attachments.map((file, index) => (
             <div
-              key={index}
+              key={`${file.name}-${file.lastModified}`}
               className="flex items-center gap-2 bg-muted px-3 py-1 rounded-md text-sm"
             >
               <Paperclip className="h-3 w-3" />

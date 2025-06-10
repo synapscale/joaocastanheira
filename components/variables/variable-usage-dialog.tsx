@@ -39,7 +39,7 @@ export function VariableUsageDialog({ open, onOpenChange, variable }: VariableUs
             </TableHeader>
             <TableBody>
               {usages.map((usage, index) => (
-                <TableRow key={index}>
+                <TableRow key={`${usage.nodeId}-${usage.parameterKey}` }>
                   <TableCell>{usage.nodeId}</TableCell>
                   <TableCell>{usage.parameterKey}</TableCell>
                   <TableCell>

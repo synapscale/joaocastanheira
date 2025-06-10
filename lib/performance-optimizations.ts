@@ -409,9 +409,9 @@ export function StreamingChat() {
             </div>
           </div>
         ) : (
-          messages.map((message, index) => (
+          messages.map((message) => (
             <div
-              key={index}
+              key={message.id}
               className={cn(
                 "flex items-start gap-3 rounded-lg p-4",
                 message.role === 'user'

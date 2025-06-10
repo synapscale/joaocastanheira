@@ -40,7 +40,7 @@ function TableViewComponent({ data, emptyMessage = "No data to display" }: Table
           </thead>
           <tbody>
             {dataArray.map((item, index) => (
-              <TableRow key={index} item={item} allKeys={allKeys} />
+              <TableRow key={`${index}-${JSON.stringify(item)}`} item={item} allKeys={allKeys} />
             ))}
           </tbody>
         </table>

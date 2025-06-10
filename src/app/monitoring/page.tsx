@@ -386,9 +386,9 @@ export default function MonitoringPage() {
             <CardContent>
               <ScrollArea className="h-[500px]">
                 <div className="space-y-2">
-                  {events.map((event, index) => (
+                  {events.map((event) => (
                     <div
-                      key={index}
+                      key={event.event_id}
                       className="p-3 border rounded-lg"
                     >
                       <div className="flex items-center justify-between mb-2">

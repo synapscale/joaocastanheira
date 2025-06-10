@@ -120,7 +120,7 @@ function TimelineViewComponent({ data, emptyMessage = "No data to display" }: Ti
         {timelineItems.length > 0 ? (
           <div className="py-4">
             {timelineItems.map((item, index) => (
-              <div key={index} className="flex mb-4 pl-4">
+              <div key={item.date.getTime()} className="flex mb-4 pl-4">
                 {/* Timeline dot */}
                 <div className="relative">
                   <div className="absolute left-[-14px] w-6 h-6 rounded-full bg-blue-500 flex items-center justify-center">

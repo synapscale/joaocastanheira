@@ -223,8 +223,8 @@ export const NodeDetailsPanel = memo(function NodeDetailsPanel({ node, onClose }
                 <h4 className="text-sm font-medium mb-2">Input Connections</h4>
                 {node.inputs && node.inputs.length > 0 ? (
                   <div className="space-y-2">
-                    {node.inputs.map((input, index) => (
-                      <div key={index} className="flex items-center p-2 bg-muted rounded-md">
+                    {node.inputs.map((input) => (
+                      <div key={input} className="flex items-center p-2 bg-muted rounded-md">
                         <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
                         <span className="text-sm">{input}</span>
                       </div>
@@ -239,8 +239,8 @@ export const NodeDetailsPanel = memo(function NodeDetailsPanel({ node, onClose }
                 <h4 className="text-sm font-medium mb-2">Output Connections</h4>
                 {node.outputs && node.outputs.length > 0 ? (
                   <div className="space-y-2">
-                    {node.outputs.map((output, index) => (
-                      <div key={index} className="flex items-center p-2 bg-muted rounded-md">
+                    {node.outputs.map((output) => (
+                      <div key={output} className="flex items-center p-2 bg-muted rounded-md">
                         <div className="w-3 h-3 rounded-full bg-gray-300 mr-2"></div>
                         <span className="text-sm">{output}</span>
                       </div>

@@ -155,7 +155,7 @@ function MapViewComponent({ data, emptyMessage = "No data to display" }: MapView
                     </thead>
                     <tbody>
                       {mapPoints.slice(0, 10).map((point, index) => (
-                        <tr key={index} className="border-b">
+                        <tr key={point.title} className="border-b">
                           <td className="p-2">{point.title}</td>
                           <td className="p-2">{point.lat}</td>
                           <td className="p-2">{point.lng}</td>

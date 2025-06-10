@@ -28,7 +28,7 @@ export function VariableUsageList({ variable }: VariableUsageListProps) {
           </TableHeader>
           <TableBody>
             {usages.map((usage, index) => (
-              <TableRow key={index}>
+              <TableRow key={`${usage.nodeId}-${usage.parameterKey}` }>
                 <TableCell>{usage.nodeId}</TableCell>
                 <TableCell>{usage.parameterKey}</TableCell>
               </TableRow>

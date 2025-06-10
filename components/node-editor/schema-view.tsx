@@ -75,8 +75,8 @@ function SchemaViewComponent({ data, emptyMessage = "No data to display" }: Sche
         )}
 
         <div className="divide-y">
-          {fields.map((field, index) => (
-            <div key={index} className="flex items-start py-2 px-4 hover:bg-muted/30">
+          {fields.map((field) => (
+            <div key={field.name} className="flex items-start py-2 px-4 hover:bg-muted/30">
               <div className="w-8 h-8 flex items-center justify-center bg-gray-100 rounded mr-3 text-gray-500 font-medium">
                 {field.typeIndicator}
               </div>

@@ -58,7 +58,7 @@ export function ConsoleOutput({ logs, onClear, maxHeight = "200px" }: ConsoleOut
           )
 
           return (
-            <div key={index} className={className}>
+            <div key={`${log}-${index}`} className={className}>
               {log}
             </div>
           )

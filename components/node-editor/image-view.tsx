@@ -143,7 +143,7 @@ function ImageViewComponent({ data, emptyMessage = "No image data to display" }:
         <div className="grid grid-cols-2 md:grid-cols-3 gap-4 max-h-[350px] overflow-auto">
           {images.map((image, index) => (
             <div
-              key={index}
+              key={image.url}
               className="border rounded-md overflow-hidden cursor-pointer hover:border-blue-500"
               onClick={() => {
                 setSelectedImage(index)

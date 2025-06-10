@@ -435,9 +435,9 @@ export function ExecutionMonitor({ executionId, workflowName, onClose }: Executi
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-2 font-mono text-sm">
-                  {logs.map((log, index) => (
+                  {logs.map((log) => (
                     <div
-                      key={index}
+                      key={log.event_id}
                       className="flex items-start gap-2 p-2 border-l-2 border-l-blue-200"
                     >
                       <span className="text-xs text-muted-foreground whitespace-nowrap">
@@ -513,9 +513,9 @@ export function ExecutionMonitor({ executionId, workflowName, onClose }: Executi
             <CardContent>
               <ScrollArea className="h-[400px]">
                 <div className="space-y-2">
-                  {events.map((event, index) => (
+                  {events.map((event) => (
                     <div
-                      key={index}
+                      key={event.event_id}
                       className="p-3 border rounded-lg"
                     >
                       <div className="flex items-center justify-between mb-2">

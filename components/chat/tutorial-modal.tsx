@@ -237,9 +237,9 @@ export function TutorialModal({ onClose }: TutorialModalProps) {
           
           {/* Indicador de progresso */}
           <div className="flex justify-center my-4">
-            {TUTORIAL_STEPS.map((_, index) => (
+            {TUTORIAL_STEPS.map((step, index) => (
               <div
-                key={index}
+                key={step.title}
                 className={`h-1.5 w-8 mx-0.5 rounded-full ${
                   index === currentStep
                     ? "bg-blue-500"
