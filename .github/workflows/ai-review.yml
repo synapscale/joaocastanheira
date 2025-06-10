@@ -17,39 +17,35 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
-  ai-review:
+  security-check:
     runs-on: ubuntu-latest
-    timeout-minutes: 15
     if: >-
-      (
-        github.event_name == 'pull_request_target' &&
-        github.event.pull_request.draft == false &&
-        github.event.pull_request.state == 'open'
-      ) ||
-      (
-        github.event_name == 'issue_comment' &&
-        contains(github.event.comment.body, '/ai-review') &&
-        github.event.issue.pull_request &&
-        github.event.issue.state == 'open'
-      )
-
+      github.event_name == 'pull_request_target' &&
+      github.event.pull_request.head.repo.full_name != github.repository
     steps:
       - name: Security Check
-        if: github.event_name == 'pull_request_target'
         run: |
           echo "::notice::Reviewing PR #${{ github.event.pull_request.number }} from ${{ github.event.pull_request.head.repo.full_name }}"
-          
-      - name: Cache AI Review
-        uses: actions/cache@v4
-        with:
-          path: ~/.ai-review-cache
-          key: ai-review-${{ github.event.pull_request.head.sha || github.event.issue.number }}
-          restore-keys: |
-            ai-review-
 
-      - name: AI Review
-        uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
-        secrets: inherit
-        with:
-          skip_draft: true
-          max_files: 50
+  ai-review:
+    uses: synapscale/ai-review-automation/.github/workflows/callable.yml@main
+    needs: [security-check]
+    if: >-
+      always() &&
+      (
+        (
+          github.event_name == 'pull_request_target' &&
+          github.event.pull_request.draft == false &&
+          github.event.pull_request.state == 'open'
+        ) ||
+        (
+          github.event_name == 'issue_comment' &&
+          contains(github.event.comment.body, '/ai-review') &&
+          github.event.issue.pull_request &&
+          github.event.issue.state == 'open'
+        )
+      )
+    secrets: inherit
+    with:
+      skip_draft: true
+      max_files: 50
