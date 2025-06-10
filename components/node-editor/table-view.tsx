@@ -39,8 +39,12 @@ function TableViewComponent({ data, emptyMessage = "No data to display" }: Table
             </tr>
           </thead>
           <tbody>
-            {dataArray.map((item, index) => (
-              <TableRow key={index} item={item} allKeys={allKeys} />
+            {dataArray.map((item) => (
+              <TableRow
+                key={typeof item === "object" ? JSON.stringify(item) : String(item)}
+                item={item}
+                allKeys={allKeys}
+              />
             ))}
           </tbody>
         </table>
