@@ -81,6 +81,7 @@ npm install --legacy-peer-deps
 
 # 2. Configurar variáveis de ambiente (se não existir)
 cp .env.example .env.local
+### Veja o arquivo `.env.example` para a lista completa de variáveis disponíveis.
 
 # 3. Iniciar desenvolvimento
 npm run dev
@@ -205,6 +206,7 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 NEXT_PUBLIC_WS_URL=ws://localhost:8000
 NEXT_PUBLIC_APP_ENV=development
 ```
+Consulte o arquivo `.env.example` para todas as variáveis disponíveis.
 
 ### **Configuração da API**
 
