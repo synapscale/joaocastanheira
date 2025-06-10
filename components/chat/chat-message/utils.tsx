@@ -30,7 +30,9 @@ export function processMessageContent(content: string): ReactNode {
       const componentData = JSON.parse(match[1])
 
       // Adiciona o componente de referência
-      parts.push(<ComponentReferenceMessage key={`comp-ref-${match.index}`} componentData={componentData} />)
+      parts.push(
+        <ComponentReferenceMessage key={componentData.path} componentData={componentData} />,
+      )
     } catch (error) {
       // Em caso de erro no parsing, adiciona o texto original
       parts.push(match[0])

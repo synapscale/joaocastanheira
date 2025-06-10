@@ -400,11 +400,11 @@ export default function EventInspector({ element, onClose }: EventInspectorProps
           {filteredEvents.length === 0 ? (
             <div className="text-center py-4 text-sm text-gray-500 dark:text-gray-400">Nenhum evento detectado</div>
           ) : (
-            filteredEvents.map((event, index) => {
+            filteredEvents.map((event) => {
               const isDetected = detectedEvents.has(event.type)
               return (
                 <div
-                  key={`${event.type}-${index}`}
+                  key={`${event.type}-${String(event.handler)}`}
                   className={`p-2 rounded-md ${
                     isDetected
                       ? "bg-green-50 dark:bg-green-900/20 border border-green-100 dark:border-green-800/30"
