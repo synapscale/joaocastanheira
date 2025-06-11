@@ -1,0 +1,268 @@
+# ==============================================================================
+# SYNAPSCALE BACKEND - GITIGNORE
+# ==============================================================================
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+share/python-wheels/
+*.egg-info/
+.installed.cfg
+*.egg
+MANIFEST
+
+# PyInstaller
+*.manifest
+*.spec
+
+# Installer logs
+pip-log.txt
+pip-delete-this-directory.txt
+
+# Unit test / coverage reports
+htmlcov/
+.tox/
+.nox/
+.coverage
+.coverage.*
+.cache
+nosetests.xml
+coverage.xml
+*.cover
+*.py,cover
+.hypothesis/
+.pytest_cache/
+cover/
+
+# Translations
+*.mo
+*.pot
+
+# Django stuff:
+*.log
+local_settings.py
+db.sqlite3
+db.sqlite3-journal
+
+# Flask stuff:
+instance/
+.webassets-cache
+
+# Scrapy stuff:
+.scrapy
+
+# Sphinx documentation
+docs/_build/
+
+# PyBuilder
+.pybuilder/
+target/
+
+# Jupyter Notebook
+.ipynb_checkpoints
+
+# IPython
+profile_default/
+ipython_config.py
+
+# pyenv
+.python-version
+
+# pipenv
+Pipfile.lock
+
+# poetry
+poetry.lock
+
+# pdm
+.pdm.toml
+
+# PEP 582
+__pypackages__/
+
+# Celery stuff
+celerybeat-schedule
+celerybeat.pid
+
+# SageMath parsed files
+*.sage.py
+
+# Environments
+.env
+.venv
+env/
+venv/
+ENV/
+env.bak/
+venv.bak/
+
+# Spyder project settings
+.spyderproject
+.spyproject
+
+# Rope project settings
+.ropeproject
+
+# mkdocs documentation
+/site
+
+# mypy
+.mypy_cache/
+.dmypy.json
+dmypy.json
+
+# Pyre type checker
+.pyre/
+
+# pytype static type analyzer
+.pytype/
+
+# Cython debug symbols
+cython_debug/
+
+# ==============================================================================
+# ARQUIVOS SENSÍVEIS DE SEGURANÇA
+# ==============================================================================
+
+# Variáveis de ambiente
+.env*
+!.env.example
+.envrc
+
+# Chaves SSH e certificados
+*.pem
+*.key
+*.p12
+*.pfx
+*.crt
+*.cer
+*.der
+id_rsa*
+id_ed25519*
+id_ecdsa*
+
+# Credenciais AWS
+.aws/credentials
+.aws/config
+
+# Credenciais Google Cloud
+*.json
+!**/schemas/**/*.json
+!**/docs/**/*.json
+service-account-*.json
+*-service-account.json
+
+# Configurações de banco local
+database.db
+*.sqlite
+*.sqlite3
+
+# Logs sensíveis
+*.log
+logs/
+log/
+
+# Backups que podem conter dados sensíveis
+*.sql
+*.dump
+*.backup
+
+# Arquivos temporários
+*.tmp
+*.temp
+.DS_Store
+Thumbs.db
+
+# ==============================================================================
+# DESENVOLVIMENTO
+# ==============================================================================
+
+# IDEs
+.vscode/settings.json
+.vscode/launch.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+.DS_Store?
+._*
+.Spotlight-V100
+.Trashes
+ehthumbs.db
+Thumbs.db
+
+# ==============================================================================
+# DOCKER E CONTAINERS
+# ==============================================================================
+
+# Docker
+*.dockerignore
+docker-compose.override.yml
+docker-compose.prod.yml
+
+# ==============================================================================
+# STORAGE E UPLOADS
+# ==============================================================================
+
+# Arquivos de upload (manter estrutura de pastas)
+storage/uploads/*
+!storage/uploads/.gitkeep
+storage/temp/*
+!storage/temp/.gitkeep
+storage/archive/*
+!storage/archive/.gitkeep
+
+# Cache
+.cache/
+cache/
+
+# ==============================================================================
+# NODE.JS (se aplicável)
+# ==============================================================================
+
+node_modules/
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+lerna-debug.log*
+.pnpm-debug.log*
+
+# ==============================================================================
+# FERRAMENTAS DE ANÁLISE
+# ==============================================================================
+
+# Coverage reports
+.coverage
+htmlcov/
+.tox/
+.nox/
+.coverage.*
+coverage.xml
+
+# Security scans
+security-report.json
+bandit-report.json
+
+# Performance profiling
+*.prof
+
+# Ignore arquivo de configuração MCP
+mcp.json

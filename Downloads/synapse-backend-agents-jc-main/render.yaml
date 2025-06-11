@@ -1,0 +1,17 @@
+services:
+  - type: web
+    name: synapse-backend-agents
+    runtime: python
+    buildCommand: ./build.sh
+    startCommand: ./start_production.sh
+    healthCheckPath: /health
+    plan: free
+    envVars:
+      - key: PYTHON_VERSION
+        value: 3.11.0
+      - key: PORT
+        generateValue: true
+      - key: ENVIRONMENT
+        value: production
+      - key: DEBUG
+        value: false
