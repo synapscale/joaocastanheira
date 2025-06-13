@@ -66,6 +66,7 @@
     "react-dom": "^18.3.1",
     "react-helmet": "latest",
     "react-hook-form": "latest",
+    "react-icons": "^5.5.0",
     "react-markdown": "latest",
     "react-resizable-panels": "latest",
     "react-syntax-highlighter": "latest",
