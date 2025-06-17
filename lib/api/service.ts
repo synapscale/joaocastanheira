@@ -126,6 +126,12 @@ export interface Message {
   created_at?: string;
 }
 
+// Tipagem estendida para permitir flag skipAuth em opções de requisição
+interface ApiRequestOptions extends RequestInit {
+  /** Se true, não adiciona o header Authorization mesmo se houver token */
+  skipAuth?: boolean
+}
+
 // Classe principal do serviço de API
 class ApiService {
   private baseURL: string;
@@ -166,24 +172,26 @@ class ApiService {
   // Método base para requisições
   private async request<T>(
     endpoint: string,
-    options: RequestInit = {}
+    options: ApiRequestOptions = {}
   ): Promise<T> {
-    const url = `${this.baseURL}${endpoint}`;
-    
+    const url = `${this.baseURL}${endpoint}`
+
+    const { skipAuth, ...fetchOptions } = options
+
     const config: RequestInit = {
       headers: {
         'Content-Type': 'application/json',
-        ...options.headers,
+        ...(fetchOptions.headers as any),
       },
-      ...options,
-    };
+      ...fetchOptions,
+    }
 
-    // Adicionar token de autorização se disponível
-    if (this.accessToken) {
+    // Adicionar token de autorização se disponível e não for request sem auth
+    if (this.accessToken && !skipAuth) {
       config.headers = {
         ...config.headers,
         Authorization: `Bearer ${this.accessToken}`,
-      };
+      }
     }
 
     try {
@@ -535,6 +543,58 @@ class ApiService {
 
   getAccessToken(): string | null {
     return this.accessToken;
+  }
+
+  /**
+   * Helper para requisições POST (JSON por padrão)
+   */
+  async post<T = any>(
+    endpoint: string,
+    data?: any,
+    options: ApiRequestOptions = {}
+  ): Promise<T> {
+    const isFormData = typeof FormData !== 'undefined' && data instanceof FormData
+
+    const headers = isFormData
+      ? options.headers || {}
+      : { 'Content-Type': 'application/json', ...(options.headers as any) }
+
+    return this.request<T>(endpoint, {
+      method: 'POST',
+      body: isFormData ? (data as FormData) : JSON.stringify(data ?? {}),
+      ...options,
+      headers,
+    })
+  }
+
+  /**
+   * Helper para requisições GET
+   */
+  async get<T = any>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
+    return this.request<T>(endpoint, { method: 'GET', ...options })
+  }
+
+  /**
+   * Helper para requisições PUT
+   */
+  async put<T = any>(
+    endpoint: string,
+    data?: any,
+    options: ApiRequestOptions = {}
+  ): Promise<T> {
+    return this.request<T>(endpoint, {
+      method: 'PUT',
+      body: JSON.stringify(data ?? {}),
+      headers: { 'Content-Type': 'application/json', ...(options.headers as any) },
+      ...options,
+    })
+  }
+
+  /**
+   * Helper para requisições DELETE
+   */
+  async delete<T = any>(endpoint: string, options: ApiRequestOptions = {}): Promise<T> {
+    return this.request<T>(endpoint, { method: 'DELETE', ...options })
   }
 }
 
