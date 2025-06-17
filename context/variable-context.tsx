@@ -2,7 +2,7 @@
 
 import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect, useReducer } from "react"
-import { nanoid } from "nanoid"
+import { generateId } from "@/utils/id"
 import { useAuth } from "@/context/auth-context"
 import { variableService, type CreateVariableData, type UpdateVariableData } from "@/lib/services/variables"
 import type { Variable, VariableScope, VariableUsage } from "@/types/variable"
@@ -295,7 +295,7 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
       // Modo offline - salva apenas localmente
       const newVariable: Variable = {
         ...variable,
-        id: `var-${nanoid(6)}`,
+        id: generateId(6),
         createdAt: new Date(),
         updatedAt: new Date(),
       }

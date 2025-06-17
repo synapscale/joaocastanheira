@@ -19,7 +19,7 @@ module.exports = {
     '<rootDir>/.next/'
   ],
   transformIgnorePatterns: [
-    '/node_modules/(?!nanoid|nanoid/.+)',
+    '/node_modules/(?!(nanoid|nanoid/.+|uuid|uuid/.+|@?\w+(-\w+)*))',
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
   ],
@@ -41,5 +41,5 @@ module.exports = {
   },
   testMatch: [
     '<rootDir>/tests/**/*.test.(ts|tsx)'
-  ]
+  ],
 }
