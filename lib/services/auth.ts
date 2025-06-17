@@ -154,6 +154,9 @@ export class AuthService {
           params.append('grant_type', 'password')
           params.append('username', data.email)
           params.append('password', data.password)
+          params.append('scope', '')
+          params.append('client_id', 'string')
+          params.append('client_secret', 'string')
 
           response = await apiService.request(
             config.endpoints.auth.login,
