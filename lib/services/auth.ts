@@ -125,41 +125,32 @@ export class AuthService {
     try {
       let response: any
 
+      // Monta corpo OAuth2 form-urlencoded uma única vez
+      const params = new URLSearchParams()
+      params.append('grant_type', 'password')
+      params.append('username', data.email)
+      params.append('password', data.password)
+      params.append('scope', '')
+      params.append('client_id', 'string')
+      params.append('client_secret', 'string')
+
       try {
-        console.debug('AuthService.login: baseUrl', config.apiBaseUrl, 'endpoint', config.endpoints.auth.login)
-        response = await apiService.post(
+        response = await apiService.request(
           config.endpoints.auth.login,
           {
-            username: data.email,
-            email: data.email,
-            password: data.password,
-          },
-          { skipAuth: true }
+            method: 'POST',
+            body: params,
+            skipAuth: true,
+            headers: {
+              'Content-Type': 'application/x-www-form-urlencoded',
+            },
+          }
         )
       } catch (error: any) {
-        // Se o endpoint oficial não existir (404), tenta rota legada
+        // Endpoint não encontrado? tenta rota legada /auth/login
         if (error?.status === 404) {
-          response = await apiService.post(
-            '/auth/login',
-            {
-              username: data.email,
-              email: data.email,
-              password: data.password,
-            },
-            { skipAuth: true }
-          )
-        } else if (error?.status === 422) {
-          // Algumas instâncias exigem dados x-www-form-urlencoded (OAuth2PasswordRequestForm)
-          const params = new URLSearchParams()
-          params.append('grant_type', 'password')
-          params.append('username', data.email)
-          params.append('password', data.password)
-          params.append('scope', '')
-          params.append('client_id', 'string')
-          params.append('client_secret', 'string')
-
           response = await apiService.request(
-            config.endpoints.auth.login,
+            '/auth/login',
             {
               method: 'POST',
               body: params,

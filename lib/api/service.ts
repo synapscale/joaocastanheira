@@ -219,8 +219,15 @@ class ApiService {
       }
 
       if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}));
-        throw new Error(errorData.message || `HTTP error! status: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}))
+
+        // Cria erro com código de status para permitir tratamento específico (ex.: 422)
+        const err: Error & { status?: number; data?: any } = new Error(
+          errorData.message || `HTTP error! status: ${response.status}`
+        )
+        err.status = response.status
+        err.data = errorData
+        throw err
       }
 
       return await response.json();
