@@ -82,17 +82,41 @@ export function LoginForm({ redirectTo = '/', onSuccess, className = '' }: Login
       return
     }
 
+    let timeoutId: NodeJS.Timeout | null = null
+    let didTimeout = false
     try {
-      await login(formData)
-      
+      // Timeout de segurança
+      await Promise.race([
+        login(formData),
+        new Promise((_, reject) => {
+          timeoutId = setTimeout(() => {
+            didTimeout = true
+            reject(new Error('Tempo de resposta excedido. Tente novamente.'))
+          }, 10000)
+        })
+      ])
+      if (timeoutId) clearTimeout(timeoutId)
       // Sucesso
       if (onSuccess) {
         onSuccess()
       } else {
         router.push(redirectTo)
       }
-    } catch (err) {
-      // Erro já é tratado pelo hook useLogin
+    } catch (err: any) {
+      if (timeoutId) clearTimeout(timeoutId)
+      if (didTimeout) {
+        setValidationErrors({})
+        clearError()
+        alert('O servidor demorou demais para responder. Tente novamente.')
+      } else {
+        // Erro já é tratado pelo hook useLogin, mas garantimos fallback visual
+        setValidationErrors({})
+        if (err && err.message) {
+          alert('Erro ao fazer login: ' + err.message)
+        } else {
+          alert('Erro desconhecido ao fazer login.')
+        }
+      }
       console.error('Erro no login:', err)
     }
   }

@@ -18,42 +18,63 @@ import type {
  * Implementação do storage de autenticação
  */
 class AuthStorageImpl implements AuthStorage {
+  private readonly tokenKey: string
+  private readonly refreshTokenKey: string
+  private readonly userKey: string
+
+  constructor() {
+    // Garante compatibilidade tanto com config.ts (que possui config.auth) quanto
+    // com possíveis versões alternativas do arquivo de configuração que
+    // armazenem as chaves de autenticação no nível raiz.
+    const authConfig = (config as any)?.auth ?? {}
+
+    this.tokenKey =
+      authConfig.tokenKey ?? (config as any)?.jwtStorageKey ?? 'synapse_auth_token'
+
+    this.refreshTokenKey =
+      authConfig.refreshTokenKey ?? (config as any)?.refreshTokenKey ?? 'synapse_refresh_token'
+
+    // A chave do usuário só existe no objeto aninhado `auth` na configuração
+    // "padrão". Caso não exista, usa-se um valor de fallback estático.
+    this.userKey = authConfig.userKey ?? 'synapse_user'
+  }
+
   getToken(): string | null {
     if (typeof window === 'undefined') return null
-    return localStorage.getItem(config.auth.tokenKey)
+    return localStorage.getItem(this.tokenKey)
   }
 
   setToken(token: string): void {
     if (typeof window === 'undefined') return
-    localStorage.setItem(config.auth.tokenKey, token)
+    localStorage.setItem(this.tokenKey, token)
   }
 
   getRefreshToken(): string | null {
     if (typeof window === 'undefined') return null
-    return localStorage.getItem(config.auth.refreshTokenKey)
+    return localStorage.getItem(this.refreshTokenKey)
   }
 
   setRefreshToken(token: string): void {
     if (typeof window === 'undefined') return
-    localStorage.setItem(config.auth.refreshTokenKey, token)
+    localStorage.setItem(this.refreshTokenKey, token)
   }
 
   getUser(): AuthUser | null {
     if (typeof window === 'undefined') return null
-    const userData = localStorage.getItem(config.auth.userKey)
+    const userData = localStorage.getItem(this.userKey)
     return userData ? JSON.parse(userData) : null
   }
 
   setUser(user: AuthUser): void {
     if (typeof window === 'undefined') return
-    localStorage.setItem(config.auth.userKey, JSON.stringify(user))
+    localStorage.setItem(this.userKey, JSON.stringify(user))
   }
 
   clear(): void {
     if (typeof window === 'undefined') return
-    localStorage.removeItem(config.auth.tokenKey)
-    localStorage.removeItem(config.auth.refreshTokenKey)
-    localStorage.removeItem(config.auth.userKey)
+    localStorage.removeItem(this.tokenKey)
+    localStorage.removeItem(this.refreshTokenKey)
+    localStorage.removeItem(this.userKey)
   }
 }
 
@@ -68,25 +89,94 @@ export class AuthService {
   }
 
   /**
+   * Normaliza a resposta do backend para o formato padrão AuthResponse
+   */
+  private normalizeAuthResponse(raw: any): AuthResponse {
+    // Caso já esteja no formato esperado
+    if (raw && raw.tokens && raw.tokens.accessToken) {
+      if (!raw.user) throw new Error('Resposta do backend não contém usuário.')
+      return raw
+    }
+    // Caso venha no formato OAuth2/FastAPI
+    if (raw && raw.access_token && raw.refresh_token && raw.user) {
+      return {
+        tokens: {
+          accessToken: raw.access_token,
+          refreshToken: raw.refresh_token,
+          tokenType: raw.token_type || 'Bearer',
+          expiresIn: raw.expires_in || 0,
+        },
+        user: raw.user,
+      }
+    }
+    // Caso venha só tokens (sem user)
+    if (raw && raw.access_token && raw.refresh_token) {
+      throw new Error('Resposta do backend não contém usuário.')
+    }
+    // Log para debug
+    console.error('Formato de resposta de autenticação desconhecido:', raw)
+    throw new Error('Formato de resposta de autenticação desconhecido: ' + JSON.stringify(raw))
+  }
+
+  /**
    * Realiza login do usuário
    */
   async login(data: LoginData): Promise<AuthResponse> {
     try {
-      const response = await apiService.post<AuthResponse>(
-        config.endpoints.auth.login,
-        {
-          email: data.email,
-          password: data.password,
-        },
-        { skipAuth: true }
-      )
+      let response: any
 
-      // Salvar tokens e dados do usuário
-      this.storage.setToken(response.tokens.accessToken)
-      this.storage.setRefreshToken(response.tokens.refreshToken)
-      this.storage.setUser(response.user)
+      try {
+        console.debug('AuthService.login: baseUrl', config.apiBaseUrl, 'endpoint', config.endpoints.auth.login)
+        response = await apiService.post(
+          config.endpoints.auth.login,
+          {
+            username: data.email,
+            email: data.email,
+            password: data.password,
+          },
+          { skipAuth: true }
+        )
+      } catch (error: any) {
+        // Se o endpoint oficial não existir (404), tenta rota legada
+        if (error?.status === 404) {
+          response = await apiService.post(
+            '/auth/login',
+            {
+              username: data.email,
+              email: data.email,
+              password: data.password,
+            },
+            { skipAuth: true }
+          )
+        } else if (error?.status === 422) {
+          // Algumas instâncias exigem dados x-www-form-urlencoded (OAuth2PasswordRequestForm)
+          const params = new URLSearchParams()
+          params.append('username', data.email)
+          params.append('password', data.password)
 
-      return response
+          response = await apiService.request(
+            config.endpoints.auth.login,
+            {
+              method: 'POST',
+              body: params,
+              skipAuth: true,
+              headers: {
+                'Content-Type': 'application/x-www-form-urlencoded',
+              },
+            }
+          )
+        } else {
+          throw error
+        }
+      }
+
+      // Normaliza resposta para AuthResponse
+      const normalized = this.normalizeAuthResponse(response)
+      this.storage.setToken(normalized.tokens.accessToken)
+      this.storage.setRefreshToken(normalized.tokens.refreshToken)
+      this.storage.setUser(normalized.user)
+
+      return normalized
     } catch (error) {
       throw this.handleAuthError(error)
     }
@@ -330,7 +420,7 @@ export class AuthService {
     }
     
     if (error?.status === 422) {
-      return new Error(error.data?.message || 'Dados inválidos')
+      return new Error(this.extractErrorMessage(error.data?.message || error.message || error))
     }
     
     if (error?.status === 429) {
@@ -341,7 +431,39 @@ export class AuthService {
       return new Error('Erro interno do servidor. Tente novamente mais tarde.')
     }
     
-    return new Error(error?.message || 'Erro de autenticação')
+    return new Error(this.extractErrorMessage(error?.message || error))
+  }
+
+  /**
+   * Converte diferentes formatos de mensagem de erro (string, objeto, array)
+   * em uma string legível.
+   */
+  private extractErrorMessage(raw: unknown): string {
+    if (!raw) return 'Erro de autenticação'
+
+    // Se for já string, retorna
+    if (typeof raw === 'string') return raw
+
+    // Se for array, concatena mensagens
+    if (Array.isArray(raw)) {
+      return raw
+        .map((item) => {
+          if (typeof item === 'string') return item
+          if (item && typeof item === 'object') {
+            return (item as any).message || JSON.stringify(item)
+          }
+          return String(item)
+        })
+        .join(', ')
+    }
+
+    // Se for objeto, tenta pegar propriedade message ou serializa
+    if (typeof raw === 'object') {
+      return (raw as any).message || JSON.stringify(raw)
+    }
+
+    // Fallback genérico
+    return String(raw)
   }
 }
 

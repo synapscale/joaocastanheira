@@ -4,7 +4,7 @@ import { useState } from "react"
 import { ChevronDown, Wrench } from "lucide-react"
 import { Button } from "@/components/ui/button"
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover"
-import { useApp } from "@/context/app-context"
+import { useApp } from "@/contexts/app-context"
 
 // Adicionando a exportação de DEFAULT_TOOLS
 export const DEFAULT_TOOLS = [

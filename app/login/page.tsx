@@ -1,17 +1,12 @@
+export const dynamic = 'force-dynamic'
+
 /**
  * Página de login
  * Interface de autenticação para usuários
  */
 
-import { Metadata } from 'next'
 import { Suspense } from 'react'
 import LoginForm from '../../components/auth/login-form'
-
-export const metadata: Metadata = {
-  title: 'Login | SynapScale',
-  description: 'Faça login na sua conta SynapScale para acessar seus workflows e automações.',
-  robots: 'noindex, nofollow',
-}
 
 export default function LoginPage() {
   return (

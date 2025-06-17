@@ -237,6 +237,8 @@ export class ApiService {
       // Aplica interceptadores de request
       const finalOptions = await this.applyRequestInterceptors(requestOptions)
 
+      console.debug('[ApiService] Request', finalOptions.method || 'GET', url)
+
       // Executa request
       const response = await fetch(url, finalOptions)
 
@@ -427,34 +429,48 @@ export const apiService = new ApiService()
 
 // Configuração de interceptadores de autenticação
 apiService.addRequestInterceptor({
-  onRequest: async (config) => {
-    // Adiciona token de autenticação se disponível
-    const token = localStorage.getItem(config.auth.tokenKey)
-    if (token && !config.headers?.skipAuth) {
-      config.headers = {
-        ...config.headers,
-        Authorization: `Bearer ${token}`,
+  onRequest: async (request) => {
+    // NÃO sombrear a variável global `config`.
+    // `request` é o objeto de configuração da fetch/request.
+
+    // Detecta a chave correta onde o JWT é armazenado, compatível com ambas as
+    // versões de configuração.
+    const tokenKey = (config as any).auth?.tokenKey ?? (config as any).jwtStorageKey ?? 'synapse_auth_token'
+
+    const skipAuth = (request as any).skipAuth
+
+    if (!skipAuth && typeof window !== 'undefined') {
+      const token = localStorage.getItem(tokenKey)
+      if (token) {
+        request.headers = {
+          ...request.headers,
+          Authorization: `Bearer ${token}`,
+        }
       }
     }
-    return config
+
+    return request
   },
 })
 
 apiService.addResponseInterceptor({
   onResponseError: async (error) => {
-    // Handle token expiration
-    if (error.status === 401) {
-      // Remove token inválido
-      localStorage.removeItem(config.auth.tokenKey)
-      localStorage.removeItem(config.auth.refreshTokenKey)
-      localStorage.removeItem(config.auth.userKey)
-      
+    // Remove tokens se o backend retornar 401
+    if (error.status === 401 && typeof window !== 'undefined') {
+      const tokenKey = (config as any).auth?.tokenKey ?? (config as any).jwtStorageKey ?? 'synapse_auth_token'
+      const refreshTokenKey = (config as any).auth?.refreshTokenKey ?? (config as any).refreshTokenKey ?? 'synapse_refresh_token'
+      const userKey = (config as any).auth?.userKey ?? 'synapse_user'
+
+      localStorage.removeItem(tokenKey)
+      localStorage.removeItem(refreshTokenKey)
+      localStorage.removeItem(userKey)
+
       // Redireciona para login se não estiver na página de login
-      if (typeof window !== 'undefined' && !window.location.pathname.includes('/login')) {
+      if (!window.location.pathname.includes('/login')) {
         window.location.href = '/login'
       }
     }
-    
+
     return error
   },
 })

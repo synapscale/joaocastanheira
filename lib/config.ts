@@ -3,9 +3,24 @@
  * Gerencia todas as variáveis de ambiente e configurações globais
  */
 
+// Normaliza a URL base, removendo barras finais e elimando sufixo /api ou /api/vX
+function normalizeApiBase(raw?: string): string {
+  if (!raw) return 'http://localhost:8000'
+
+  let url = raw.trim()
+
+  // Remove barra(s) finais
+  url = url.replace(/\/+$/, '')
+
+  // Remove sufixo /api ou /api/v{n}
+  url = url.replace(/\/api(\/v\d+)?$/, '')
+
+  return url || 'http://localhost:8000'
+}
+
 export const config = {
   // URLs base para comunicação com o backend
-  apiBaseUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+  apiBaseUrl: normalizeApiBase(process.env.NEXT_PUBLIC_API_URL),
   wsUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
   
   // Ambiente da aplicação

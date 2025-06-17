@@ -3,6 +3,9 @@ import { renderHook, act } from '@testing-library/react'
 import '@testing-library/jest-dom'
 import { WorkflowProvider, useWorkflow } from '@/context/workflow-context'
 
+// Mock do nanoid para evitar problemas de ESM
+jest.mock('nanoid', () => ({ nanoid: () => 'mocked-nanoid' }));
+
 const wrapper = ({ children }: { children: React.ReactNode }) => (
   <WorkflowProvider>{children}</WorkflowProvider>
 )

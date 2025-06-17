@@ -1,7 +1,7 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { useApp } from "@/context/app-context"
+import { useApp } from "@/contexts/app-context"
 import type { Conversation } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { ThemeToggle } from "@/components/theme-toggle"

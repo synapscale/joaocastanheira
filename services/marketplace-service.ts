@@ -6,6 +6,7 @@ import type {
   MarketplaceFilters,
 } from "@/types/marketplace-template"
 import type { NodeTemplate } from "@/types/node-template"
+import { getApiUrl } from '../lib/config'
 
 /**
  * Dados mockados para templates do marketplace.
@@ -781,7 +782,7 @@ export class MarketplaceService {
     if (filters.sortBy) params.append('sortBy', filters.sortBy)
     // Adicione outros filtros conforme necessário
 
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates?${params.toString()}`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates?${params.toString()}`)
     const res = await fetch(apiUrl)
     if (!res.ok) throw new Error('Erro ao buscar templates do marketplace')
     const data = await res.json()
@@ -794,7 +795,7 @@ export class MarketplaceService {
    * @returns Promise com o template encontrado ou null
    */
   static async getTemplate(id: string): Promise<MarketplaceTemplate | null> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates/${id}`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates/${id}`)
     const res = await fetch(apiUrl)
     if (!res.ok) return null
     const data = await res.json()
@@ -807,7 +808,7 @@ export class MarketplaceService {
    * @returns Promise com a lista de avaliações
    */
   static async getTemplateReviews(templateId: string): Promise<TemplateReview[]> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates/${templateId}/reviews`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates/${templateId}/reviews`)
     const res = await fetch(apiUrl)
     if (!res.ok) throw new Error('Erro ao buscar avaliações do template')
     const data = await res.json()
@@ -851,7 +852,7 @@ export class MarketplaceService {
    * @throws Error se o usuário não for encontrado
    */
   static async publishTemplate(template: NodeTemplate, userId: string): Promise<MarketplaceTemplate> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates`
+    const apiUrl = getApiUrl('/api/v1/marketplace/templates')
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -870,7 +871,7 @@ export class MarketplaceService {
    * @throws Error se o template não for encontrado
    */
   static async updateTemplate(templateId: string, updates: Partial<MarketplaceTemplate>): Promise<MarketplaceTemplate> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates/${templateId}`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates/${templateId}`)
     const res = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -888,7 +889,7 @@ export class MarketplaceService {
    * @throws Error se o template não for encontrado
    */
   static async deleteTemplate(templateId: string): Promise<boolean> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates/${templateId}`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates/${templateId}`)
     const res = await fetch(apiUrl, { method: 'DELETE' })
     if (!res.ok) throw new Error('Erro ao deletar template')
     return true
@@ -982,7 +983,7 @@ export class MarketplaceService {
    * @throws Error se o template não for encontrado
    */
   static async installTemplate(templateId: string): Promise<NodeTemplate> {
-    const apiUrl = `${process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'}/api/v1/marketplace/templates/${templateId}/install`
+    const apiUrl = getApiUrl(`/api/v1/marketplace/templates/${templateId}/install`)
     const res = await fetch(apiUrl, { method: 'POST' })
     if (!res.ok) throw new Error('Erro ao instalar template')
     const data = await res.json()

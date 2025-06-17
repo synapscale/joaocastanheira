@@ -16,6 +16,7 @@ import { VariableProvider } from '@/context/variable-context'
 import { ChatProvider } from '@/context/chat-context'
 import { ApiService } from '@/lib/api'
 import { setupTestEnvironment, cleanupTestEnvironment, mockBackendResponses } from '../utils/test-helpers'
+import { RegisterForm } from '@/components/auth/register-form'
 
 // Mock do backend para testes
 jest.mock('@/lib/api')
@@ -535,6 +536,55 @@ describe('Integração Completa Frontend-Backend', () => {
       // Deve renderizar 1000 variáveis em menos de 3 segundos
       expect(renderTime).toBeLessThan(3000)
     })
+  })
+
+  describe('📝 Fluxo de Registro de Usuário', () => {
+    test('deve realizar registro completo e redirecionar', async () => {
+      const TestComponent = () => (
+        <AuthProvider>
+          <RegisterForm />
+        </AuthProvider>
+      );
+
+      // Mock de resposta de registro bem-sucedido
+      MockedApiService.prototype.post.mockResolvedValueOnce({
+        data: {
+          access_token: 'mock-jwt-token',
+          refresh_token: 'mock-refresh-token',
+          user: {
+            id: '2',
+            email: 'newuser@example.com',
+            name: 'Novo Usuário'
+          }
+        }
+      });
+
+      render(<TestComponent />);
+
+      // Preencher campos do formulário
+      fireEvent.change(screen.getByPlaceholderText('Seu nome completo'), { target: { value: 'Novo Usuário' } });
+      fireEvent.change(screen.getByPlaceholderText('seu@email.com'), { target: { value: 'newuser@example.com' } });
+      fireEvent.change(screen.getByPlaceholderText('Senha'), { target: { value: 'Senha1234' } });
+      fireEvent.change(screen.getByPlaceholderText('Confirme a senha'), { target: { value: 'Senha1234' } });
+      fireEvent.click(screen.getByLabelText(/aceito/i));
+
+      // Submeter formulário
+      fireEvent.click(screen.getByRole('button', { name: /criar conta|registrar|cadastrar/i }));
+
+      // Esperar redirecionamento ou feedback de sucesso
+      await waitFor(() => {
+        // O AuthProvider deve estar autenticado com o novo usuário
+        expect(MockedApiService.prototype.post).toHaveBeenCalledWith(
+          expect.stringMatching(/register/),
+          expect.objectContaining({
+            name: 'Novo Usuário',
+            email: 'newuser@example.com',
+            password: 'Senha1234',
+          }),
+          expect.anything()
+        );
+      });
+    });
   })
 })
 

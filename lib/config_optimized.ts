@@ -17,6 +17,14 @@ interface Config {
   debug: boolean
   
   // Authentication
+  auth: {
+    tokenKey: string
+    refreshTokenKey: string
+    userKey: string
+    tokenExpirationBuffer: number
+    autoRefresh: boolean
+    persistAuth: boolean
+  }
   jwtStorageKey: string
   refreshTokenKey: string
   
@@ -56,9 +64,17 @@ interface Config {
 function getConfig(): Config {
   const environment = (process.env.NEXT_PUBLIC_ENVIRONMENT as Config['environment']) || 'development'
   
+  // Função auxiliar para normalizar URL base
+  const normalize = (raw?: string): string => {
+    if (!raw) return 'http://localhost:8000'
+    let url = raw.trim().replace(/\/+$/, '') // remove barra final
+    url = url.replace(/\/api(\/v\d+)?$/, '')
+    return url
+  }
+  
   return {
     // URLs
-    apiUrl: process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000',
+    apiUrl: normalize(process.env.NEXT_PUBLIC_API_URL),
     wsUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     
@@ -69,6 +85,14 @@ function getConfig(): Config {
     debug: process.env.NEXT_PUBLIC_DEBUG === 'true',
     
     // Authentication
+    auth: {
+      tokenKey: process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapse_auth_token',
+      refreshTokenKey: process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapse_refresh_token',
+      userKey: 'synapse_user',
+      tokenExpirationBuffer: 300000,
+      autoRefresh: true,
+      persistAuth: true,
+    },
     jwtStorageKey: process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapse_auth_token',
     refreshTokenKey: process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapse_refresh_token',
     

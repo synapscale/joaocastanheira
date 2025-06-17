@@ -18,6 +18,11 @@ module.exports = {
     '<rootDir>/node_modules/',
     '<rootDir>/.next/'
   ],
+  transformIgnorePatterns: [
+    '/node_modules/(?!nanoid|nanoid/.+)',
+    '<rootDir>/node_modules/',
+    '<rootDir>/.next/'
+  ],
   collectCoverageFrom: [
     'components/**/*.{ts,tsx}',
     'app/**/*.{ts,tsx}',
@@ -35,6 +40,6 @@ module.exports = {
     }
   },
   testMatch: [
-    '<rootDir>/tests/unit/**/*.test.(ts|tsx)'
+    '<rootDir>/tests/**/*.test.(ts|tsx)'
   ]
 }
