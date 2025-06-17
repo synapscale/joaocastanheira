@@ -27,8 +27,8 @@ export const config = {
   
   // Configurações de autenticação
   auth: {
-    tokenKey: 'synapse_auth_token',
-    refreshTokenKey: 'synapse_refresh_token',
+    tokenKey: process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapse_auth_token',
+    refreshTokenKey: process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapse_refresh_token',
     userKey: 'synapse_user',
     tokenExpirationBuffer: 300000, // 5 minutos antes de expirar
     autoRefresh: true,
