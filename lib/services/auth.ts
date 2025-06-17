@@ -151,6 +151,7 @@ export class AuthService {
         } else if (error?.status === 422) {
           // Algumas instâncias exigem dados x-www-form-urlencoded (OAuth2PasswordRequestForm)
           const params = new URLSearchParams()
+          params.append('grant_type', 'password')
           params.append('username', data.email)
           params.append('password', data.password)
 
