@@ -103,7 +103,7 @@ export class AuthService {
         tokens: {
           accessToken: raw.access_token,
           refreshToken: raw.refresh_token,
-          tokenType: raw.token_type || 'Bearer',
+          tokenType: 'Bearer',
           expiresIn: raw.expires_in || 0,
         },
         user: raw.user,
