@@ -1,7 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 import type { Conversation } from "@/types/chat"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"

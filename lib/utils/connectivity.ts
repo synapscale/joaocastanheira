@@ -3,7 +3,7 @@
  * Verifica se a comunicação entre frontend e backend está funcionando
  */
 
-import { apiService } from '../api'
+import { apiService } from '../api/service'
 import { config } from '../config'
 import type { HealthResponse } from '../types/api'
 

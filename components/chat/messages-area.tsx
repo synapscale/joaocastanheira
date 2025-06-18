@@ -4,6 +4,8 @@ import type React from "react"
 import type { RefObject } from "react"
 import ChatMessage from "./chat-message"
 import type { Message } from "@/types/chat"
+import { Loader } from "lucide-react"
+import { cn } from "@/lib/utils"
 
 interface MessagesAreaProps {
   messages: Message[]
@@ -27,53 +29,56 @@ export function MessagesArea({
   messagesEndRef,
 }: MessagesAreaProps) {
   return (
-    <div className={`space-y-4 ${focusMode ? 'focus-mode' : ''}`}>
-      {/* Render messages */}
-      {messages.map((message, index) => (
-        <ChatMessage
-          key={message.id}
-          message={message}
-          showTimestamp={showTimestamps}
-          showSender={showSenders}
-          focusMode={focusMode}
-          isLatest={index === messages.length - 1}
-        />
-      ))}
+    <div 
+      className={cn(
+        "space-y-4 relative px-1",
+        focusMode ? "focus-mode opacity-95" : ""
+      )}
+      style={{
+        backgroundImage: typeof chatBackground === "string" ? chatBackground : undefined,
+      }}
+    >
+      {/* Messages container with improved spacing and transitions */}
+      <div className="space-y-6 pb-2">
+        {messages.map((message, index) => (
+          <div 
+            key={message.id} 
+            className={cn(
+              "transition-all duration-200 ease-in-out",
+              index === messages.length - 1 ? "animate-fade-in" : ""
+            )}
+          >
+            <ChatMessage
+              message={message}
+              showTimestamp={showTimestamps}
+              showSender={showSenders}
+              focusMode={focusMode}
+              isLatest={index === messages.length - 1}
+            />
+          </div>
+        ))}
+      </div>
 
-      {/* Loading indicator */}
+      {/* Enhanced loading indicator */}
       {isLoading && (
-        <div className="flex items-center mt-4 text-gray-500 dark:text-gray-400 animate-pulse">
-          <div className="bg-white dark:bg-gray-800 rounded-lg p-3 shadow-sm border border-gray-100 dark:border-gray-700">
-            <div className="flex items-center space-x-2">
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="16"
-                height="16"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="1.5"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="text-orange-500 dark:text-orange-400"
-              >
-                <path d="M12 3v3" />
-                <path d="M18.5 8.5 16 11" />
-                <path d="M8.5 18.5 11 16" />
-                <path d="M3 12h3" />
-                <path d="M18 12h3" />
-                <path d="M12 18v3" />
-                <path d="M16 6l-4 4" />
-                <path d="M8 12l4 4" />
-              </svg>
-              <span>Gerando resposta...</span>
+        <div className="flex items-center mt-4 mb-2">
+          <div className={cn(
+            "bg-background rounded-lg p-3 shadow-sm border border-border",
+            "transition-all duration-300 ease-in-out animate-fade-in"
+          )}>
+            <div className="flex items-center space-x-3">
+              <div className="relative flex items-center justify-center">
+                <div className="h-5 w-5 rounded-full border-2 border-orange-500/30 dark:border-orange-400/30 animate-ping absolute" />
+                <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-orange-500 dark:border-orange-400 animate-spin" />
+              </div>
+              <span className="text-sm text-foreground/80 font-medium">Gerando resposta...</span>
             </div>
           </div>
         </div>
       )}
 
       {/* Anchor for auto-scrolling */}
-      <div ref={messagesEndRef} />
+      <div ref={messagesEndRef} className="h-0.5" />
     </div>
   )
 }

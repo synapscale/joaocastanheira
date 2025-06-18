@@ -6,7 +6,7 @@
 
 import React from 'react';
 import { render, screen, fireEvent, waitFor } from '@testing-library/react';
-import { AppProvider } from '@/contexts/app-context';
+import { AppProvider } from '@/context/app-context';
 import { ChatInterface } from '@/components/chat/chat-interface';
 import { ChatInput } from '@/components/chat/chat-input';
 import ChatMessage from '@/components/chat/chat-message';

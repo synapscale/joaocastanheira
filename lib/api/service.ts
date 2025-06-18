@@ -2,9 +2,11 @@
  * Serviço de API completo para integração com o backend SynapScale
  */
 
+import { config } from '../config'
+
 // Configuração base da API
-const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
-const WS_BASE_URL = process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000/ws';
+const API_BASE_URL = config.apiBaseUrl + '/api/v1';
+const WS_BASE_URL = config.wsUrl;
 
 // Tipos TypeScript
 export interface User {
@@ -133,7 +135,7 @@ interface ApiRequestOptions extends RequestInit {
 }
 
 // Classe principal do serviço de API
-class ApiService {
+export class ApiService {
   private baseURL: string;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
@@ -219,6 +221,12 @@ class ApiService {
       }
 
       if (!response.ok) {
+        // Em desenvolvimento, retornar dados mock para erros 401 em endpoints específicos
+        if (response.status === 401 && process.env.NODE_ENV === 'development' && this.shouldUseMockData(endpoint)) {
+          console.warn(`API unauthorized for ${endpoint}, returning mock data for development`)
+          return this.getMockData<T>(endpoint)
+        }
+
         const errorData = await response.json().catch(() => ({}))
 
         // Cria erro com código de status para permitir tratamento específico (ex.: 422)
@@ -232,21 +240,127 @@ class ApiService {
 
       return await response.json();
     } catch (error) {
+      // Em desenvolvimento, retornar dados mock para falhas de conexão em endpoints específicos
+      if (process.env.NODE_ENV === 'development' && this.shouldUseMockData(endpoint)) {
+        console.warn(`API request failed for ${endpoint}, returning mock data for development:`, error)
+        return this.getMockData<T>(endpoint)
+      }
+      
       console.error('API request failed:', error);
       throw error;
     }
   }
 
+  // Verificar se deve usar dados mock para um endpoint
+  private shouldUseMockData(endpoint: string): boolean {
+    const mockEndpoints = ['/agents', '/conversations', '/workflows', '/templates', '/nodes']
+    return mockEndpoints.some(mockEndpoint => endpoint.includes(mockEndpoint))
+  }
+
+  // Retornar dados mock para desenvolvimento
+  private getMockData<T>(endpoint: string): T {
+    if (endpoint.includes('/agents')) {
+      return {
+        items: [
+          {
+            id: "agent_1",
+            name: "Assistente Geral",
+            description: "Um assistente versátil para tarefas gerais",
+            agent_type: "conversational",
+            personality: "Prestativo e amigável",
+            instructions: "Você é um assistente prestativo que ajuda com diversas tarefas",
+            user_id: "demo_user",
+            workspace_id: null,
+            model_provider: "openai",
+            model_name: "gpt-4",
+            temperature: 0.7,
+            max_tokens: 1000,
+            status: "active",
+            tools: ["web_search", "calculator"],
+            knowledge_base: null,
+            avatar_url: null,
+            conversation_count: 15,
+            message_count: 234,
+            rating_average: 4.5,
+            rating_count: 12,
+            last_active_at: new Date().toISOString(),
+            created_at: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date().toISOString()
+          },
+          {
+            id: "agent_2", 
+            name: "Especialista em Código",
+            description: "Especialista em programação e desenvolvimento",
+            agent_type: "coding",
+            personality: "Técnico e preciso",
+            instructions: "Você é um especialista em programação que ajuda com código e desenvolvimento",
+            user_id: "demo_user",
+            workspace_id: null,
+            model_provider: "openai",
+            model_name: "gpt-4",
+            temperature: 0.3,
+            max_tokens: 2000,
+            status: "active",
+            tools: ["code_analyzer", "documentation"],
+            knowledge_base: null,
+            avatar_url: null,
+            conversation_count: 8,
+            message_count: 156,
+            rating_average: 4.8,
+            rating_count: 8,
+            last_active_at: new Date(Date.now() - 2 * 60 * 60 * 1000).toISOString(),
+            created_at: new Date(Date.now() - 14 * 24 * 60 * 60 * 1000).toISOString(),
+            updated_at: new Date(Date.now() - 60 * 60 * 1000).toISOString()
+          }
+        ],
+        total: 2,
+        page: 1,
+        size: 20,
+        pages: 1
+      } as T
+    }
+
+    if (endpoint.includes('/conversations')) {
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        size: 20,
+        pages: 0
+      } as T
+    }
+
+    if (endpoint.includes('/workflows')) {
+      return {
+        items: [],
+        total: 0,
+        page: 1,
+        size: 20,
+        pages: 0
+      } as T
+    }
+
+    // Retorno padrão para outros endpoints
+    return {} as T
+  }
+
   // Autenticação
   async login(email: string, password: string): Promise<AuthTokens> {
-    const formData = new FormData();
+    // Use form-urlencoded as specified in the OpenAPI spec
+    const formData = new URLSearchParams();
+    formData.append('grant_type', 'password');
     formData.append('username', email);
     formData.append('password', password);
+    formData.append('scope', '');
+    formData.append('client_id', '');
+    formData.append('client_secret', '');
 
     const tokens = await this.request<AuthTokens>('/auth/login', {
       method: 'POST',
-      headers: {},
-      body: formData,
+      headers: {
+        'Content-Type': 'application/x-www-form-urlencoded',
+      },
+      body: formData.toString(),
     });
 
     this.saveTokensToStorage(tokens);
@@ -256,12 +370,17 @@ class ApiService {
   async register(userData: {
     email: string;
     password: string;
-    first_name?: string;
-    last_name?: string;
+    username?: string;
+    full_name?: string;
   }): Promise<User> {
     return await this.request<User>('/auth/register', {
       method: 'POST',
-      body: JSON.stringify(userData),
+      body: JSON.stringify({
+        email: userData.email,
+        username: userData.username || userData.email.split('@')[0],
+        full_name: userData.full_name || '',
+        password: userData.password
+      }),
     });
   }
 
@@ -526,21 +645,74 @@ class ApiService {
       formData.append('metadata', JSON.stringify(metadata));
     }
 
-    return await this.request<any>('/files/upload', {
+    return await this.request<{ id: string; url: string; filename: string }>('/files/upload', {
       method: 'POST',
-      headers: {},
       body: formData,
+      headers: {}, // Remove Content-Type header for FormData
     });
   }
 
   async getFile(id: string): Promise<{ id: string; url: string; filename: string; metadata: any }> {
-    return await this.request<any>(`/files/${id}`);
+    return await this.request<{ id: string; url: string; filename: string; metadata: any }>(`/files/${id}`);
   }
 
   async deleteFile(id: string): Promise<void> {
     await this.request(`/files/${id}`, {
       method: 'DELETE',
     });
+  }
+
+  /**
+   * Faz GET e retorna um Blob (útil para downloads/exportações)
+   */
+  async getBlob(endpoint: string, options: ApiRequestOptions = {}): Promise<Blob> {
+    const url = `${this.baseURL}${endpoint}`
+
+    const { skipAuth, ...fetchOptions } = options
+
+    const config: RequestInit = {
+      headers: {
+        ...(fetchOptions.headers as any),
+      },
+      ...fetchOptions,
+      method: fetchOptions.method || 'GET',
+    }
+
+    if (this.accessToken && !skipAuth) {
+      config.headers = {
+        ...(config.headers as any),
+        Authorization: `Bearer ${this.accessToken}`,
+      }
+    }
+
+    try {
+      const response = await fetch(url, config)
+
+      if (!response.ok) {
+        const error = new Error(`HTTP error! status: ${response.status}`)
+        // @ts-ignore
+        error.status = response.status
+        throw error
+      }
+
+      return await response.blob()
+    } catch (error) {
+      console.error('API blob request failed:', error)
+      throw error
+    }
+  }
+
+  /**
+   * Verifica o health check do backend
+   */
+  async healthCheck(): Promise<boolean> {
+    try {
+      await this.request('/health', { skipAuth: true })
+      return true
+    } catch (error) {
+      console.error('Health check failed:', error)
+      return false
+    }
   }
 
   // Utility methods

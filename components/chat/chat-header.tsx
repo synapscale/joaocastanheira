@@ -1,22 +1,30 @@
 "use client"
 
 import { useCallback, useState } from "react"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 import type { Conversation } from "@/types/chat"
 import { Button } from "@/components/ui/button"
-import { ThemeToggle } from "@/components/theme-toggle"
-import { Share, Download, Eye, Maximize, MoreVertical, Trash, Pencil, Copy, History, PanelRight, Plus } from "lucide-react"
-import { useToast } from "@/hooks/use-toast"
-import { 
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger
-} from "@/components/ui/dropdown-menu"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
 import { Input } from "@/components/ui/input"
-import { Label } from "@/components/ui/label"
+import { ThemeToggle } from "@/components/theme-toggle"
+import { 
+  Share, 
+  Download, 
+  Eye, 
+  EyeOff, 
+  Trash, 
+  Pencil, 
+  Copy, 
+  History, 
+  Plus, 
+  Settings, 
+  MessageSquare,
+  Check,
+  X
+} from "lucide-react"
+import { useToast } from "@/hooks/use-toast"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog"
+import { Avatar, AvatarFallback } from "@/components/ui/avatar"
+import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 
 interface ChatHeaderProps {
   currentConversation: Conversation | undefined
@@ -32,6 +40,7 @@ interface ChatHeaderProps {
   isHistorySidebarOpen: boolean
   onToggleComponentSelector?: () => void
   onToggleFocusMode?: () => void
+  onToggleChatSettings?: () => void
 }
 
 export function ChatHeader({
@@ -48,22 +57,17 @@ export function ChatHeader({
   isHistorySidebarOpen,
   onToggleComponentSelector,
   onToggleFocusMode,
+  onToggleChatSettings,
 }: ChatHeaderProps) {
   const { focusMode, setFocusMode, isComponentSelectorActive } = useApp()
   const { toast } = useToast()
   
-  // Estados para o modal de edição de título
-  const [isEditTitleDialogOpen, setIsEditTitleDialogOpen] = useState(false)
-  const [newTitle, setNewTitle] = useState("")
+  // Estados para edição inline do título
+  const [isEditingTitle, setIsEditingTitle] = useState(false)
+  const [editingTitle, setEditingTitle] = useState("")
   
   // Estado para o modal de confirmação de exclusão
   const [isDeleteDialogOpen, setIsDeleteDialogOpen] = useState(false)
-  
-  // Estado para o dropdown de histórico
-  const [isHistoryDropdownOpen, setIsHistoryDropdownOpen] = useState(false)
-  
-  // Estado para controlar a visibilidade do ícone de edição
-  const [showEditIcon, setShowEditIcon] = useState(false)
 
   const handleToggleFocusMode = useCallback(() => {
     if (onToggleFocusMode) {
@@ -71,12 +75,12 @@ export function ChatHeader({
     } else if (setFocusMode) {
       setFocusMode(!focusMode)
       
-      // Feedback visual
       toast({
         title: focusMode ? "Modo foco desativado" : "Modo foco ativado",
         description: focusMode 
-          ? "Voltando ao modo de visualização normal." 
-          : "Modo foco ativado para melhor concentração.",
+          ? "Voltando ao modo normal" 
+          : "Modo foco ativado",
+        duration: 2000,
       })
     }
   }, [onToggleFocusMode, setFocusMode, focusMode, toast])
@@ -84,359 +88,300 @@ export function ChatHeader({
   const handleShareConversation = useCallback(() => {
     if (!currentConversation) return
     
-    // Simular compartilhamento copiando para a área de transferência
     const shareUrl = `${window.location.origin}/chat/${currentConversation.id}`
     navigator.clipboard.writeText(shareUrl)
     
-    // Feedback visual
     toast({
       title: "Link copiado",
-      description: "O link da conversa foi copiado para a área de transferência.",
+      description: "Link da conversa copiado",
+      duration: 2000,
     })
   }, [currentConversation, toast])
 
   const handleExportConversation = useCallback(() => {
     if (!currentConversation) return
-    
-    // Executar a exportação
     onExportConversation()
-    
-    // Feedback visual
-    toast({
-      title: "Conversa exportada",
-      description: "O arquivo de texto foi baixado com sucesso.",
-    })
-  }, [currentConversation, onExportConversation, toast])
+  }, [currentConversation, onExportConversation])
 
   const handleDeleteCurrentConversation = useCallback(() => {
     if (!currentConversationId) return
-    
-    // Abrir modal de confirmação
     setIsDeleteDialogOpen(true)
   }, [currentConversationId])
   
   const confirmDeleteConversation = useCallback(() => {
     if (!currentConversationId) return
-    
-    // Executar a exclusão
     onDeleteConversation(currentConversationId)
-    
-    // Feedback visual
-    toast({
-      title: "Conversa excluída",
-      description: "A conversa foi removida permanentemente.",
-    })
-    
-    // Fechar modal
     setIsDeleteDialogOpen(false)
-  }, [currentConversationId, onDeleteConversation, toast])
+  }, [currentConversationId, onDeleteConversation])
 
-  const handleToggleSidebar = useCallback(() => {
-    onToggleSidebar()
-  }, [onToggleSidebar])
-  
-  const handleToggleHistorySidebar = useCallback(() => {
-    onToggleHistorySidebar()
-    
-    // Feedback visual
-    toast({
-      title: isHistorySidebarOpen ? "Histórico fechado" : "Histórico aberto",
-      description: isHistorySidebarOpen 
-        ? "O painel de histórico de conversas foi fechado." 
-        : "O painel de histórico de conversas foi aberto.",
-    })
-  }, [onToggleHistorySidebar, isHistorySidebarOpen, toast])
-  
-  const handleEditTitle = useCallback(() => {
+  const handleCopyConversation = useCallback(() => {
     if (!currentConversation) return
+    onNewConversation()
     
-    // Inicializar o formulário com o título atual
-    setNewTitle(currentConversation.title || "Nova conversa")
-    setIsEditTitleDialogOpen(true)
+    toast({
+      title: "Conversa duplicada",
+      description: "Cópia da conversa criada",
+      duration: 2000,
+    })
+  }, [currentConversation, onNewConversation, toast])
+
+  // Edição inline do título
+  const startEditingTitle = useCallback(() => {
+    if (!currentConversation) return
+    setEditingTitle(currentConversation.title || "Nova conversa")
+    setIsEditingTitle(true)
   }, [currentConversation])
-  
-  const confirmEditTitle = useCallback(() => {
-    if (!newTitle.trim()) {
+
+  const saveTitle = useCallback(() => {
+    if (!editingTitle.trim()) {
       toast({
         title: "Título inválido",
-        description: "O título da conversa não pode estar vazio.",
+        description: "O título não pode estar vazio",
         variant: "destructive"
       })
       return
     }
     
-    // Atualizar o título
-    onUpdateConversationTitle(newTitle)
+    onUpdateConversationTitle(editingTitle)
+    setIsEditingTitle(false)
     
-    // Feedback visual
     toast({
       title: "Título atualizado",
-      description: "O título da conversa foi atualizado com sucesso.",
+      description: "Título da conversa atualizado",
+      duration: 2000,
     })
-    
-    // Fechar modal
-    setIsEditTitleDialogOpen(false)
-  }, [newTitle, onUpdateConversationTitle, toast])
-  
-  const handleCopyConversation = useCallback(() => {
-    if (!currentConversation) return
-    
-    // Criar uma nova conversa baseada na atual
-    onNewConversation()
-    
-    // Feedback visual
-    toast({
-      title: "Conversa duplicada",
-      description: "Uma cópia da conversa atual foi criada.",
-    })
-  }, [currentConversation, onNewConversation, toast])
-  
-  const handleSelectConversation = useCallback((id: string) => {
-    onSelectConversation(id)
-    setIsHistoryDropdownOpen(false)
-  }, [onSelectConversation])
+  }, [editingTitle, onUpdateConversationTitle, toast])
+
+  const cancelEditingTitle = useCallback(() => {
+    setIsEditingTitle(false)
+    setEditingTitle("")
+  }, [])
 
   return (
-    <>
-      <header className="sticky top-0 z-10 bg-white dark:bg-gray-900">
-        <div className="flex items-center justify-between w-full px-4 h-14">
-          <div className="flex items-center gap-2">
-            <Button
-              variant="ghost"
-              size="icon"
-              className="md:hidden"
-              onClick={handleToggleSidebar}
-              aria-label="Toggle sidebar"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="24"
-                height="24"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-5 w-5"
-              >
-                <line x1="3" y1="12" x2="21" y2="12" />
-                <line x1="3" y1="6" x2="21" y2="6" />
-                <line x1="3" y1="18" x2="21" y2="18" />
-              </svg>
-            </Button>
-
-            <div 
-              className="flex items-center relative group opacity-0 hover:opacity-100 transition-opacity duration-200"
-              onMouseEnter={() => setShowEditIcon(true)}
-              onMouseLeave={() => setShowEditIcon(false)}
-            >
-              <h1 
-                className="text-base font-medium text-gray-900 dark:text-gray-100 cursor-pointer hover:underline truncate max-w-[200px] md:max-w-[300px]"
-                onClick={handleEditTitle}
-              >
-                {currentConversation?.title || "Nova conversa"}
-              </h1>
-              {/* Ícone de edição que aparece apenas no hover */}
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={handleEditTitle}
-                className={`ml-0.5 h-5 w-5 p-0 text-gray-400 hover:text-gray-600 dark:hover:text-gray-300 transition-opacity duration-200 ${
-                  showEditIcon ? 'opacity-100' : 'opacity-0'
-                }`}
-              >
-                <Pencil className="h-3 w-3" />
-              </Button>
+    <TooltipProvider>
+      {/* Header principal com design moderno e refinado */}
+      <header className="bg-gradient-to-r from-background/95 via-background/98 to-background/95 backdrop-blur-lg border-b border-border/40 sticky top-0 z-40 transition-all duration-300 shadow-sm">
+        <div className="max-w-5xl mx-auto px-4 sm:px-6">
+          <div className="flex items-center justify-between h-20">
+            {/* Lado esquerdo - Título editável com visual refinado */}
+            <div className="flex items-center flex-1 min-w-0">
+              <div className="flex items-center gap-2 min-w-0 flex-1">
+                {isEditingTitle ? (
+                  <div className="flex items-center gap-2 flex-1 bg-background/50 rounded-md px-2 py-1 border border-border/50 shadow-sm">
+                    <Input
+                      value={editingTitle}
+                      onChange={(e) => setEditingTitle(e.target.value)}
+                      onBlur={saveTitle}
+                      onKeyDown={(e) => {
+                        if (e.key === 'Enter') saveTitle()
+                        if (e.key === 'Escape') cancelEditingTitle()
+                      }}
+                      className="flex-1 h-8 border-none focus-visible:ring-0 focus-visible:ring-offset-0 bg-transparent"
+                      autoFocus
+                    />
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={saveTitle}
+                      className="h-7 w-7 p-0 rounded-full hover:bg-primary/10"
+                    >
+                      <Check className="h-4 w-4 text-green-600" />
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={cancelEditingTitle}
+                      className="h-7 w-7 p-0 rounded-full hover:bg-destructive/10"
+                    >
+                      <X className="h-4 w-4 text-red-600" />
+                    </Button>
+                  </div>
+                ) : (
+                  <div className="flex items-center gap-2 flex-1 min-w-0 group">
+                    <h1 
+                      className="text-xl font-semibold truncate cursor-pointer hover:text-primary transition-colors duration-200"
+                      onClick={startEditingTitle}
+                      title="Clique para editar"
+                    >
+                      {currentConversation?.title || "Nova conversa"}
+                    </h1>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={startEditingTitle}
+                      className="h-8 w-8 p-0 opacity-0 group-hover:opacity-100 hover:opacity-100 transition-all duration-200 rounded-full hover:bg-primary/10 hover:text-primary hover:scale-105"
+                    >
+                      <Pencil className="h-4 w-4" />
+                    </Button>
+                  </div>
+                )}
+              </div>
             </div>
-          </div>
 
-          <div className="flex items-center justify-end gap-1">
-            {/* Botão de Nova Conversa - Agora à esquerda */}
-            <Button
-              variant="ghost"
-              size="sm"
-              onClick={onNewConversation}
-              aria-label="Nova conversa"
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 flex items-center gap-1 text-xs py-1 px-3 h-8 border border-gray-200 dark:border-gray-700 rounded-full"
-              title="Iniciar nova conversa"
-            >
-              <svg
-                xmlns="http://www.w3.org/2000/svg"
-                width="14"
-                height="14"
-                viewBox="0 0 24 24"
-                fill="none"
-                stroke="currentColor"
-                strokeWidth="2"
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                className="h-3.5 w-3.5"
-              >
-                <path d="M5 12h14" />
-                <path d="M12 5v14" />
-              </svg>
-              <span>Nova conversa</span>
-            </Button>
-            
-            {/* Botão de Histórico de Conversas - Agora à direita do botão Nova Conversa */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleHistorySidebar}
-              aria-label="Histórico de conversas"
-              className={`${
-                isHistorySidebarOpen ? "text-gray-700 hover:text-gray-900" : "text-gray-500 hover:text-gray-700"
-              } dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-1.5`}
-              title="Histórico de conversas"
-            >
-              <History className="h-4 w-4" />
-            </Button>
+            {/* Lado direito - Ações com tooltips e design refinado */}
+            <div className="flex items-center gap-2">
+              {/* Nova conversa */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onNewConversation}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-primary/10 hover:text-primary transition-all duration-200 hover:scale-105"
+                  >
+                    <Plus className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Nova conversa</TooltipContent>
+              </Tooltip>
 
-            {/* Botão de Compartilhar */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleShareConversation}
-              aria-label="Share conversation"
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-1.5"
-            >
-              <Share className="h-4 w-4" />
-            </Button>
+              {/* Histórico */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleHistorySidebar}
+                    className={`h-9 w-9 p-0 rounded-full transition-all duration-200 hover:scale-105 ${
+                      isHistorySidebarOpen 
+                        ? 'bg-primary/20 text-primary' 
+                        : 'hover:bg-primary/10 hover:text-primary'
+                    }`}
+                  >
+                    <History className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Histórico de conversas</TooltipContent>
+              </Tooltip>
 
-            {/* Botão de Exportar */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleExportConversation}
-              aria-label="Export conversation"
-              className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-1.5"
-            >
-              <Download className="h-4 w-4" />
-            </Button>
+              {/* Configurações do chat */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={onToggleChatSettings}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-primary/10 hover:text-primary transition-all duration-200 hover:scale-105"
+                  >
+                    <Settings className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Configurações do chat</TooltipContent>
+              </Tooltip>
 
-            {/* Botão de Modo Foco */}
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={handleToggleFocusMode}
-              aria-label="Toggle focus mode"
-              className={`${
-                focusMode ? "text-gray-700 hover:text-gray-900" : "text-gray-500 hover:text-gray-700"
-              } dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-1.5`}
-            >
-              <Eye className="h-4 w-4" />
-            </Button>
+              {/* Modo foco */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleToggleFocusMode}
+                    className={`h-9 w-9 p-0 rounded-full transition-all duration-200 hover:scale-105 ${
+                      focusMode 
+                        ? 'bg-amber-100 dark:bg-amber-900/30 text-amber-600 dark:text-amber-400' 
+                        : 'hover:bg-amber-50 dark:hover:bg-amber-900/20 hover:text-amber-600'
+                    }`}
+                  >
+                    {focusMode ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">
+                  {focusMode ? "Desativar modo foco" : "Ativar modo foco"}
+                </TooltipContent>
+              </Tooltip>
 
-            {/* Botão de Componentes (se disponível) */}
-            {onToggleComponentSelector && (
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={onToggleComponentSelector}
-                aria-label="Toggle component selector"
-                className={`${
-                  isComponentSelectorActive ? "text-gray-700 hover:text-gray-900" : "text-gray-500 hover:text-gray-700"
-                } dark:text-gray-400 dark:hover:text-gray-300 h-8 w-8 p-1.5`}
-              >
-                <Maximize className="h-4 w-4" />
-              </Button>
-            )}
+              {/* Compartilhar */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleShareConversation}
+                    disabled={!currentConversation}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-blue-50 dark:hover:bg-blue-900/20 hover:text-blue-600 transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
+                  >
+                    <Share className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Compartilhar conversa</TooltipContent>
+              </Tooltip>
 
-            {/* Alternador de Tema */}
-            <ThemeToggle />
-            
-            {/* Menu de Mais Opções - REMOVIDO do header principal conforme solicitado */}
-            {/* <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  aria-label="More options"
-                  className="text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300"
-                >
-                  <MoreVertical className="h-5 w-5" />
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent align="end">
-                <DropdownMenuItem onClick={handleEditTitle}>
-                  <Pencil className="h-4 w-4 mr-2" />
-                  <span>Editar título</span>
-                </DropdownMenuItem>
-                <DropdownMenuItem onClick={handleCopyConversation}>
-                  <Copy className="h-4 w-4 mr-2" />
-                  <span>Duplicar conversa</span>
-                </DropdownMenuItem>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem 
-                  onClick={handleDeleteCurrentConversation}
-                  className="text-red-600 hover:text-red-700 focus:text-red-700 dark:text-red-500 dark:hover:text-red-400"
-                >
-                  <Trash className="h-4 w-4 mr-2" />
-                  <span>Excluir conversa</span>
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu> */}
+              {/* Duplicar */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleCopyConversation}
+                    disabled={!currentConversation}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-green-50 dark:hover:bg-green-900/20 hover:text-green-600 transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
+                  >
+                    <Copy className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Duplicar conversa</TooltipContent>
+              </Tooltip>
+
+              {/* Exportar */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleExportConversation}
+                    disabled={!currentConversation}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-purple-50 dark:hover:bg-purple-900/20 hover:text-purple-600 transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
+                  >
+                    <Download className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-foreground text-background font-medium">Exportar conversa</TooltipContent>
+              </Tooltip>
+
+              {/* Deletar */}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={handleDeleteCurrentConversation}
+                    disabled={!currentConversation}
+                    className="h-9 w-9 p-0 rounded-full hover:bg-red-50 dark:hover:bg-red-900/30 text-red-600 hover:text-red-700 transition-all duration-200 hover:scale-105 disabled:opacity-40 disabled:hover:scale-100"
+                  >
+                    <Trash className="h-4 w-4" />
+                  </Button>
+                </TooltipTrigger>
+                <TooltipContent side="bottom" className="bg-red-600 text-white font-medium">Deletar conversa</TooltipContent>
+              </Tooltip>
+
+              {/* Theme toggle */}
+              <div className="ml-1">
+                <ThemeToggle />
+              </div>
+            </div>
           </div>
         </div>
       </header>
-      
-      {/* Modal de edição de título */}
-      <Dialog open={isEditTitleDialogOpen} onOpenChange={setIsEditTitleDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Editar título da conversa</DialogTitle>
-            <DialogDescription>
-              Insira um novo título para identificar esta conversa.
-            </DialogDescription>
-          </DialogHeader>
-          <div className="grid gap-4 py-4">
-            <div className="grid grid-cols-4 items-center gap-4">
-              <Label htmlFor="title" className="text-right">
-                Título
-              </Label>
-              <Input
-                id="title"
-                value={newTitle}
-                onChange={(e) => setNewTitle(e.target.value)}
-                className="col-span-3"
-                autoFocus
-              />
-            </div>
-          </div>
-          <DialogFooter>
-            <Button variant="outline" onClick={() => setIsEditTitleDialogOpen(false)}>
-              Cancelar
-            </Button>
-            <Button onClick={confirmEditTitle}>
-              Salvar
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-      
-      {/* Modal de confirmação de exclusão */}
+
+      {/* Modal de confirmação de exclusão com design refinado */}
       <Dialog open={isDeleteDialogOpen} onOpenChange={setIsDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
+        <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>Excluir conversa</DialogTitle>
-            <DialogDescription>
-              Tem certeza que deseja excluir esta conversa? Esta ação não pode ser desfeita.
+            <DialogTitle className="text-xl">Confirmar exclusão</DialogTitle>
+            <DialogDescription className="text-muted-foreground mt-2">
+              Tem certeza de que deseja excluir esta conversa? Esta ação não pode ser desfeita.
             </DialogDescription>
           </DialogHeader>
-          <DialogFooter>
+          <DialogFooter className="mt-4 gap-2 sm:gap-0">
             <Button variant="outline" onClick={() => setIsDeleteDialogOpen(false)}>
               Cancelar
             </Button>
-            <Button 
-              variant="destructive" 
-              onClick={confirmDeleteConversation}
-            >
+            <Button variant="destructive" onClick={confirmDeleteConversation}>
               Excluir
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
-    </>
+    </TooltipProvider>
   )
 }

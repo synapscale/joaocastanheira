@@ -5,7 +5,7 @@ import type React from "react"
 import { useState } from "react"
 import { ChevronRight, ChevronDown, Code, GripVertical } from "lucide-react"
 import type { ComponentNode } from "./component-tree"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 
 interface TreeNodeProps {
   node: ComponentNode

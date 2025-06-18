@@ -3,7 +3,7 @@
 import { useState } from "react"
 import { Code, Copy, Eye, Settings, ChevronDown, ChevronRight, Check } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 
 interface ComponentReferenceProps {
   name: string

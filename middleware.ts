@@ -87,8 +87,22 @@ function isAuthenticated(request: NextRequest): boolean {
       const payload = JSON.parse(atob(tokenFromCookie.split('.')[1]))
       const currentTime = Math.floor(Date.now() / 1000)
       
-      return payload.exp > currentTime
+      const isValid = payload.exp > currentTime
+      
+      if (appConfig.isDevelopment) {
+        console.log('Middleware - Token do cookie:', { 
+          hasToken: true, 
+          isExpired: !isValid,
+          exp: payload.exp,
+          current: currentTime
+        })
+      }
+      
+      return isValid
     } catch (error) {
+      if (appConfig.isDevelopment) {
+        console.warn('Middleware - Token do cookie inválido:', error)
+      }
       // Token inválido no cookie, continua para verificar outras fontes
     }
   }
@@ -102,10 +116,25 @@ function isAuthenticated(request: NextRequest): boolean {
       const payload = JSON.parse(atob(tokenFromHeader.split('.')[1]))
       const currentTime = Math.floor(Date.now() / 1000)
       
-      return payload.exp > currentTime
+      const isValid = payload.exp > currentTime
+      
+      if (appConfig.isDevelopment) {
+        console.log('Middleware - Token do header:', { 
+          hasToken: true, 
+          isExpired: !isValid
+        })
+      }
+      
+      return isValid
     } catch (error) {
-      // Token inválido no header
+      if (appConfig.isDevelopment) {
+        console.warn('Middleware - Token do header inválido:', error)
+      }
     }
+  }
+
+  if (appConfig.isDevelopment) {
+    console.log('Middleware - Nenhum token válido encontrado')
   }
 
   // Se chegou até aqui, não conseguiu verificar autenticação
@@ -119,25 +148,28 @@ export function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl
   const isUserAuthenticated = isAuthenticated(request)
 
-  // Permitir rotas públicas
+  // Permitir rotas públicas sempre
   if (isPublicRoute(pathname)) {
     return NextResponse.next()
   }
 
-  // Redirecionar usuários autenticados das páginas de auth para dashboard
+  // Se usuário está autenticado e tenta acessar rota de auth, redirecionar
   if (isAuthRoute(pathname) && isUserAuthenticated) {
-    const redirectUrl = request.nextUrl.searchParams.get('redirect') || '/'
+    const redirectUrl = request.nextUrl.searchParams.get('redirect') || '/chat'
     return NextResponse.redirect(new URL(redirectUrl, request.url))
   }
 
-  // Proteger rotas que requerem autenticação
+  // Se usuário não está autenticado e tenta acessar rota protegida, redirecionar para login
   if (isProtectedRoute(pathname) && !isUserAuthenticated) {
     const loginUrl = new URL('/login', request.url)
-    loginUrl.searchParams.set('redirect', pathname)
+    // Só adicionar redirect se não for a própria homepage
+    if (pathname !== '/') {
+      loginUrl.searchParams.set('redirect', pathname)
+    }
     return NextResponse.redirect(loginUrl)
   }
 
-  // Adicionar headers de segurança
+  // Para todas as outras situações (incluindo rotas de auth para usuários não autenticados), permitir acesso
   const response = NextResponse.next()
   
   // Headers de segurança

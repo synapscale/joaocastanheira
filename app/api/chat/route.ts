@@ -1,27 +1,55 @@
-import { type NextRequest, NextResponse } from "next/server"
+/**
+ * API Route do Chat - TEMPORÁRIA
+ * 
+ * IMPORTANTE: Esta API route deve ser removida em produção.
+ * O frontend deve chamar diretamente o backend do usuário:
+ * POST /api/v1/conversations/{conversation_id}/messages
+ * 
+ * A arquitetura correta para um SaaS é:
+ * Frontend → Backend (gerencia user variables/API keys) → Provedores LLM
+ */
 
-export async function POST(req: NextRequest) {
+export async function POST(request: Request) {
   try {
-    const { message, model, personality, tools } = await req.json()
+    const body = await request.json();
+    const { 
+      message, 
+      conversationId, 
+      provider, 
+      model, 
+      temperature, 
+      maxTokens,
+      personality 
+    } = body;
 
-    // Simula um atraso para parecer que está processando
-    await new Promise((resolve) => setTimeout(resolve, 1000))
+    // Esta implementação está incorreta para um SaaS real
+    // O frontend deve chamar diretamente o backend robusto do usuário
+    
+    return Response.json({
+      error: "Implementação temporária - deve usar o backend real",
+      message: "O frontend deve chamar diretamente o backend do usuário",
+      arquitetura_correta: {
+        endpoint: "/api/v1/conversations/{conversation_id}/messages",
+        metodo: "POST",
+        descricao: "Backend gerencia API keys do usuário e faz chamadas aos LLMs",
+        body_exemplo: {
+          content: "mensagem do usuário",
+          attachments: []
+        },
+        fluxo: [
+          "1. Usuário preenche API keys em /user-variables",
+          "2. Keys são salvas criptografadas no backend por usuário",
+          "3. Chat chama backend que usa keys do usuário para LLMs",
+          "4. Backend retorna resposta do LLM para o frontend"
+        ]
+      }
+    }, { status: 501 });
 
-    // Resposta simulada - em produção, isso chamaria o backend Python/Flask
-    const response = {
-      id: Date.now().toString(),
-      role: "assistant",
-      content: `Esta é uma resposta simulada ao seu pedido: "${message}". 
-      \nModelo: ${model}
-      \nPersonalidade: ${personality}
-      \nFerramentas: ${tools}
-      \n\nEm uma implementação real, isso seria processado pelo backend Python/Flask.`,
-      model: model,
-    }
-
-    return NextResponse.json(response)
   } catch (error) {
-    console.error("Erro na API de chat:", error)
-    return NextResponse.json({ error: "Erro ao processar a mensagem" }, { status: 500 })
+    console.error('Erro na API route:', error);
+    return Response.json(
+      { error: 'Erro interno do servidor' },
+      { status: 500 }
+    );
   }
-}
+} 

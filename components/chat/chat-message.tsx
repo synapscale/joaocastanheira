@@ -444,7 +444,7 @@ function UserMessage({
     <div className="group" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       <div className="flex justify-end">
         <div
-          className={`max-w-3xl bg-[#F4F4F4] dark:bg-blue-900/20 p-3 rounded-lg transition-colors ${
+          className={`max-w-3xl chat-message chat-message-user ${
             isEditing ? "bg-blue-100 dark:bg-blue-800/30" : ""
           }`}
         >
@@ -618,7 +618,7 @@ function AssistantMessage({
     <div className="group" onMouseEnter={() => setIsHovered(true)} onMouseLeave={() => setIsHovered(false)}>
       <div className="flex">
         <div
-          className={`max-w-3xl bg-white dark:bg-gray-800 p-3 rounded-lg transition-colors ${
+          className={`max-w-3xl chat-message chat-message-assistant ${
             isError ? "border border-red-200 dark:border-red-800" : ""
           }`}
         >

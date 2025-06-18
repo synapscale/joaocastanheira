@@ -4,7 +4,7 @@ import React from 'react';
 import { render, screen, fireEvent } from '@testing-library/react';
 import '@testing-library/jest-dom';
 import { ChatInput } from '@/components/chat/chat-input';
-import { AppProvider } from '@/contexts/app-context';
+import { AppProvider } from '@/context/app-context';
 
 // Mock dos hooks e funções necessárias
 jest.mock('@/hooks/use-textarea', () => ({

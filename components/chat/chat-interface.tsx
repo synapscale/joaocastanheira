@@ -8,13 +8,19 @@ import { ChatInput } from "./chat-input"
 import { ChatHeader } from "./chat-header"
 import { MessagesArea } from "./messages-area"
 import { ChatHistorySidebar } from "./chat-history-sidebar"
+import { ChatSettingsSidebar } from "./chat-settings-sidebar"
 import { useConversations } from "@/hooks/use-conversations"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 import type { Message, Conversation } from "@/types/chat"
 import { useToast } from "@/hooks/use-toast"
-import type { BaseComponentProps, Status } from "@/types/component-types"
+import type { BaseComponentProps } from "@/types/component-types"
+
+type Status = "idle" | "loading" | "error"
 
 interface ChatInterfaceProps extends BaseComponentProps {
+  style?: React.CSSProperties
+  disabled?: boolean
+  dataAttributes?: Record<string, string>
   initialMessages?: Message[]
   showConfigByDefault?: boolean
   enableFileUploads?: boolean
@@ -63,6 +69,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [showConfig, setShowConfig] = useState(showConfigByDefault)
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false)
+  const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
 
   const appContext = useApp()
@@ -85,15 +92,19 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const {
     conversations = [],
     currentConversationId,
-    currentConversation,
-    isLoaded = false,
+    isLoading: conversationsLoading = false,
     createConversation,
     updateConversation,
     addMessageToConversation,
     deleteConversation,
-    clearAllConversations,
-    setCurrentConversationId,
+    setCurrentConversation,
+    getMessages,
   } = conversationsHook || {}
+
+  // Obter conversa atual
+  const currentConversation = useMemo(() => {
+    return conversations.find(conv => conv.id === currentConversationId)
+  }, [conversations, currentConversationId])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -106,27 +117,32 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   )
 
   const safeMessages = useMemo(() => {
-    return currentConversation?.messages || initialMessages || []
-  }, [currentConversation?.messages, initialMessages])
+    if (currentConversationId && currentConversation) {
+      return currentConversation.messages || []
+    }
+    return currentConversationId ? getMessages(currentConversationId) || [] : initialMessages || []
+  }, [currentConversation?.messages, currentConversationId, getMessages, initialMessages])
 
   useEffect(() => {
-    if (isLoaded && !currentConversationId && conversations.length === 0 && createConversation && selectedModel) {
-      const newConversation = createConversation(initialMessages, {
-        model: selectedModel.id,
-        tool: selectedTool || "No Tools",
-        personality: selectedPersonality || "Natural",
+    if (!conversationsLoading && !currentConversationId && conversations.length === 0 && createConversation && selectedModel) {
+      const newConversation = createConversation({
+        title: "Nova Conversa",
+        settings: {
+          model: selectedModel.id,
+          tool: selectedTool || "tools",
+          personality: selectedPersonality || "natural",
+        }
       })
       onConversationCreated?.(newConversation)
     }
   }, [
-    isLoaded,
+    conversationsLoading,
     currentConversationId,
     conversations.length,
     createConversation,
     selectedModel,
     selectedTool,
     selectedPersonality,
-    initialMessages,
     onConversationCreated,
   ])
 
@@ -164,13 +180,14 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         role: "user",
         content: message,
         timestamp: Date.now(),
+        status: "sent",
       }
 
       addMessageToConversation(userMessage)
       setStatus("loading")
       setIsLoading(true)
       onMessageSent?.(userMessage)
-      
+
       // Feedback visual para envio de mensagem
       toast({
         title: "Mensagem enviada",
@@ -178,19 +195,52 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       })
 
       try {
-        const response = await fetch("/api/chat", {
-          method: "POST",
-          headers: {
-            "Content-Type": "application/json",
-          },
-          body: JSON.stringify({
-            message: message,
-            model: selectedModel.id,
-            personality: selectedPersonality || "Natural",
-            tools: selectedTool || "No Tools",
-            files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-          }),
-        })
+        // Preparar configurações para a API
+        const settings = {
+          model: selectedModel.id,
+          personality: selectedPersonality || "natural",
+          tool: selectedTool || "tools",
+          temperature: 0.7,
+          maxTokens: 2048,
+        }
+
+        // Preparar dados da requisição - usando novo formato da API
+        const requestData = {
+          message: message,
+          model: selectedModel.id,
+          personality: selectedPersonality || "natural",
+          tools: selectedTool || "tools",
+          files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+        }
+
+        let response: Response
+
+        // Se há arquivos, usar FormData
+        if (uploadedFiles.length > 0) {
+          const formData = new FormData()
+          formData.append("message", message)
+          formData.append("model", selectedModel.id)
+          formData.append("personality", selectedPersonality || "natural")
+          formData.append("tools", selectedTool || "tools")
+          
+          uploadedFiles.forEach((file, index) => {
+            formData.append(`file_${index}`, file)
+          })
+
+          response = await fetch("/api/chat", {
+            method: "POST",
+            body: formData,
+          })
+        } else {
+          // Requisição JSON simples
+          response = await fetch("/api/chat", {
+            method: "POST",
+            headers: {
+              "Content-Type": "application/json",
+            },
+            body: JSON.stringify(requestData),
+          })
+        }
 
         if (!response.ok) {
           throw new Error(`API error: ${response.status} ${response.statusText}`)
@@ -198,18 +248,29 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
         const data = await response.json()
 
+        // Criar mensagem de resposta
         const assistantMessage: Message = {
-          id: data.id || `msg_${Date.now() + 1}`,
+          id: `msg_${Date.now()}_assistant`,
           role: "assistant",
-          content: data.content,
-          model: data.model || selectedModel.name,
+          content: data.content || data.reply || "Desculpe, ocorreu um erro ao processar sua mensagem.",
           timestamp: Date.now(),
+          status: "sent",
+          model: data.model_used || selectedModel.id,
+          metadata: {
+            temperature_used: data.temperature,
+            tokens_used: data.tokens_used,
+            processing_time_ms: data.processing_time_ms,
+            model_provider: data.model_provider,
+            max_tokens: data.max_tokens,
+          },
         }
 
         addMessageToConversation(assistantMessage)
-        setStatus("success")
         onMessageReceived?.(assistantMessage)
+
+        // Limpar arquivos enviados
         setUploadedFiles([])
+        setStatus("idle")
         
         // Feedback visual para resposta recebida
         toast({
@@ -259,10 +320,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const handleNewConversation = useCallback(() => {
     if (!createConversation || !selectedModel) return
 
-    const newConversation = createConversation([], {
-      model: selectedModel.id,
-      tool: selectedTool || "No Tools",
-      personality: selectedPersonality || "Natural",
+    const newConversation = createConversation({
+      title: `Conversa ${new Date().toLocaleTimeString()}`,
+      settings: {
+        model: selectedModel.id,
+        tool: selectedTool || "tools",
+        personality: selectedPersonality || "natural",
+      }
     })
 
     setIsSidebarOpen?.(false)
@@ -324,8 +388,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     }
   }, [isComponentSelectorActive, setComponentSelectorActive])
 
+  const handleToggleChatSettings = useCallback(() => {
+    setIsChatSettingsOpen(prev => !prev)
+  }, [])
+
   const handleToggleConfig = useCallback(() => {
-    setShowConfig((prev: boolean) => !prev)
+    setShowConfig(prev => !prev)
   }, [])
   
   const handleToggleHistorySidebar = useCallback(() => {
@@ -333,8 +401,8 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   }, [])
   
   const handleSelectConversation = useCallback((id: string) => {
-    if (setCurrentConversationId) {
-      setCurrentConversationId(id)
+    if (setCurrentConversation) {
+      setCurrentConversation(id)
       
       // Feedback visual
       toast({
@@ -342,7 +410,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         description: "Você mudou para outra conversa.",
       })
     }
-  }, [setCurrentConversationId, toast])
+  }, [setCurrentConversation, toast])
 
   const handleDragOver = useCallback((e: React.DragEvent<HTMLDivElement>) => {
     e.preventDefault()
@@ -422,34 +490,52 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   )
 
   // Constante para garantir o mesmo espaçamento em todos os lugares
-  const contentContainerClasses = "max-w-[650px] mx-auto"
+  const contentContainerClasses = "max-w-5xl mx-auto px-6"
+
+  // Calcular largura do conteúdo principal baseado nas sidebars abertas
+  const getSidebarWidth = () => {
+    let width = 0
+    if (isHistorySidebarOpen) width += 320 // 80 * 4 = 320px (w-80)
+    if (isChatSettingsOpen) width += 320 // 320px da sidebar de configurações (w-80)
+    return width
+  }
+
+  const contentStyle = {
+    marginRight: `${getSidebarWidth()}px`,
+    transition: 'margin-right 0.3s ease-in-out'
+  }
 
   return (
-    <div className="flex flex-col h-full bg-[#F9F9F9] dark:bg-gray-900 w-full">
+    <div className="flex flex-col h-full bg-background w-full relative">
       {/* Chat header */}
-      <ChatHeader
-        currentConversation={currentConversation}
-        currentConversationId={currentConversationId}
-        conversations={conversations}
-        onNewConversation={handleNewConversation}
-        onUpdateConversationTitle={handleUpdateConversationTitle}
-        onDeleteConversation={handleDeleteConversation}
-        onExportConversation={handleExportConversation}
-        onToggleSidebar={() => setIsSidebarOpen?.(!isSidebarOpen)}
-        onToggleHistorySidebar={handleToggleHistorySidebar}
-        onSelectConversation={handleSelectConversation}
-        isHistorySidebarOpen={isHistorySidebarOpen}
-        onToggleComponentSelector={handleToggleComponentSelector}
-        onToggleFocusMode={() => setFocusMode?.(!focusMode)}
-      />
+      <div style={contentStyle}>
+        <ChatHeader
+          currentConversation={currentConversation || undefined}
+          currentConversationId={currentConversationId}
+          conversations={conversations}
+          onNewConversation={handleNewConversation}
+          onUpdateConversationTitle={handleUpdateConversationTitle}
+          onDeleteConversation={handleDeleteConversation}
+          onExportConversation={handleExportConversation}
+          onToggleSidebar={() => setIsSidebarOpen?.(!isSidebarOpen)}
+          onToggleHistorySidebar={handleToggleHistorySidebar}
+          onSelectConversation={handleSelectConversation}
+          isHistorySidebarOpen={isHistorySidebarOpen}
+          onToggleComponentSelector={handleToggleComponentSelector}
+          onToggleFocusMode={() => setFocusMode?.(!focusMode)}
+          onToggleChatSettings={handleToggleChatSettings}
+        />
+      </div>
+      
       {/* Área principal do chat */}
       <div 
-        className={`flex-1 overflow-y-auto bg-white dark:bg-gray-800 ${isDragOver ? 'border-2 border-dashed border-primary/50' : ''}`}
+        className={`flex-1 overflow-y-auto bg-background ${isDragOver ? 'border-2 border-dashed border-primary/50' : ''}`}
+        style={contentStyle}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="chat-container py-6 px-4">
+        <div className={`${contentContainerClasses} py-6`}>
           {/* Mensagem inicial do sistema */}
           {(!currentConversation?.messages || currentConversation.messages.length === 0) && (
             <div className="mb-8">
@@ -474,8 +560,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       </div>
 
       {/* Área de input */}
-      <div className="p-4 bg-white dark:bg-gray-900">
-        <div className={`${contentContainerClasses}`}>
+      <div className="bg-card/30 backdrop-blur-md" style={contentStyle}>
+        <div className={contentContainerClasses}>
+          <div className="py-4">
           <ChatInput
             onSendMessage={handleSendMessage}
             isLoading={isLoading}
@@ -508,6 +595,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
               Tutorial
             </Button>
           </div>
+          </div>
         </div>
       </div>
 
@@ -522,10 +610,15 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         onNewConversation={handleNewConversation}
       />
 
+      {/* Sidebar de configurações do chat */}
+      <ChatSettingsSidebar
+        isOpen={isChatSettingsOpen}
+        onClose={handleToggleChatSettings}
+      />
+
       {/* Modal de tutorial */}
       {showTutorial && (
         <TutorialModal
-          isOpen={showTutorial}
           onClose={() => setShowTutorial(false)}
         />
       )}

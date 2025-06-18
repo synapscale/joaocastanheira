@@ -7,7 +7,7 @@
 
 import { useEffect } from 'react'
 import { ChatProvider } from '@/context/chat-context'
-import { ChatInterface } from '@/components/chat/chat-interface-integrated'
+import { ChatInterface } from '@/components/chat/chat-interface'
 import { useSidebar } from '@/context/sidebar-context'
 import { useAuth } from '@/context/auth-context'
 import { ProtectedRoute } from '@/components/auth/protected-route'

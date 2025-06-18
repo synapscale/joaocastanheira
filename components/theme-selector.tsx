@@ -36,7 +36,7 @@ import {
 import { Slider } from "@/components/ui/slider"
 import { Input } from "@/components/ui/input"
 import { Label } from "@/components/ui/label"
-import { useAppContext } from "@/contexts/app-context"
+import { useApp as useAppContext } from "@/context/app-context"
 import { showNotification } from "@/components/ui/notification"
 
 // Tipos de tema

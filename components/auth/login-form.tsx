@@ -100,10 +100,11 @@ export function LoginForm({ redirectTo = '/chat', onSuccess, className = '' }: L
       if (onSuccess) {
         onSuccess()
       } else {
-        // Usar window.location.href para forçar um redirecionamento completo
-        // Isso garante que a página seja recarregada e o middleware possa
-        // verificar corretamente a autenticação
-        window.location.href = redirectTo
+        // Aguardar um pouco mais para garantir que cookies sejam definidos e propagados
+        setTimeout(() => {
+          console.log('Login bem-sucedido, redirecionando para:', redirectTo)
+          router.push(redirectTo)
+        }, 250)
       }
     } catch (err: any) {
       if (timeoutId) clearTimeout(timeoutId)

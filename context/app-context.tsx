@@ -11,8 +11,8 @@ import type { Component } from "@/types/component-selector"
  * Defines the default AI model with its capabilities and metadata
  */
 const DEFAULT_MODEL: AIModel = {
-  id: "gpt-4o",
-  name: "GPT-4o",
+  id: "chatgpt-4o",
+  name: "ChatGPT 4o",
   provider: "openai",
   description: "Modelo mais avançado da OpenAI com capacidades multimodais",
   category: "multimodal",
@@ -24,7 +24,7 @@ const DEFAULT_MODEL: AIModel = {
   },
 }
 
-const DEFAULT_TOOL = "enabled"
+const DEFAULT_TOOL = "tools"
 const DEFAULT_PERSONALITY = "natural"
 const DEFAULT_PRESET = "default"
 
@@ -85,6 +85,7 @@ export type AppContextType = {
   // Selected personality
   selectedPersonality: string
   setPersonality: (personality: string) => void
+  setSelectedPersonality: (personality: string) => void
 
   // Selected preset
   preset: string
@@ -92,6 +93,12 @@ export type AppContextType = {
 
   // Apply preset
   applyPreset: (preset: { model: string; tool: string; personality: string }) => void
+
+  // Settings - enabled models and tools
+  enabledModels: string[]
+  setEnabledModels: (models: string[]) => void
+  enabledTools: string[]
+  setEnabledTools: (tools: string[]) => void
 
   // Last action
   lastAction: string | null
@@ -151,7 +158,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   const [toolsEnabled, setToolsEnabled] = useState<boolean>(true)
 
   // Selected personality
-  const [personality, setPersonality] = useState<string>(DEFAULT_PERSONALITY)
+  const [selectedPersonality, setSelectedPersonality] = useState<string>(DEFAULT_PERSONALITY)
   
   // Selected preset
   const [preset, setPreset] = useState<string>(DEFAULT_PRESET)
@@ -171,6 +178,10 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   } | null>({
     isDragging: false,
   })
+
+  // Settings - enabled models and tools
+  const [enabledModels, setEnabledModels] = useState<string[]>([])
+  const [enabledTools, setEnabledTools] = useState<string[]>([])
 
   /**
    * Update user preferences
@@ -216,25 +227,37 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   )
 
   /**
+   * Set personality (alias for setSelectedPersonality)
+   */
+  const setPersonality = useCallback((personality: string) => {
+    setSelectedPersonality(personality)
+  }, [])
+
+  /**
    * Apply preset configuration
    * @param preset The preset configuration to apply
    */
   const applyPreset = useCallback(
     (presetConfig: { model: string; tool: string; personality: string }) => {
-      // Encontrar o modelo pelo ID
-      const modelObj = {
+      // Encontrar o modelo pelo ID - usando type assertion
+      const modelObj: AIModel = {
         id: presetConfig.model,
         name: presetConfig.model,
-        provider: "OpenAI",
+        provider: "openai",
         description: "",
-        category: "text",
-        capabilities: {}
+        category: "text" as any,
+        capabilities: {
+          imageAnalysis: false,
+          toolCalling: true,
+          longContext: true,
+          maxContextLength: 128000,
+        }
       }
       
       setSelectedModel(modelObj)
       setSelectedTool(presetConfig.tool)
       setToolsEnabled(presetConfig.tool === "enabled")
-      setPersonality(presetConfig.personality)
+      setSelectedPersonality(presetConfig.personality)
       
       // Salvar no localStorage
       if (typeof window !== 'undefined') {
@@ -242,7 +265,7 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           localStorage.setItem('selectedModel', JSON.stringify(modelObj))
           localStorage.setItem('selectedTool', presetConfig.tool)
           localStorage.setItem('toolsEnabled', String(presetConfig.tool === "enabled"))
-          localStorage.setItem('personality', presetConfig.personality)
+          localStorage.setItem('selectedPersonality', presetConfig.personality)
         } catch (error) {
           console.error('Erro ao salvar configurações de preset:', error)
         }
@@ -260,25 +283,14 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
         setThemeState(savedTheme)
       }
       
-      // Carregar todas as preferências do usuário
-      try {
-        const savedPreferences = localStorage.getItem('userPreferences')
-        if (savedPreferences) {
-          const parsedPreferences = JSON.parse(savedPreferences)
-          setUserPreferences(prev => ({
-            ...prev,
-            ...parsedPreferences
-          }))
-        }
-        
-        // Carregar modelo selecionado
+      // Carregar model selecionado
         const savedModel = localStorage.getItem('selectedModel')
         if (savedModel) {
           try {
-            const parsedModel = JSON.parse(savedModel)
-            setSelectedModel(parsedModel)
-          } catch (e) {
-            console.error('Erro ao carregar modelo:', e)
+          const modelObj = JSON.parse(savedModel)
+          setSelectedModel(modelObj)
+        } catch (error) {
+          console.error('Erro ao carregar modelo salvo:', error)
           }
         }
         
@@ -288,100 +300,32 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
           setSelectedTool(savedTool)
         }
         
-        // Carregar estado de ferramentas habilitadas
+      // Carregar toolsEnabled
         const savedToolsEnabled = localStorage.getItem('toolsEnabled')
         if (savedToolsEnabled) {
           setToolsEnabled(savedToolsEnabled === 'true')
         }
         
         // Carregar personalidade selecionada
-        const savedPersonality = localStorage.getItem('personality')
+      const savedPersonality = localStorage.getItem('selectedPersonality')
         if (savedPersonality) {
-          setPersonality(savedPersonality)
+        setSelectedPersonality(savedPersonality)
         }
         
-        // Carregar preset selecionado
-        const savedPreset = localStorage.getItem('preset')
-        if (savedPreset) {
-          setPreset(savedPreset)
-        }
+      // Carregar user preferences
+      const savedPreferences = localStorage.getItem('userPreferences')
+      if (savedPreferences) {
+        try {
+          const preferences = JSON.parse(savedPreferences)
+          setUserPreferences(preferences)
       } catch (error) {
         console.error('Erro ao carregar preferências:', error)
+        }
       }
     }
   }, [])
 
-  // Salvar modelo selecionado quando mudar
-  useEffect(() => {
-    if (typeof window !== 'undefined' && selectedModel) {
-      try {
-        localStorage.setItem('selectedModel', JSON.stringify(selectedModel))
-      } catch (error) {
-        console.error('Erro ao salvar modelo selecionado:', error)
-      }
-    }
-  }, [selectedModel])
-
-  // Salvar ferramenta selecionada quando mudar
-  useEffect(() => {
-    if (typeof window !== 'undefined' && selectedTool) {
-      try {
-        localStorage.setItem('selectedTool', selectedTool)
-      } catch (error) {
-        console.error('Erro ao salvar ferramenta selecionada:', error)
-      }
-    }
-  }, [selectedTool])
-
-  // Salvar estado de ferramentas habilitadas quando mudar
-  useEffect(() => {
-    if (typeof window !== 'undefined') {
-      try {
-        localStorage.setItem('toolsEnabled', String(toolsEnabled))
-      } catch (error) {
-        console.error('Erro ao salvar estado de ferramentas:', error)
-      }
-    }
-  }, [toolsEnabled])
-
-  // Salvar personalidade selecionada quando mudar
-  useEffect(() => {
-    if (typeof window !== 'undefined' && personality) {
-      try {
-        localStorage.setItem('personality', personality)
-      } catch (error) {
-        console.error('Erro ao salvar personalidade selecionada:', error)
-      }
-    }
-  }, [personality])
-  
-  // Salvar preset selecionado quando mudar
-  useEffect(() => {
-    if (typeof window !== 'undefined' && preset) {
-      try {
-        localStorage.setItem('preset', preset)
-      } catch (error) {
-        console.error('Erro ao salvar preset selecionado:', error)
-      }
-    }
-  }, [preset])
-
-  // Aplicar tema ao documento
-  useEffect(() => {
-    if (typeof window !== "undefined") {
-      const root = window.document.documentElement
-      root.classList.remove("light", "dark")
-
-      if (themeState === "system") {
-        const systemTheme = window.matchMedia("(prefers-color-scheme: dark)").matches ? "dark" : "light"
-        root.classList.add(systemTheme)
-      } else {
-        root.classList.add(themeState)
-      }
-    }
-  }, [themeState])
-
-  const value = useMemo(
+  const contextValue = useMemo(
     () => ({
       theme: themeState,
       setTheme,
@@ -397,9 +341,9 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setSelectedTool,
       toolsEnabled,
       setToolsEnabled,
-      selectedPersonality: personality,
-      personality,
+      selectedPersonality,
       setPersonality,
+      setSelectedPersonality,
       preset,
       setPreset,
       applyPreset,
@@ -413,39 +357,36 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setHoveredComponent,
       dragState,
       setDragState,
+      enabledModels,
+      setEnabledModels,
+      enabledTools,
+      setEnabledTools,
     }),
     [
       themeState,
       setTheme,
       isSidebarOpen,
-      setIsSidebarOpen,
       focusMode,
-      setFocusMode,
       userPreferences,
       updateUserPreferences,
       selectedModel,
-      setSelectedModel,
       selectedTool,
-      setSelectedTool,
       toolsEnabled,
-      setToolsEnabled,
-      personality,
+      selectedPersonality,
       setPersonality,
       preset,
-      setPreset,
       applyPreset,
       lastAction,
-      setLastAction,
       isComponentSelectorActive,
-      setComponentSelectorActive,
       selectedComponent,
-      setSelectedComponent,
       hoveredComponent,
-      setHoveredComponent,
       dragState,
-      setDragState,
+      enabledModels,
+      enabledTools,
     ],
   )
 
-  return <AppContext.Provider value={value}>{children}</AppContext.Provider>
+  return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>
 }
+
+export default useApp

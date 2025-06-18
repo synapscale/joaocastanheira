@@ -10,6 +10,8 @@ import { VariableProvider } from '@/context/variable-context';
 import { CodeTemplateProvider } from '@/context/code-template-context';
 import { SidebarProvider } from '@/context/sidebar-context';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { AppProvider } from '@/context/app-context';
+import { DevBanner } from '@/components/ui/dev-banner';
 import { VariableAutoSync } from '@/components/variables/auto-sync';
 import { ThemeProvider } from 'next-themes';
 import { Sidebar } from '@/components/sidebar';
@@ -97,9 +99,12 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <AuthProvider>
-            <AppLayout>
-              {children}
-            </AppLayout>
+            <AppProvider>
+              <DevBanner />
+              <AppLayout>
+                {children}
+              </AppLayout>
+            </AppProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

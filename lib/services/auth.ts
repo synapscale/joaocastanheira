@@ -3,7 +3,7 @@
  * Gerencia todas as operações de autenticação com o backend
  */
 
-import { apiService } from '../api'
+import { apiService } from '../api/service'
 import { config } from '../config'
 import type {
   AuthUser,
@@ -50,6 +50,14 @@ class AuthStorageImpl implements AuthStorage {
     
     // Também definir como cookie para compatibilidade com middleware
     this.setCookie(this.tokenKey, token, 7) // 7 dias
+    
+    // Verificar se o cookie foi definido corretamente
+    setTimeout(() => {
+      const cookieValue = this.getCookie(this.tokenKey)
+      if (!cookieValue) {
+        console.warn('AuthService: Cookie de token não foi definido corretamente')
+      }
+    }, 10)
   }
 
   getRefreshToken(): string | null {
@@ -88,6 +96,24 @@ class AuthStorageImpl implements AuthStorage {
   }
 
   /**
+   * Obtém um cookie pelo nome
+   */
+  private getCookie(name: string): string | null {
+    if (typeof document === 'undefined') return null
+    
+    const nameEQ = name + "="
+    const ca = document.cookie.split(';')
+    
+    for (let i = 0; i < ca.length; i++) {
+      let c = ca[i]
+      while (c.charAt(0) === ' ') c = c.substring(1, c.length)
+      if (c.indexOf(nameEQ) === 0) return c.substring(nameEQ.length, c.length)
+    }
+    
+    return null
+  }
+
+  /**
    * Define um cookie
    */
   private setCookie(name: string, value: string, days: number): void {
@@ -96,7 +122,8 @@ class AuthStorageImpl implements AuthStorage {
     const expires = new Date()
     expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
     
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+    // Usar configurações mais específicas para garantir compatibilidade
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure=${window.location.protocol === 'https:'}`
   }
 
   /**
@@ -105,7 +132,7 @@ class AuthStorageImpl implements AuthStorage {
   private deleteCookie(name: string): void {
     if (typeof document === 'undefined') return
     
-    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;SameSite=Lax`
   }
 }
 
@@ -150,41 +177,51 @@ export class AuthService {
   }
 
   /**
+   * Converte User do ApiService para AuthUser
+   */
+  private mapUserToAuthUser(user: any): AuthUser {
+    return {
+      id: user.id,
+      email: user.email,
+      name: user.full_name || user.first_name + ' ' + user.last_name || user.email,
+      avatar: user.avatar_url,
+      createdAt: user.created_at || new Date().toISOString(),
+      updatedAt: user.updated_at || new Date().toISOString(),
+      isEmailVerified: user.is_verified || false,
+      role: user.role === 'admin' ? 'admin' : user.subscription_plan === 'premium' ? 'premium' : 'user',
+      preferences: {
+        theme: 'system',
+        language: 'pt-BR',
+        notifications: true,
+      },
+    }
+  }
+
+  /**
    * Realiza login do usuário
    */
   async login(data: LoginData): Promise<AuthResponse> {
     try {
       let response: any
 
-      // Monta corpo OAuth2 form-urlencoded uma única vez
-      const params = new URLSearchParams()
-      params.append('grant_type', 'password')
-      params.append('username', data.email)
-      params.append('password', data.password)
-      params.append('scope', '')
-      params.append('client_id', 'string')
-      params.append('client_secret', 'string')
-
       try {
-        response = await apiService.request(
-          config.endpoints.auth.login,
-          {
-            method: 'POST',
-            body: params,
-            skipAuth: true,
-            headers: {
-              'Content-Type': 'application/x-www-form-urlencoded',
-            },
-          }
-        )
+        // Use the updated ApiService login method which handles the correct format
+        response = await apiService.login(data.email, data.password)
       } catch (error: any) {
-        // Endpoint não encontrado? tenta rota legada /auth/login
+        // If the main endpoint fails, try the legacy endpoint
         if (error?.status === 404) {
-          response = await apiService.request(
+          const formData = new URLSearchParams()
+          formData.append('grant_type', 'password')
+          formData.append('username', data.email)
+          formData.append('password', data.password)
+          formData.append('scope', '')
+          formData.append('client_id', '')
+          formData.append('client_secret', '')
+
+          response = await apiService.post(
             '/auth/login',
+            formData.toString(),
             {
-              method: 'POST',
-              body: params,
               skipAuth: true,
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -196,7 +233,7 @@ export class AuthService {
         }
       }
 
-      // Normaliza resposta para AuthResponse
+      // Normalize response to AuthResponse
       const normalized = this.normalizeAuthResponse(response)
       this.storage.setToken(normalized.tokens.accessToken)
       this.storage.setRefreshToken(normalized.tokens.refreshToken)
@@ -213,22 +250,21 @@ export class AuthService {
    */
   async register(data: RegisterData): Promise<AuthResponse> {
     try {
-      const response = await apiService.post<AuthResponse>(
-        config.endpoints.auth.register,
-        {
-          name: data.name,
-          email: data.email,
-          password: data.password,
-        },
-        { skipAuth: true }
-      )
+      // Use the updated ApiService register method
+      const user = await apiService.register({
+        email: data.email,
+        password: data.password,
+        username: data.name.toLowerCase().replace(/\s+/g, '_'),
+        full_name: data.name,
+      })
 
-      // Salvar tokens e dados do usuário
-      this.storage.setToken(response.tokens.accessToken)
-      this.storage.setRefreshToken(response.tokens.refreshToken)
-      this.storage.setUser(response.user)
+      // For registration, we need to login after successful registration
+      const loginResponse = await this.login({
+        email: data.email,
+        password: data.password,
+      })
 
-      return response
+      return loginResponse
     } catch (error) {
       throw this.handleAuthError(error)
     }
@@ -242,9 +278,7 @@ export class AuthService {
       const refreshToken = this.storage.getRefreshToken()
       
       if (refreshToken) {
-        await apiService.post(config.endpoints.auth.logout, {
-          refreshToken,
-        })
+        await apiService.logout()
       }
     } catch (error) {
       // Continua com logout local mesmo se falhar no servidor
@@ -265,14 +299,13 @@ export class AuthService {
         throw new Error('Refresh token não encontrado')
       }
 
-      const response = await apiService.post<{ accessToken: string; expiresIn: number }>(
-        config.endpoints.auth.refresh,
-        { refreshToken },
-        { skipAuth: true }
-      )
-
-      this.storage.setToken(response.accessToken)
-      return response.accessToken
+      const response = await apiService.refreshAccessToken()
+      
+      if (response) {
+        this.storage.setToken(response.access_token)
+        return response.access_token
+      }
+      return null
     } catch (error) {
       // Se refresh falhar, limpar dados de auth
       this.storage.clear()
@@ -285,12 +318,15 @@ export class AuthService {
    */
   async getCurrentUser(): Promise<AuthUser> {
     try {
-      const response = await apiService.get<AuthUser>(config.endpoints.auth.me)
+      const response = await apiService.getCurrentUser()
+      
+      // Converter User para AuthUser
+      const authUser = this.mapUserToAuthUser(response)
       
       // Atualizar dados do usuário no storage
-      this.storage.setUser(response)
+      this.storage.setUser(authUser)
       
-      return response
+      return authUser
     } catch (error) {
       throw this.handleAuthError(error)
     }
@@ -320,7 +356,7 @@ export class AuthService {
    */
   async changePassword(currentPassword: string, newPassword: string): Promise<void> {
     try {
-      await apiService.post('/api/v1/auth/change-password', {
+      await apiService.post(config.endpoints.auth.changePassword, {
         currentPassword,
         newPassword,
       })
@@ -334,7 +370,7 @@ export class AuthService {
    */
   async verifyEmail(token: string): Promise<void> {
     try {
-      await apiService.post('/api/v1/auth/verify-email', {
+      await apiService.post(config.endpoints.auth.verifyEmail, {
         token,
       }, { skipAuth: true })
     } catch (error) {
@@ -347,7 +383,7 @@ export class AuthService {
    */
   async requestPasswordReset(email: string): Promise<void> {
     try {
-      await apiService.post('/api/v1/auth/request-password-reset', {
+      await apiService.post(config.endpoints.auth.requestPasswordReset, {
         email,
       }, { skipAuth: true })
     } catch (error) {
@@ -360,7 +396,7 @@ export class AuthService {
    */
   async resetPassword(token: string, newPassword: string): Promise<void> {
     try {
-      await apiService.post('/api/v1/auth/reset-password', {
+      await apiService.post(config.endpoints.auth.resetPassword, {
         token,
         newPassword,
       }, { skipAuth: true })
@@ -376,8 +412,6 @@ export class AuthService {
     try {
       const token = this.storage.getToken()
       
-      console.log('AuthService - checkAuthStatus - Token presente:', !!token);
-      
       if (!token) {
         return false
       }
@@ -388,32 +422,21 @@ export class AuthService {
         const currentTime = Math.floor(Date.now() / 1000)
         const isExpired = payload.exp <= currentTime
         
-        console.log('AuthService - checkAuthStatus - Token info:', {
-          exp: payload.exp,
-          currentTime,
-          isExpired
-        });
-        
         if (isExpired) {
-          console.log('AuthService - checkAuthStatus - Token expirado');
           this.storage.clear()
           return false
         }
       } catch (parseError) {
-        console.error('AuthService - checkAuthStatus - Erro ao decodificar token:', parseError);
+        console.error('AuthService - Erro ao decodificar token:', parseError);
         this.storage.clear()
         return false
       }
 
       // Verificar com o servidor se possível
       try {
-        console.log('AuthService - checkAuthStatus - Verificando com servidor...');
-        await apiService.get(config.endpoints.auth.me)
-        console.log('AuthService - checkAuthStatus - Verificação com servidor bem-sucedida');
+        await apiService.getCurrentUser()
         return true
       } catch (error: any) {
-        console.log('AuthService - checkAuthStatus - Erro na verificação com servidor:', error?.status || error?.message);
-        
         // Se for erro 401, token inválido
         if (error?.status === 401) {
           this.storage.clear()

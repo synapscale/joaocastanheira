@@ -133,26 +133,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   const initializeAuth = useCallback(async () => {
     if (typeof window === 'undefined') return; // Só roda no client!
     
-    console.log('AuthContext - Iniciando inicialização da autenticação...');
-    
     try {
       const storedUser = authService.getStoredUser()
       const storedToken = authService.getStoredToken()
       const storedRefreshToken = authService.getStoredRefreshToken()
 
-      console.log('AuthContext - Dados armazenados:', {
-        hasUser: !!storedUser,
-        hasToken: !!storedToken,
-        hasRefreshToken: !!storedRefreshToken
-      });
-
       if (storedUser && storedToken && storedRefreshToken) {
-        console.log('AuthContext - Verificando validade do token...');
-        
         // Verificar se token ainda é válido
         const isValid = await authService.checkAuthStatus()
-        
-        console.log('AuthContext - Token válido:', isValid);
         
         if (isValid) {
           console.log('AuthContext - Restaurando sessão do usuário');
@@ -170,17 +158,13 @@ export function AuthProvider({ children }: AuthProviderProps) {
             },
           })
         } else {
-          console.log('AuthContext - Token inválido, limpando dados');
           authService.clearAuthData()
         }
-      } else {
-        console.log('AuthContext - Dados de autenticação incompletos');
       }
     } catch (error) {
       console.error('AuthContext - Erro ao inicializar autenticação:', error)
       authService.clearAuthData()
     } finally {
-      console.log('AuthContext - Finalizando inicialização');
       dispatch({ type: 'AUTH_INITIALIZE' })
     }
   }, [])

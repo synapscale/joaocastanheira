@@ -4,45 +4,47 @@ import type React from "react"
 import { createContext, useContext, useState, useCallback, useEffect, useReducer } from "react"
 import { generateId } from "@/utils/id"
 import { useAuth } from "@/context/auth-context"
-import { variableService, type CreateVariableData, type UpdateVariableData } from "@/lib/services/variables"
-import type { Variable, VariableScope, VariableUsage } from "@/types/variable"
+import { variableService, type UserVariable, type UserVariableCreate, type UserVariableUpdate } from "@/lib/services/variables"
 
 /**
- * Interface do contexto de variáveis
+ * Interface do contexto de variáveis (compatibilidade com o frontend existente)
  */
+interface Variable extends UserVariable {
+  name: string
+  type: 'string' | 'secret' | 'number' | 'boolean' | 'json'
+  scope: 'global' | 'workflow' | 'node'
+  tags: string[]
+  isSystem?: boolean
+  isSecret?: boolean
+  isActive?: boolean
+}
+
 interface VariableContextType {
   // Estado
   variables: Variable[]
-  variableUsage: VariableUsage[]
   loading: boolean
   error: string | null
   syncing: boolean
   lastSync: Date | null
 
   // Operações CRUD
-  addVariable: (variable: Omit<Variable, "id" | "createdAt" | "updatedAt">) => Promise<Variable | null>
-  updateVariable: (id: string, updates: Partial<Omit<Variable, "id" | "createdAt" | "updatedAt">>) => Promise<boolean>
+  addVariable: (variable: Omit<Variable, "id" | "created_at" | "updated_at">) => Promise<Variable | null>
+  updateVariable: (id: string, updates: Partial<Omit<Variable, "id" | "created_at" | "updated_at">>) => Promise<boolean>
   deleteVariable: (id: string) => Promise<boolean>
 
   // Operações de variáveis
   getVariableById: (id: string) => Variable | undefined
-  getVariableByKey: (key: string, scope?: VariableScope) => Variable | undefined
-  getVariablesByScope: (scope: VariableScope) => Variable[]
-
-  // Uso de variáveis
-  trackVariableUsage: (usage: VariableUsage) => void
-  removeVariableUsage: (nodeId: string, parameterKey: string) => void
-  getNodeVariableUsage: (nodeId: string) => VariableUsage[]
-  getVariableUsage: (variableId: string) => VariableUsage[]
-
-  // Avaliação de variáveis
-  evaluateExpression: (expression: string, nodeId?: string) => any
-  resolveVariableValue: (variableId: string, path?: string) => any
+  getVariableByKey: (key: string) => Variable | undefined
+  getVariablesByCategory: (category: string) => Variable[]
 
   // Sincronização
   syncVariables: () => Promise<boolean>
   loadVariables: () => Promise<void>
   clearError: () => void
+
+  // Operações especiais para user variables
+  importVariables: (file: File, category?: string) => Promise<boolean>
+  exportVariables: (format: 'json' | 'env') => Promise<void>
 }
 
 /**
@@ -50,7 +52,6 @@ interface VariableContextType {
  */
 interface VariableState {
   variables: Variable[]
-  variableUsage: VariableUsage[]
   loading: boolean
   error: string | null
   syncing: boolean
@@ -68,9 +69,6 @@ type VariableAction =
   | { type: 'ADD_VARIABLE'; payload: Variable }
   | { type: 'UPDATE_VARIABLE'; payload: { id: string; variable: Variable } }
   | { type: 'DELETE_VARIABLE'; payload: string }
-  | { type: 'SET_VARIABLE_USAGE'; payload: VariableUsage[] }
-  | { type: 'ADD_VARIABLE_USAGE'; payload: VariableUsage }
-  | { type: 'REMOVE_VARIABLE_USAGE'; payload: { nodeId: string; parameterKey: string } }
   | { type: 'SET_LAST_SYNC'; payload: Date }
   | { type: 'CLEAR_ERROR' }
 
@@ -110,20 +108,6 @@ function variableReducer(state: VariableState, action: VariableAction): Variable
         loading: false
       }
     
-    case 'SET_VARIABLE_USAGE':
-      return { ...state, variableUsage: action.payload }
-    
-    case 'ADD_VARIABLE_USAGE':
-      return { ...state, variableUsage: [...state.variableUsage, action.payload] }
-    
-    case 'REMOVE_VARIABLE_USAGE':
-      return {
-        ...state,
-        variableUsage: state.variableUsage.filter(
-          usage => !(usage.nodeId === action.payload.nodeId && usage.parameterKey === action.payload.parameterKey)
-        )
-      }
-    
     case 'SET_LAST_SYNC':
       return { ...state, lastSync: action.payload }
     
@@ -136,58 +120,46 @@ function variableReducer(state: VariableState, action: VariableAction): Variable
 }
 
 /**
- * Variáveis do sistema
+ * Função para converter UserVariable para Variable (compatibilidade)
  */
-const systemVariables: Variable[] = [
-  {
-    id: "sys-timestamp",
-    name: "Timestamp",
-    key: "timestamp",
-    type: "expression",
-    value: "() => Date.now()",
-    scope: "global",
-    description: "Current timestamp in milliseconds",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isSystem: true,
-  },
-  {
-    id: "sys-date",
-    name: "Current Date",
-    key: "currentDate",
-    type: "expression",
-    value: "() => new Date().toISOString()",
-    scope: "global",
-    description: "Current date in ISO format",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isSystem: true,
-  },
-  {
-    id: "sys-workflow-id",
-    name: "Workflow ID",
-    key: "workflowId",
-    type: "string",
-    value: "current-workflow-id",
-    scope: "workflow",
-    description: "ID of the current workflow",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isSystem: true,
-  },
-  {
-    id: "sys-workflow-name",
-    name: "Workflow Name",
-    key: "workflowName",
-    type: "string",
-    value: "Current Workflow",
-    scope: "workflow",
-    description: "Name of the current workflow",
-    createdAt: new Date(),
-    updatedAt: new Date(),
-    isSystem: true,
-  },
-]
+function userVariableToVariable(userVar: UserVariable): Variable {
+  return {
+    ...userVar,
+    name: userVar.key, // Usar key como name para compatibilidade
+    type: userVar.is_encrypted ? 'secret' : 'string',
+    scope: 'global' as const,
+    tags: userVar.category ? [userVar.category] : [],
+    isSecret: userVar.is_encrypted,
+    isActive: userVar.is_active,
+  }
+}
+
+/**
+ * Função para converter Variable para UserVariableCreate
+ */
+function variableToUserVariableCreate(variable: Omit<Variable, "id" | "created_at" | "updated_at">): UserVariableCreate {
+  return {
+    key: variable.key,
+    value: variable.value || '',
+    description: variable.description,
+    is_encrypted: variable.type === 'secret' || variable.isSecret || false,
+    is_active: variable.isActive !== false,
+    category: variable.tags?.[0] || variable.category,
+  }
+}
+
+/**
+ * Função para converter atualizações de Variable para UserVariableUpdate
+ */
+function variableToUserVariableUpdate(updates: Partial<Variable>): UserVariableUpdate {
+  return {
+    value: updates.value,
+    description: updates.description,
+    is_encrypted: updates.type === 'secret' || updates.isSecret,
+    is_active: updates.isActive,
+    category: updates.tags?.[0] || updates.category,
+  }
+}
 
 const VariableContext = createContext<VariableContextType | undefined>(undefined)
 
@@ -198,8 +170,7 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
   const { isAuthenticated } = useAuth()
   
   const [state, dispatch] = useReducer(variableReducer, {
-    variables: systemVariables,
-    variableUsage: [],
+    variables: [],
     loading: false,
     error: null,
     syncing: false,
@@ -207,51 +178,26 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
   })
 
   /**
-   * Carrega variáveis do localStorage (fallback) e do backend
+   * Carrega variáveis do backend
    */
   const loadVariables = useCallback(async () => {
-    // Sempre carrega variáveis do localStorage primeiro (modo offline)
+    if (!isAuthenticated) return
+
+    dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
+    
     try {
-      const storedVariables = localStorage.getItem("workflow-variables")
-      const storedUsage = localStorage.getItem("workflow-variable-usage")
+      const response = await variableService.getVariables({
+        include_values: false // Por segurança, não carregar valores por padrão
+      })
       
-      if (storedVariables) {
-        const parsedVariables = JSON.parse(storedVariables)
-        const mergedVariables = [
-          ...systemVariables,
-          ...parsedVariables.filter((v: Variable) => !systemVariables.some((sv) => sv.id === v.id)),
-        ]
-        dispatch({ type: 'SET_VARIABLES', payload: mergedVariables })
-      }
-
-      if (storedUsage) {
-        dispatch({ type: 'SET_VARIABLE_USAGE', payload: JSON.parse(storedUsage) })
-      }
+      const variables = response.variables.map(userVariableToVariable)
+      dispatch({ type: 'SET_VARIABLES', payload: variables })
     } catch (error) {
-      console.error("Failed to load variables from localStorage:", error)
-    }
-
-    // Se autenticado, carrega do backend
-    if (isAuthenticated) {
-      dispatch({ type: 'SET_LOADING', payload: true })
-      
-      try {
-        const response = await variableService.getVariables()
-        const mergedVariables = [
-          ...systemVariables,
-          ...response.variables.filter(v => !systemVariables.some(sv => sv.id === v.id)),
-        ]
-        dispatch({ type: 'SET_VARIABLES', payload: mergedVariables })
-        
-        // Salva no localStorage para uso offline
-        const variablesToSave = response.variables.filter(v => !v.isSystem)
-        localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-      } catch (error) {
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: error instanceof Error ? error.message : 'Erro ao carregar variáveis' 
-        })
-      }
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao carregar variáveis' 
+      })
     }
   }, [isAuthenticated])
 
@@ -259,310 +205,204 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
    * Adiciona uma nova variável
    */
   const addVariable = useCallback(async (
-    variable: Omit<Variable, "id" | "createdAt" | "updatedAt">
+    variable: Omit<Variable, "id" | "created_at" | "updated_at">
   ): Promise<Variable | null> => {
+    if (!isAuthenticated) return null
+
     dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
 
-    // Se autenticado, salva no backend
-    if (isAuthenticated) {
-      try {
-        const createData: CreateVariableData = {
-          name: variable.name,
-          key: variable.key,
-          type: variable.type,
-          value: variable.value,
-          scope: variable.scope,
-          description: variable.description,
-          tags: variable.tags,
-        }
-
-        const newVariable = await variableService.createVariable(createData)
-        dispatch({ type: 'ADD_VARIABLE', payload: newVariable })
-        
-        // Atualiza localStorage
-        const variablesToSave = state.variables.filter(v => !v.isSystem)
-        localStorage.setItem("workflow-variables", JSON.stringify([...variablesToSave, newVariable]))
-        
-        return newVariable
-      } catch (error) {
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: error instanceof Error ? error.message : 'Erro ao criar variável' 
-        })
-        return null
-      }
-    } else {
-      // Modo offline - salva apenas localmente
-      const newVariable: Variable = {
-        ...variable,
-        id: generateId(6),
-        createdAt: new Date(),
-        updatedAt: new Date(),
-      }
-
+    try {
+      const createData = variableToUserVariableCreate(variable)
+      const newUserVariable = await variableService.createVariable(createData)
+      const newVariable = userVariableToVariable(newUserVariable)
+      
       dispatch({ type: 'ADD_VARIABLE', payload: newVariable })
-      
-      // Salva no localStorage
-      const variablesToSave = [...state.variables.filter(v => !v.isSystem), newVariable]
-      localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-      
       return newVariable
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao criar variável' 
+      })
+      return null
     }
-  }, [isAuthenticated, state.variables])
+  }, [isAuthenticated])
 
   /**
    * Atualiza uma variável existente
    */
   const updateVariable = useCallback(async (
     id: string, 
-    updates: Partial<Omit<Variable, "id" | "createdAt" | "updatedAt">>
+    updates: Partial<Omit<Variable, "id" | "created_at" | "updated_at">>
   ): Promise<boolean> => {
+    if (!isAuthenticated) return false
+
     dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
 
-    // Se autenticado, atualiza no backend
-    if (isAuthenticated) {
-      try {
-        const updateData: UpdateVariableData = {
-          name: updates.name,
-          value: updates.value,
-          description: updates.description,
-          tags: updates.tags,
-        }
-
-        const updatedVariable = await variableService.updateVariable(id, updateData)
-        dispatch({ type: 'UPDATE_VARIABLE', payload: { id, variable: updatedVariable } })
-        
-        // Atualiza localStorage
-        const variablesToSave = state.variables
-          .filter(v => !v.isSystem)
-          .map(v => v.id === id ? updatedVariable : v)
-        localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-        
-        return true
-      } catch (error) {
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: error instanceof Error ? error.message : 'Erro ao atualizar variável' 
-        })
-        return false
-      }
-    } else {
-      // Modo offline - atualiza apenas localmente
-      const variable = state.variables.find(v => v.id === id)
-      if (variable) {
-        const updatedVariable = {
-          ...variable,
-          ...updates,
-          updatedAt: new Date(),
-        }
-
-        dispatch({ type: 'UPDATE_VARIABLE', payload: { id, variable: updatedVariable } })
-        
-        // Atualiza localStorage
-        const variablesToSave = state.variables
-          .filter(v => !v.isSystem)
-          .map(v => v.id === id ? updatedVariable : v)
-        localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-        
-        return true
-      }
+    try {
+      const updateData = variableToUserVariableUpdate(updates)
+      const updatedUserVariable = await variableService.updateVariable(id, updateData)
+      const updatedVariable = userVariableToVariable(updatedUserVariable)
+      
+      dispatch({ type: 'UPDATE_VARIABLE', payload: { id, variable: updatedVariable } })
+      return true
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao atualizar variável' 
+      })
       return false
     }
-  }, [isAuthenticated, state.variables])
+  }, [isAuthenticated])
 
   /**
    * Deleta uma variável
    */
   const deleteVariable = useCallback(async (id: string): Promise<boolean> => {
-    dispatch({ type: 'SET_LOADING', payload: true })
+    if (!isAuthenticated) return false
 
-    // Se autenticado, deleta no backend
-    if (isAuthenticated) {
-      try {
-        await variableService.deleteVariable(id)
-        dispatch({ type: 'DELETE_VARIABLE', payload: id })
-        
-        // Atualiza localStorage
-        const variablesToSave = state.variables.filter(v => !v.isSystem && v.id !== id)
-        localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-        
-        return true
-      } catch (error) {
-        dispatch({ 
-          type: 'SET_ERROR', 
-          payload: error instanceof Error ? error.message : 'Erro ao deletar variável' 
-        })
-        return false
-      }
-    } else {
-      // Modo offline - deleta apenas localmente
+    dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
+
+    try {
+      await variableService.deleteVariable(id)
       dispatch({ type: 'DELETE_VARIABLE', payload: id })
-      
-      // Atualiza localStorage
-      const variablesToSave = state.variables.filter(v => !v.isSystem && v.id !== id)
-      localStorage.setItem("workflow-variables", JSON.stringify(variablesToSave))
-      
       return true
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao deletar variável' 
+      })
+      return false
     }
-  }, [isAuthenticated, state.variables])
+  }, [isAuthenticated])
 
   /**
-   * Sincroniza variáveis locais com o servidor
+   * Sincroniza variáveis (recarrega do backend)
    */
   const syncVariables = useCallback(async (): Promise<boolean> => {
     if (!isAuthenticated) return false
 
     dispatch({ type: 'SET_SYNCING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
 
     try {
-      const localVariables = state.variables.filter(v => !v.isSystem)
-      const result = await variableService.syncVariables(localVariables)
+      const response = await variableService.getVariables({
+        include_values: false
+      })
       
-      const mergedVariables = [
-        ...systemVariables,
-        ...result.synced,
-      ]
-      
-      dispatch({ type: 'SET_VARIABLES', payload: mergedVariables })
+      const variables = response.variables.map(userVariableToVariable)
+      dispatch({ type: 'SET_VARIABLES', payload: variables })
       dispatch({ type: 'SET_SYNCING', payload: false })
-      dispatch({ type: 'SET_LAST_SYNC', payload: new Date() })
-      
-      // Atualiza localStorage
-      localStorage.setItem("workflow-variables", JSON.stringify(result.synced))
-      
       return true
     } catch (error) {
-      dispatch({ type: 'SET_SYNCING', payload: false })
       dispatch({ 
         type: 'SET_ERROR', 
         payload: error instanceof Error ? error.message : 'Erro ao sincronizar variáveis' 
       })
+      dispatch({ type: 'SET_SYNCING', payload: false })
       return false
     }
-  }, [isAuthenticated, state.variables])
+  }, [isAuthenticated])
 
-  // Operações de busca (mantidas para compatibilidade)
-  const getVariableById = useCallback((id: string): Variable | undefined => {
+  /**
+   * Importa variáveis de arquivo
+   */
+  const importVariables = useCallback(async (file: File, category?: string): Promise<boolean> => {
+    if (!isAuthenticated) return false
+
+    dispatch({ type: 'SET_LOADING', payload: true })
+    dispatch({ type: 'CLEAR_ERROR' })
+
+    try {
+      await variableService.importVariablesFromFile(file, category, false)
+      // Recarrega as variáveis após a importação
+      const response = await variableService.getVariables({
+        include_values: false
+      })
+      const variables = response.variables.map(userVariableToVariable)
+      dispatch({ type: 'SET_VARIABLES', payload: variables })
+      return true
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao importar variáveis' 
+      })
+      return false
+    }
+  }, [isAuthenticated])
+
+  /**
+   * Exporta variáveis
+   */
+  const exportVariables = useCallback(async (format: 'json' | 'env'): Promise<void> => {
+    if (!isAuthenticated) return
+
+    try {
+      const blob = await variableService.exportVariables({
+        format,
+        include_encrypted: false // Por segurança
+      })
+      
+      // Download do arquivo
+      const url = window.URL.createObjectURL(blob)
+      const a = document.createElement('a')
+      a.href = url
+      a.download = `user-variables.${format}`
+      document.body.appendChild(a)
+      a.click()
+      window.URL.revokeObjectURL(url)
+      document.body.removeChild(a)
+    } catch (error) {
+      dispatch({ 
+        type: 'SET_ERROR', 
+        payload: error instanceof Error ? error.message : 'Erro ao exportar variáveis' 
+      })
+    }
+  }, [isAuthenticated])
+
+  // Operações de consulta
+  const getVariableById = useCallback((id: string) => {
     return state.variables.find(v => v.id === id)
   }, [state.variables])
 
-  const getVariableByKey = useCallback((key: string, scope?: VariableScope): Variable | undefined => {
-    return state.variables.find(v => 
-      v.key === key && (scope ? v.scope === scope : true)
-    )
+  const getVariableByKey = useCallback((key: string) => {
+    return state.variables.find(v => v.key === key)
   }, [state.variables])
 
-  const getVariablesByScope = useCallback((scope: VariableScope): Variable[] => {
-    return state.variables.filter(v => v.scope === scope)
+  const getVariablesByCategory = useCallback((category: string) => {
+    return state.variables.filter(v => v.tags.includes(category) || v.category === category)
   }, [state.variables])
-
-  // Operações de uso de variáveis (mantidas para compatibilidade)
-  const trackVariableUsage = useCallback((usage: VariableUsage) => {
-    dispatch({ type: 'ADD_VARIABLE_USAGE', payload: usage })
-  }, [])
-
-  const removeVariableUsage = useCallback((nodeId: string, parameterKey: string) => {
-    dispatch({ type: 'REMOVE_VARIABLE_USAGE', payload: { nodeId, parameterKey } })
-  }, [])
-
-  const getNodeVariableUsage = useCallback((nodeId: string): VariableUsage[] => {
-    return state.variableUsage.filter(usage => usage.nodeId === nodeId)
-  }, [state.variableUsage])
-
-  const getVariableUsage = useCallback((variableId: string): VariableUsage[] => {
-    return state.variableUsage.filter(usage => usage.variableId === variableId)
-  }, [state.variableUsage])
-
-  // Avaliação de expressões (mantida para compatibilidade)
-  const evaluateExpression = useCallback((expression: string, nodeId?: string): any => {
-    try {
-      // Implementação básica - pode ser expandida
-      const context = state.variables.reduce((acc, variable) => {
-        acc[variable.key] = variable.value
-        return acc
-      }, {} as Record<string, any>)
-
-      // Avaliação segura de expressões
-      const func = new Function(...Object.keys(context), `return ${expression}`)
-      return func(...Object.values(context))
-    } catch (error) {
-      console.error("Error evaluating expression:", error)
-      return null
-    }
-  }, [state.variables])
-
-  const resolveVariableValue = useCallback((variableId: string, path?: string): any => {
-    const variable = getVariableById(variableId)
-    if (!variable) return null
-
-    let value = variable.value
-
-    // Se há um path, navega no objeto
-    if (path && typeof value === 'object') {
-      const pathParts = path.split('.')
-      for (const part of pathParts) {
-        if (value && typeof value === 'object' && part in value) {
-          value = value[part]
-        } else {
-          return null
-        }
-      }
-    }
-
-    return value
-  }, [getVariableById])
 
   const clearError = useCallback(() => {
     dispatch({ type: 'CLEAR_ERROR' })
   }, [])
 
-  // Carrega variáveis quando o componente monta ou quando a autenticação muda
+  // Carrega variáveis quando autenticado
   useEffect(() => {
-    loadVariables()
-  }, [loadVariables])
-
-  // Salva uso de variáveis no localStorage
-  useEffect(() => {
-    try {
-      localStorage.setItem("workflow-variable-usage", JSON.stringify(state.variableUsage))
-    } catch (error) {
-      console.error("Failed to save variable usage to localStorage:", error)
+    if (isAuthenticated && state.variables.length === 0 && !state.loading) {
+      loadVariables()
     }
-  }, [state.variableUsage])
+  }, [isAuthenticated])
 
   const contextValue: VariableContextType = {
-    // Estado
     variables: state.variables,
-    variableUsage: state.variableUsage,
     loading: state.loading,
     error: state.error,
     syncing: state.syncing,
     lastSync: state.lastSync,
-
-    // Operações CRUD
     addVariable,
     updateVariable,
     deleteVariable,
-
-    // Operações de variáveis
     getVariableById,
     getVariableByKey,
-    getVariablesByScope,
-
-    // Uso de variáveis
-    trackVariableUsage,
-    removeVariableUsage,
-    getNodeVariableUsage,
-    getVariableUsage,
-
-    // Avaliação de variáveis
-    evaluateExpression,
-    resolveVariableValue,
-
-    // Sincronização
+    getVariablesByCategory,
     syncVariables,
     loadVariables,
     clearError,
+    importVariables,
+    exportVariables,
   }
 
   return (
@@ -578,7 +418,7 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
 export const useVariables = () => {
   const context = useContext(VariableContext)
   if (context === undefined) {
-    throw new Error('useVariables must be used within a VariableProvider')
+    throw new Error("useVariables deve ser usado dentro de um VariableProvider")
   }
   return context
 }

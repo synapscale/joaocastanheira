@@ -11,7 +11,7 @@ import { createPortal } from "react-dom"
 import { X, ChevronRight, ChevronLeft, HelpCircle } from "lucide-react"
 import { motion, AnimatePresence } from "framer-motion"
 import { Button } from "@/components/ui/button"
-import { useAppContext } from "@/contexts/app-context"
+import { useApp as useAppContext } from "@/context/app-context"
 
 // Tipos de dicas
 export type TipPlacement = "top" | "right" | "bottom" | "left" | "center"

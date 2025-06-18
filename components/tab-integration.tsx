@@ -21,7 +21,7 @@ import {
   Settings,
   ArrowRight
 } from "lucide-react"
-import { useAppContext } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 
 interface TabIntegrationProps {
   currentTab: "canvas" | "chat" | "settings"
@@ -40,7 +40,7 @@ export default function TabIntegration({
   const { 
     currentConversationId,
     updateConversation
-  } = useAppContext()
+  } = useApp()
   
   /**
    * Navega para o canvas com contexto

@@ -1,158 +1,166 @@
 /**
- * Serviço de variáveis
- * Gerencia todas as operações de variáveis com o backend
+ * Serviço de variáveis do usuário
+ * Gerencia todas as operações de user-variables com o backend
  */
 
-import { apiService } from '../api'
+import { apiService } from '../api/service'
 import { config } from '../config'
-import type { Variable, VariableScope, VariableUsage } from '../../types/variable'
 
 /**
- * Interface para criação de variável
+ * Interfaces baseadas na API do backend
  */
-export interface CreateVariableData {
-  name: string
+export interface UserVariable {
+  id: string
   key: string
-  type: Variable['type']
-  value: any
-  scope: VariableScope
+  value?: string
   description?: string
-  isSecret?: boolean
-  tags?: string[]
+  is_encrypted: boolean
+  is_active: boolean
+  category?: string
+  created_at: string
+  updated_at: string
 }
 
-/**
- * Interface para atualização de variável
- */
-export interface UpdateVariableData {
-  name?: string
-  value?: any
+export interface UserVariableCreate {
+  key: string
+  value: string
   description?: string
-  isSecret?: boolean
-  tags?: string[]
+  is_encrypted?: boolean
+  is_active?: boolean
+  category?: string
 }
 
-/**
- * Interface para resposta de variáveis
- */
-export interface VariablesResponse {
-  variables: Variable[]
+export interface UserVariableUpdate {
+  value?: string
+  description?: string
+  is_encrypted?: boolean
+  is_active?: boolean
+  category?: string
+}
+
+export interface UserVariableList {
+  variables: UserVariable[]
   total: number
-  page: number
-  limit: number
+  categories?: string[]
 }
 
-/**
- * Interface para filtros de variáveis
- */
-export interface VariableFilters {
-  scope?: VariableScope
-  type?: Variable['type']
-  search?: string
-  tags?: string[]
-  isSecret?: boolean
-  page?: number
-  limit?: number
-}
-
-/**
- * Interface para importação de variáveis
- */
-export interface ImportVariablesData {
-  variables: CreateVariableData[]
+export interface UserVariableBulkCreate {
+  variables: UserVariableCreate[]
   overwrite?: boolean
 }
 
-/**
- * Interface para exportação de variáveis
- */
-export interface ExportVariablesOptions {
-  scope?: VariableScope
-  includeSecrets?: boolean
-  format?: 'json' | 'csv' | 'env'
+export interface UserVariableBulkUpdate {
+  updates: Array<{
+    id: string
+    data: UserVariableUpdate
+  }>
+}
+
+export interface UserVariableStats {
+  total: number
+  by_category: Record<string, number>
+  by_status: Record<string, number>
+  encrypted_count: number
+  active_count: number
+}
+
+export interface UserVariableExport {
+  format: 'json' | 'env'
+  include_encrypted?: boolean
+  categories?: string[]
+}
+
+export interface UserVariableImport {
+  variables: Record<string, string>
+  category?: string
+  overwrite?: boolean
+}
+
+export interface UserVariableValidation {
+  key: string
+  is_valid: boolean
+  errors?: string[]
 }
 
 /**
- * Classe principal do serviço de variáveis
+ * Classe principal do serviço de user variables
  */
 export class VariableService {
   /**
    * Obtém todas as variáveis do usuário
    */
-  async getVariables(filters?: VariableFilters): Promise<VariablesResponse> {
+  async getVariables(params?: {
+    skip?: number
+    limit?: number
+    search?: string
+    is_active?: boolean
+    category?: string
+    sort_by?: string
+    sort_order?: 'asc' | 'desc'
+    include_values?: boolean
+  }): Promise<UserVariableList> {
     try {
-      const params = new URLSearchParams()
+      const queryParams = new URLSearchParams()
       
-      if (filters?.scope) params.append('scope', filters.scope)
-      if (filters?.type) params.append('type', filters.type)
-      if (filters?.search) params.append('search', filters.search)
-      if (filters?.tags?.length) params.append('tags', filters.tags.join(','))
-      if (filters?.isSecret !== undefined) params.append('isSecret', filters.isSecret.toString())
-      if (filters?.page) params.append('page', filters.page.toString())
-      if (filters?.limit) params.append('limit', filters.limit.toString())
+      if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString())
+      if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString())
+      if (params?.search) queryParams.append('search', params.search)
+      if (params?.is_active !== undefined) queryParams.append('is_active', params.is_active.toString())
+      if (params?.category) queryParams.append('category', params.category)
+      if (params?.sort_by) queryParams.append('sort_by', params.sort_by)
+      if (params?.sort_order) queryParams.append('sort_order', params.sort_order)
+      if (params?.include_values !== undefined) queryParams.append('include_values', params.include_values.toString())
 
-      const queryString = params.toString()
-      const endpoint = queryString 
-        ? `${config.endpoints.variables.base}?${queryString}`
-        : config.endpoints.variables.base
+      const queryString = queryParams.toString()
+      const endpoint = queryString ? `/user-variables/?${queryString}` : '/user-variables/'
 
-      return await apiService.get<VariablesResponse>(endpoint)
+      return await apiService.get<UserVariableList>(endpoint)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao carregar variáveis')
     }
   }
 
   /**
    * Obtém uma variável específica por ID
    */
-  async getVariableById(id: string): Promise<Variable> {
+  async getVariableById(id: string): Promise<UserVariable> {
     try {
-      return await apiService.get<Variable>(`${config.endpoints.variables.base}/${id}`)
+      return await apiService.get<UserVariable>(`/user-variables/${id}`)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao carregar variável')
     }
   }
 
   /**
-   * Obtém uma variável por chave e escopo
+   * Obtém uma variável por chave
    */
-  async getVariableByKey(key: string, scope?: VariableScope): Promise<Variable | null> {
+  async getVariableByKey(key: string): Promise<UserVariable> {
     try {
-      const params = new URLSearchParams({ key })
-      if (scope) params.append('scope', scope)
-
-      const response = await apiService.get<{ variable: Variable | null }>(
-        `${config.endpoints.variables.base}/by-key?${params.toString()}`
-      )
-      
-      return response.variable
+      return await apiService.get<UserVariable>(`/user-variables/key/${key}`)
     } catch (error) {
-      if (error?.status === 404) {
-        return null
-      }
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao carregar variável por chave')
     }
   }
 
   /**
    * Cria uma nova variável
    */
-  async createVariable(data: CreateVariableData): Promise<Variable> {
+  async createVariable(data: UserVariableCreate): Promise<UserVariable> {
     try {
-      return await apiService.post<Variable>(config.endpoints.variables.base, data)
+      return await apiService.post<UserVariable>('/user-variables/', data)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao criar variável')
     }
   }
 
   /**
    * Atualiza uma variável existente
    */
-  async updateVariable(id: string, data: UpdateVariableData): Promise<Variable> {
+  async updateVariable(id: string, data: UserVariableUpdate): Promise<UserVariable> {
     try {
-      return await apiService.put<Variable>(`${config.endpoints.variables.base}/${id}`, data)
+      return await apiService.put<UserVariable>(`/user-variables/${id}`, data)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao atualizar variável')
     }
   }
 
@@ -161,39 +169,31 @@ export class VariableService {
    */
   async deleteVariable(id: string): Promise<void> {
     try {
-      await apiService.delete(`${config.endpoints.variables.base}/${id}`)
+      await apiService.delete(`/user-variables/${id}`)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao deletar variável')
     }
   }
 
   /**
    * Cria múltiplas variáveis em lote
    */
-  async createVariablesBulk(variables: CreateVariableData[]): Promise<Variable[]> {
+  async createVariablesBulk(data: UserVariableBulkCreate): Promise<UserVariable[]> {
     try {
-      const response = await apiService.post<{ variables: Variable[] }>(
-        config.endpoints.variables.bulk,
-        { variables }
-      )
-      return response.variables
+      return await apiService.post<UserVariable[]>('/user-variables/bulk', data)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao criar variáveis em lote')
     }
   }
 
   /**
    * Atualiza múltiplas variáveis em lote
    */
-  async updateVariablesBulk(updates: Array<{ id: string; data: UpdateVariableData }>): Promise<Variable[]> {
+  async updateVariablesBulk(data: UserVariableBulkUpdate): Promise<UserVariable[]> {
     try {
-      const response = await apiService.put<{ variables: Variable[] }>(
-        config.endpoints.variables.bulk,
-        { updates }
-      )
-      return response.variables
+      return await apiService.put<UserVariable[]>('/user-variables/bulk', data)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao atualizar variáveis em lote')
     }
   }
 
@@ -202,164 +202,154 @@ export class VariableService {
    */
   async deleteVariablesBulk(ids: string[]): Promise<void> {
     try {
-      await apiService.delete(config.endpoints.variables.bulk, { ids })
+      await apiService.delete('/user-variables/bulk', { 
+        body: JSON.stringify({ ids }) 
+      })
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao deletar variáveis em lote')
     }
   }
 
   /**
-   * Importa variáveis de um arquivo ou dados
+   * Importa variáveis via JSON
    */
-  async importVariables(data: ImportVariablesData): Promise<{ imported: Variable[]; errors: string[] }> {
+  async importVariables(data: UserVariableImport): Promise<{ imported: UserVariable[]; errors: string[] }> {
     try {
-      return await apiService.post<{ imported: Variable[]; errors: string[] }>(
-        config.endpoints.variables.import,
-        data
-      )
+      return await apiService.post<{ imported: UserVariable[]; errors: string[] }>('/user-variables/import', data)
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao importar variáveis')
     }
   }
 
   /**
-   * Exporta variáveis
+   * Importa variáveis via arquivo .env
    */
-  async exportVariables(options?: ExportVariablesOptions): Promise<Blob> {
+  async importVariablesFromFile(file: File, category?: string, overwrite?: boolean): Promise<{ imported: UserVariable[]; errors: string[] }> {
     try {
-      const params = new URLSearchParams()
-      
-      if (options?.scope) params.append('scope', options.scope)
-      if (options?.includeSecrets !== undefined) params.append('includeSecrets', options.includeSecrets.toString())
-      if (options?.format) params.append('format', options.format)
+      const formData = new FormData()
+      formData.append('file', file)
+      if (category) formData.append('category', category)
+      if (overwrite !== undefined) formData.append('overwrite', overwrite.toString())
 
-      const queryString = params.toString()
-      const endpoint = queryString 
-        ? `${config.endpoints.variables.export}?${queryString}`
-        : config.endpoints.variables.export
-
-      return await apiService.getBlob(endpoint)
+      return await apiService.post<{ imported: UserVariable[]; errors: string[] }>('/user-variables/import/file', formData, {
+        headers: {}  // Remove Content-Type para FormData
+      })
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao importar arquivo')
     }
   }
 
   /**
-   * Valida uma expressão de variável
+   * Exporta variáveis do usuário
    */
-  async validateExpression(expression: string, context?: Record<string, any>): Promise<{ isValid: boolean; error?: string; result?: any }> {
+  async exportVariables(data: UserVariableExport): Promise<Blob> {
     try {
-      return await apiService.post<{ isValid: boolean; error?: string; result?: any }>(
-        config.endpoints.variables.validate,
-        { expression, context }
-      )
+      return await apiService.post<Blob>('/user-variables/export', data, {
+        headers: {
+          'Accept': 'application/octet-stream'
+        }
+      })
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao exportar variáveis')
     }
   }
 
   /**
-   * Resolve o valor de uma variável com contexto
+   * Obtém estatísticas das variáveis
    */
-  async resolveVariableValue(variableId: string, context?: Record<string, any>): Promise<{ value: any; type: string }> {
+  async getVariableStats(): Promise<UserVariableStats> {
     try {
-      return await apiService.post<{ value: any; type: string }>(
-        `${config.endpoints.variables.base}/${variableId}/resolve`,
-        { context }
-      )
+      return await apiService.get<UserVariableStats>('/user-variables/stats/summary')
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao carregar estatísticas')
     }
   }
 
   /**
-   * Obtém variáveis do sistema
+   * Valida chave de variável
    */
-  async getSystemVariables(): Promise<Variable[]> {
+  async validateVariable(key: string): Promise<UserVariableValidation> {
     try {
-      const response = await apiService.get<{ variables: Variable[] }>(
-        `${config.endpoints.variables.base}/system`
-      )
-      return response.variables
+      return await apiService.post<UserVariableValidation>('/user-variables/validate', { key })
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao validar variável')
     }
   }
 
   /**
-   * Obtém estatísticas de uso de variáveis
+   * Valida múltiplas chaves de variáveis
    */
-  async getVariableStats(): Promise<{
-    total: number
-    byScope: Record<VariableScope, number>
-    byType: Record<Variable['type'], number>
-    mostUsed: Array<{ variable: Variable; usageCount: number }>
-  }> {
+  async validateVariablesBulk(keys: string[]): Promise<UserVariableValidation[]> {
     try {
-      return await apiService.get<{
-        total: number
-        byScope: Record<VariableScope, number>
-        byType: Record<Variable['type'], number>
-        mostUsed: Array<{ variable: Variable; usageCount: number }>
-      }>(`${config.endpoints.variables.base}/stats`)
+      return await apiService.post<UserVariableValidation[]>('/user-variables/validate/bulk', { keys })
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao validar variáveis')
     }
   }
 
   /**
-   * Sincroniza variáveis locais com o servidor
+   * Obtém variáveis como dicionário
    */
-  async syncVariables(localVariables: Variable[]): Promise<{
-    synced: Variable[]
-    conflicts: Array<{ local: Variable; remote: Variable }>
-    errors: string[]
-  }> {
+  async getVariablesAsDict(): Promise<Record<string, string>> {
     try {
-      return await apiService.post<{
-        synced: Variable[]
-        conflicts: Array<{ local: Variable; remote: Variable }>
-        errors: string[]
-      }>(`${config.endpoints.variables.base}/sync`, { variables: localVariables })
+      return await apiService.get<Record<string, string>>('/user-variables/env/dict')
     } catch (error) {
-      throw this.handleVariableError(error)
+      throw this.handleError(error, 'Erro ao carregar variáveis como dicionário')
     }
   }
 
   /**
-   * Trata erros de variáveis
+   * Obtém variáveis como string .env
    */
-  private handleVariableError(error: any): Error {
-    if (error?.status === 400) {
-      return new Error(error.data?.message || 'Dados da variável inválidos')
+  async getVariablesAsEnvString(): Promise<string> {
+    try {
+      const response = await apiService.get<{ content: string }>('/user-variables/env/string')
+      return response.content
+    } catch (error) {
+      throw this.handleError(error, 'Erro ao carregar variáveis como string .env')
+    }
+  }
+
+  /**
+   * Tratamento de erros personalizado
+   */
+  private handleError(error: any, defaultMessage: string): Error {
+    if (error.response?.data?.detail) {
+      return new Error(error.response.data.detail)
     }
     
-    if (error?.status === 404) {
-      return new Error('Variável não encontrada')
+    if (error.message) {
+      return new Error(error.message)
     }
     
-    if (error?.status === 409) {
-      return new Error('Conflito: Variável com esta chave já existe')
-    }
-    
-    if (error?.status === 422) {
-      return new Error(error.data?.message || 'Dados de variável inválidos')
-    }
-    
-    if (error?.status === 429) {
-      return new Error('Muitas requisições. Tente novamente mais tarde.')
-    }
-    
-    if (error?.status >= 500) {
-      return new Error('Erro interno do servidor. Tente novamente mais tarde.')
-    }
-    
-    return new Error(error?.message || 'Erro ao processar variável')
+    return new Error(defaultMessage)
   }
 }
 
-// Instância singleton do serviço de variáveis
+// Instância singleton do serviço
 export const variableService = new VariableService()
 
-export default variableService
+// Backward compatibility with old types
+export interface Variable extends UserVariable {
+  name: string
+  type: 'string' | 'secret' | 'number' | 'boolean' | 'json'
+  scope: 'global' | 'workflow' | 'node'
+  tags: string[]
+  isSystem?: boolean
+  isSecret?: boolean
+  isActive?: boolean
+}
+
+export interface CreateVariableData extends UserVariableCreate {}
+export interface UpdateVariableData extends UserVariableUpdate {
+  name?: string
+  tags?: string[]
+}
+
+export interface VariablesResponse {
+  variables: Variable[]
+  total: number
+  page: number
+  limit: number
+}
 

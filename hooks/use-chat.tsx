@@ -7,8 +7,8 @@
  */
 
 
-import { useRef, useCallback, useEffect } from "react"
-import { useAppContext } from "@/contexts/app-context"
+import { useRef, useCallback, useEffect, useState } from "react"
+import { useChatContext } from "@/context/chat-context"
 import { showNotification } from "@/components/ui/notification"
 import { sendChatMessage } from "@/lib/ai-utils"
 import { Message, Conversation } from "@/types/chat"
@@ -60,90 +60,29 @@ export function useTextarea({
  */
 export function useChatMessages() {
   const {
-    conversations,
-    currentConversationId,
-    addConversation,
-    updateConversation,
-  } = useAppContext();
+    state,
+    sendMessage: sendChatMessage,
+    createSession,
+    switchSession,
+  } = useChatContext();
 
-  const currentConversation = conversations.find(
-    (conv) => conv.id === currentConversationId
-  );
+  const currentSession = state.currentSession;
 
   const sendMessage = useCallback(
     async (content: string, files?: File[]) => {
       if (!content.trim() && (!files || files.length === 0)) return;
-      if (!currentConversationId) return;
-
-      // Cria uma nova conversa se necessário
-      if (!currentConversation) {
-        const newConversation: Conversation = {
-          id: currentConversationId,
-          title: "Nova conversa",
-          messages: [],
-          createdAt: Date.now(),
-          updatedAt: Date.now(),
-        };
-        addConversation(newConversation);
-      }
-
-      // Cria a mensagem do usuário
-      const userMessage: Message = {
-        id: `msg_${Date.now()}`,
-        role: "user",
-        content,
-        timestamp: Date.now(),
-        status: "sent",
-        files: files
-          ? files.map((file) => ({
-              name: file.name,
-              type: file.type,
-              size: file.size,
-              url: URL.createObjectURL(file),
-            }))
-          : undefined,
-      };
-
-      // Adiciona a mensagem à conversa
-      const updatedMessages = [...(currentConversation?.messages || []), userMessage];
-      updateConversation(currentConversationId, {
-        messages: updatedMessages,
-        updatedAt: Date.now(),
-      });
 
       try {
-        // Envia a mensagem para a API
-        const response = await sendChatMessage(
-          content,
-          currentConversationId,
-          {
-            files,
-          }
-        );
-
-        // Cria a mensagem do assistente
-        const assistantMessage: Message = {
-          id: `msg_${Date.now() + 1}`,
-          role: "assistant",
-          content: response.reply,
-          timestamp: Date.now(),
-          status: "sent",
-        };
-
-        // Adiciona a mensagem à conversa
-        const finalMessages = [...updatedMessages, assistantMessage];
-        updateConversation(currentConversationId, {
-          messages: finalMessages,
-          updatedAt: Date.now(),
-        });
-
-        // Atualiza o título da conversa se for a primeira mensagem
-        if (updatedMessages.length === 1) {
-          const title = content.slice(0, 30) + (content.length > 30 ? "..." : "");
-          updateConversation(currentConversationId, { title });
+        // Se não há sessão atual, criar uma nova
+        if (!currentSession) {
+          const newSession = await createSession(content.slice(0, 30) + (content.length > 30 ? "..." : ""));
+          await switchSession(newSession.id);
         }
 
-        return assistantMessage;
+        // Enviar mensagem através do contexto
+        await sendChatMessage(content, files);
+
+        return null; // Sucesso
       } catch (error) {
         console.error("Erro ao processar mensagem:", error);
         
@@ -153,28 +92,14 @@ export function useChatMessages() {
           message: "Erro ao processar mensagem. Por favor, tente novamente.",
         });
         
-        // Adiciona mensagem de erro
-        const errorMessage: Message = {
-          id: `msg_${Date.now() + 1}`,
-          role: "assistant",
-          content: "Ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
-          timestamp: Date.now(),
-          status: "error",
-        };
-        
-        updateConversation(currentConversationId, {
-          messages: [...updatedMessages, errorMessage],
-          updatedAt: Date.now(),
-        });
-        
-        return errorMessage;
+        return null;
       }
     },
-    [currentConversation, currentConversationId, addConversation, updateConversation]
+    [currentSession, sendChatMessage, createSession, switchSession]
   );
 
   return {
-    messages: currentConversation?.messages || [],
+    messages: currentSession?.messages || [],
     sendMessage,
   };
 }
@@ -230,6 +155,3 @@ export function useAutoScroll(dependencies: any[] = []) {
 
   return endRef;
 }
-
-// Importação necessária para o hook de drag and drop
-import { useState } from "react";

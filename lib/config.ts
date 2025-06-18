@@ -28,9 +28,9 @@ export const config = {
   
   // Configurações de API
   api: {
-    timeout: 30000, // 30 segundos
-    retryAttempts: 3,
-    retryDelay: 1000, // 1 segundo
+    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.synapscale.com',
+    timeout: 30000,
+    retries: 3,
   },
   
   // Configurações de WebSocket
@@ -40,14 +40,29 @@ export const config = {
     heartbeatInterval: 30000, // 30 segundos
   },
   
+  // Chat Configuration  
+  chat: {
+    endpoint: '/conversations',
+    maxRetries: 3,
+    timeout: 30000,
+    reconnectInterval: 5000,
+  },
+  
   // Configurações de autenticação
   auth: {
-    tokenKey: process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapse_auth_token',
-    refreshTokenKey: process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapse_refresh_token',
+    tokenKey: 'synapscale_token',
+    refreshTokenKey: 'synapscale_refresh_token',
     userKey: 'synapse_user',
     tokenExpirationBuffer: 300000, // 5 minutos antes de expirar
     autoRefresh: true,
     persistAuth: true,
+    endpoints: {
+      login: '/auth/login',
+      register: '/auth/register', 
+      refresh: '/auth/refresh',
+      logout: '/auth/logout',
+      me: '/auth/me',
+    }
   },
   
   // Configurações de cache
@@ -63,33 +78,46 @@ export const config = {
   // URLs completas para endpoints principais
   endpoints: {
     auth: {
-      login: '/api/v1/auth/login',
-      register: '/api/v1/auth/register',
-      refresh: '/api/v1/auth/refresh',
-      logout: '/api/v1/auth/logout',
-      me: '/api/v1/auth/me',
-      changePassword: '/api/v1/auth/change-password',
-      verifyEmail: '/api/v1/auth/verify-email',
-      requestPasswordReset: '/api/v1/auth/request-password-reset',
-      resetPassword: '/api/v1/auth/reset-password',
-      resendVerification: '/api/v1/auth/resend-verification',
+      login: '/auth/login',
+      register: '/auth/register',
+      refresh: '/auth/refresh',
+      logout: '/auth/logout',
+      me: '/auth/me',
+      changePassword: '/auth/change-password',
+      verifyEmail: '/auth/verify-email',
+      requestPasswordReset: '/auth/request-password-reset',
+      resetPassword: '/auth/reset-password',
+      resendVerification: '/auth/resend-verification',
     },
     variables: {
-      base: '/api/v1/variables',
-      bulk: '/api/v1/variables/bulk',
-      import: '/api/v1/variables/import',
-      export: '/api/v1/variables/export',
-      validate: '/api/v1/variables/validate',
+      base: '/user-variables',
+      bulk: '/user-variables/bulk',
+      import: '/user-variables/import',
+      export: '/user-variables/export',
+      validate: '/user-variables/validate',
     },
     chat: {
       websocket: '/ws/chat',
-      http: '/api/v1/chat',
+      http: '/conversations',
     },
     workflows: {
-      base: '/api/v1/workflows',
-      execute: '/api/v1/workflows/execute',
+      base: '/workflows',
+      execute: '/workflows/execute',
     },
     health: '/health',
+  },
+
+  // Other services
+  workflows: {
+    endpoint: '/workflows',
+  },
+  
+  templates: {
+    endpoint: '/templates',
+  },
+  
+  agents: {
+    endpoint: '/agents',
   },
 } as const
 

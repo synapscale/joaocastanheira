@@ -10,7 +10,7 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Badge } from "@/components/ui/badge"
 import TreeNode from "./tree-node"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 import { useCustomAttributes } from "@/hooks/use-custom-attributes"
 
 export interface ComponentNode {

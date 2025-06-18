@@ -3,7 +3,7 @@
 import { useEffect, useRef, useState } from "react"
 import { Copy, Code, Info, X, Activity, Settings } from "lucide-react"
 import { Button } from "@/components/ui/button"
-import { useApp } from "@/contexts/app-context"
+import { useApp } from "@/context/app-context"
 // Importe o novo componente InsertFormatSelector e o tipo InsertFormat
 import InsertFormatSelector, { type InsertFormat } from "./insert-format-selector"
 

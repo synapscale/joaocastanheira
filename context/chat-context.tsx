@@ -1,22 +1,124 @@
 /**
  * Contexto de chat integrado com backend
- * Gerencia estado global do chat, sessões e mensagens
+ * Gerencia estado global do chat, conversas e mensagens
  */
 
 "use client"
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { getChatService } from '@/lib/services/chat'
-import { getWebSocketService } from '@/lib/services/websocket'
+import { chatService, type Conversation, type Message, type ConversationCreate, type MessageCreate } from '@/lib/services/chat'
 import { useAuth } from '@/context/auth-context'
-import type {
-  ChatState,
-  ChatAction,
-  ChatContextType,
-  ChatSession,
-  ChatMessage,
-  ChatConfig
-} from '@/lib/types/chat'
+
+// Types for backward compatibility
+export interface ChatSession {
+  id: string
+  title?: string
+  createdAt: string
+  updatedAt: string
+  userId: string
+  messages: ChatMessage[]
+  metadata?: any
+  isActive: boolean
+}
+
+export interface ChatMessage {
+  id: string
+  role: 'user' | 'assistant' | 'system'
+  content: string
+  timestamp: string
+  status?: 'sending' | 'sent' | 'error'
+  attachments?: any[]
+  metadata?: any
+}
+
+export interface ChatConfig {
+  model?: string
+  personality?: string
+  tools?: string[]
+  temperature?: number
+  maxTokens?: number
+  agent_id?: string
+}
+
+export interface ChatState {
+  currentSession: ChatSession | null
+  sessions: ChatSession[]
+  isLoading: boolean
+  isTyping: boolean
+  error: string | null
+  config: ChatConfig
+  isConnected: boolean
+  connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error'
+}
+
+export type ChatAction =
+  | { type: 'SET_CURRENT_SESSION'; payload: ChatSession | null }
+  | { type: 'ADD_SESSION'; payload: ChatSession }
+  | { type: 'UPDATE_SESSION'; payload: ChatSession }
+  | { type: 'DELETE_SESSION'; payload: string }
+  | { type: 'ADD_MESSAGE'; payload: { sessionId: string; message: ChatMessage } }
+  | { type: 'UPDATE_MESSAGE'; payload: { sessionId: string; messageId: string; updates: Partial<ChatMessage> } }
+  | { type: 'SET_LOADING'; payload: boolean }
+  | { type: 'SET_TYPING'; payload: boolean }
+  | { type: 'SET_ERROR'; payload: string | null }
+  | { type: 'SET_CONFIG'; payload: Partial<ChatConfig> }
+  | { type: 'SET_CONNECTION_STATUS'; payload: ChatState['connectionStatus'] }
+  | { type: 'CLEAR_SESSIONS' }
+
+export interface ChatContextType {
+  state: ChatState
+  dispatch: React.Dispatch<ChatAction>
+  createSession: (title?: string) => Promise<ChatSession>
+  loadSessions: () => Promise<void>
+  switchSession: (sessionId: string) => Promise<void>
+  deleteSession: (sessionId: string) => Promise<void>
+  updateSessionTitle: (sessionId: string, title: string) => Promise<void>
+  sendMessage: (message: string, attachments?: File[]) => Promise<void>
+  resendMessage: (messageId: string) => Promise<void>
+  deleteMessage: (messageId: string) => Promise<void>
+  updateConfig: (config: Partial<ChatConfig>) => void
+  connect: () => Promise<void>
+  disconnect: () => void
+  sendTyping: (isTyping: boolean) => void
+}
+
+// Convert API types to UI types for backward compatibility
+function conversationToSession(conversation: Conversation, messages: Message[] = []): ChatSession {
+  return {
+    id: conversation.id,
+    title: conversation.title,
+    createdAt: conversation.created_at || new Date().toISOString(),
+    updatedAt: conversation.updated_at || new Date().toISOString(),
+    userId: conversation.user_id,
+    messages: messages.map(messageToChat),
+    metadata: {
+      agent_id: conversation.agent_id,
+      workspace_id: conversation.workspace_id,
+      context: conversation.context,
+      settings: conversation.settings
+    },
+    isActive: conversation.status === 'active'
+  }
+}
+
+function messageToChat(message: Message): ChatMessage {
+  return {
+    id: message.id,
+    role: message.role,
+    content: message.content,
+    timestamp: message.created_at || new Date().toISOString(),
+    status: message.status === 'completed' ? 'sent' : message.status as any,
+    attachments: message.attachments,
+    metadata: {
+      model_used: message.model_used,
+      model_provider: message.model_provider,
+      tokens_used: message.tokens_used,
+      processing_time_ms: message.processing_time_ms,
+      temperature: message.temperature,
+      max_tokens: message.max_tokens
+    }
+  }
+}
 
 // Estado inicial
 const initialState: ChatState = {
@@ -32,8 +134,8 @@ const initialState: ChatState = {
     temperature: 0.7,
     maxTokens: 2048
   },
-  isConnected: false,
-  connectionStatus: 'disconnected'
+  isConnected: chatService.isOnline(),
+  connectionStatus: chatService.isOnline() ? 'connected' : 'disconnected'
 }
 
 // Reducer para gerenciar estado do chat
@@ -170,34 +272,26 @@ const ChatContext = createContext<ChatContextType | undefined>(undefined)
 export function ChatProvider({ children }: { children: React.ReactNode }) {
   const [state, dispatch] = useReducer(chatReducer, initialState)
   const { user, isAuthenticated } = useAuth()
-  const chatService = getChatService()
-  const wsService = getWebSocketService()
 
-  // Configurar callbacks do WebSocket
+  // Monitor connection status
   useEffect(() => {
-    wsService.updateCallbacks({
-      onMessage: (message: ChatMessage) => {
-        if (state.currentSession) {
-          dispatch({
-            type: 'ADD_MESSAGE',
-            payload: { sessionId: state.currentSession.id, message }
-          })
-        }
-      },
-      onStatusChange: (status) => {
-        dispatch({ type: 'SET_CONNECTION_STATUS', payload: status })
-      },
-      onSessionUpdate: (session: ChatSession) => {
-        dispatch({ type: 'UPDATE_SESSION', payload: session })
-      },
-      onError: (error: Error) => {
-        dispatch({ type: 'SET_ERROR', payload: error.message })
-      },
-      onTyping: (isTyping: boolean) => {
-        dispatch({ type: 'SET_TYPING', payload: isTyping })
-      }
-    })
-  }, [wsService, state.currentSession])
+    const checkConnection = () => {
+      const isOnline = chatService.isOnline()
+      dispatch({ 
+        type: 'SET_CONNECTION_STATUS', 
+        payload: isOnline ? 'connected' : 'disconnected' 
+      })
+    }
+
+    checkConnection()
+    window.addEventListener('online', checkConnection)
+    window.addEventListener('offline', checkConnection)
+
+    return () => {
+      window.removeEventListener('online', checkConnection)
+      window.removeEventListener('offline', checkConnection)
+    }
+  }, [])
 
   // Carregar sessões quando usuário faz login
   useEffect(() => {
@@ -214,30 +308,48 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      const session = await chatService.createSession(title, state.config)
-      dispatch({ type: 'ADD_SESSION', payload: session })
-
-      // Conectar ao WebSocket se autenticado
-      if (isAuthenticated) {
-        await connect()
+      const conversationData: ConversationCreate = {
+        title: title,
+        agent_id: state.config.agent_id,
+        context: { model: state.config.model, temperature: state.config.temperature },
+        settings: state.config
       }
 
+      const conversation = await chatService.createConversation(conversationData)
+      const session = conversationToSession(conversation)
+      
+      dispatch({ type: 'ADD_SESSION', payload: session })
       return session
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao criar sessão'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
-      throw error
+      
+      // Fallback offline mode
+      const offlineSession: ChatSession = {
+        id: `offline_${Date.now()}`,
+        title: title || `Chat ${new Date().toLocaleString()}`,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString(),
+        userId: user?.id || 'offline_user',
+        messages: [],
+        metadata: state.config,
+        isActive: true
+      }
+      
+      dispatch({ type: 'ADD_SESSION', payload: offlineSession })
+      return offlineSession
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [chatService, state.config, isAuthenticated])
+  }, [state.config, user])
 
   const loadSessions = useCallback(async (): Promise<void> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      const sessions = await chatService.getSessions()
+      const response = await chatService.getConversations()
+      const sessions = response.conversations.map(conv => conversationToSession(conv))
       
       // Limpar sessões antigas e adicionar novas
       dispatch({ type: 'CLEAR_SESSIONS' })
@@ -252,48 +364,60 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar sessões'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      
+      // Fallback to offline conversations
+      const offlineConversations = chatService.getOfflineConversations()
+      const sessions = offlineConversations.map(conv => conversationToSession(conv))
+      sessions.forEach(session => {
+        dispatch({ type: 'ADD_SESSION', payload: session })
+      })
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [chatService, state.currentSession])
+  }, [state.currentSession])
 
   const switchSession = useCallback(async (sessionId: string): Promise<void> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      const session = await chatService.getSession(sessionId)
-      if (session) {
-        dispatch({ type: 'SET_CURRENT_SESSION', payload: session })
-        
-        // Reconectar WebSocket para nova sessão
-        if (isAuthenticated) {
-          await chatService.connectToSession(sessionId)
-        }
-      }
+      const conversation = await chatService.getConversation(sessionId)
+      const messagesResponse = await chatService.getMessages(sessionId)
+      const session = conversationToSession(conversation, messagesResponse.messages)
+      
+      dispatch({ type: 'SET_CURRENT_SESSION', payload: session })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao trocar sessão'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      
+      // Fallback to cached session
+      const cachedSession = state.sessions.find(s => s.id === sessionId)
+      if (cachedSession) {
+        dispatch({ type: 'SET_CURRENT_SESSION', payload: cachedSession })
+      }
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [chatService, isAuthenticated])
+  }, [state.sessions])
 
   const deleteSession = useCallback(async (sessionId: string): Promise<void> => {
     try {
       dispatch({ type: 'SET_ERROR', payload: null })
       
-      await chatService.deleteSession(sessionId)
+      await chatService.deleteConversation(sessionId)
       dispatch({ type: 'DELETE_SESSION', payload: sessionId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar sessão'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      
+      // Still remove from local state
+      dispatch({ type: 'DELETE_SESSION', payload: sessionId })
     }
-  }, [chatService])
+  }, [])
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<void> => {
     try {
-      await chatService.updateSessionTitle(sessionId, title)
+      await chatService.updateConversationTitle(sessionId, title)
       
       // Atualizar no estado local
       const session = state.sessions.find(s => s.id === sessionId)
@@ -305,7 +429,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar título'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
     }
-  }, [chatService, state.sessions])
+  }, [state.sessions])
 
   // Ações de mensagem
   const sendMessage = useCallback(async (message: string, attachments?: File[]): Promise<void> => {
@@ -317,32 +441,85 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      await chatService.sendMessage(
-        state.currentSession.id,
-        message,
-        state.config,
-        attachments
-      )
+      // Add user message immediately
+      const userMessage: ChatMessage = {
+        id: `user_${Date.now()}`,
+        role: 'user',
+        content: message,
+        timestamp: new Date().toISOString(),
+        status: 'sending',
+        attachments: attachments ? [] : undefined
+      }
+
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: { sessionId: state.currentSession.id, message: userMessage }
+      })
+
+      const messageData: MessageCreate = {
+        content: message,
+        attachments: attachments ? [] : undefined
+      }
+
+      const assistantMessage = await chatService.sendMessage(state.currentSession.id, messageData)
+      
+      // Update user message status
+      dispatch({
+        type: 'UPDATE_MESSAGE',
+        payload: {
+          sessionId: state.currentSession.id,
+          messageId: userMessage.id,
+          updates: { status: 'sent' }
+        }
+      })
+
+      // Add assistant message
+      dispatch({
+        type: 'ADD_MESSAGE',
+        payload: { 
+          sessionId: state.currentSession.id, 
+          message: messageToChat(assistantMessage) 
+        }
+      })
+
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao enviar mensagem'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
+      
+      // Mark user message as error
+      const userMessages = state.currentSession.messages.filter(m => m.role === 'user')
+      const lastUserMessage = userMessages[userMessages.length - 1]
+      if (lastUserMessage) {
+        dispatch({
+          type: 'UPDATE_MESSAGE',
+          payload: {
+            sessionId: state.currentSession.id,
+            messageId: lastUserMessage.id,
+            updates: { status: 'error' }
+          }
+        })
+      }
+      
       throw error
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [chatService, state.currentSession, state.config])
+  }, [state.currentSession])
 
   const resendMessage = useCallback(async (messageId: string): Promise<void> => {
     if (!state.currentSession) return
 
+    const message = state.currentSession.messages.find(m => m.id === messageId)
+    if (!message || message.role !== 'user') return
+
     try {
       dispatch({ type: 'SET_ERROR', payload: null })
-      await chatService.resendMessage(state.currentSession.id, messageId)
+      await sendMessage(message.content)
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao reenviar mensagem'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
     }
-  }, [chatService, state.currentSession])
+  }, [state.currentSession, sendMessage])
 
   const deleteMessage = useCallback(async (messageId: string): Promise<void> => {
     if (!state.currentSession) return
@@ -363,24 +540,20 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_CONFIG', payload: config })
   }, [])
 
-  // WebSocket
+  // WebSocket (placeholder for future implementation)
   const connect = useCallback(async (): Promise<void> => {
     if (!state.currentSession || !isAuthenticated) return
-
-    try {
-      await chatService.connectToSession(state.currentSession.id)
-    } catch (error) {
-      console.error('Erro ao conectar WebSocket:', error)
-    }
-  }, [chatService, state.currentSession, isAuthenticated])
+    // WebSocket connection would be implemented here
+    dispatch({ type: 'SET_CONNECTION_STATUS', payload: 'connected' })
+  }, [state.currentSession, isAuthenticated])
 
   const disconnect = useCallback((): void => {
-    chatService.disconnectFromSession()
-  }, [chatService])
+    dispatch({ type: 'SET_CONNECTION_STATUS', payload: 'disconnected' })
+  }, [])
 
   const sendTyping = useCallback((isTyping: boolean): void => {
-    chatService.sendTyping(isTyping)
-  }, [chatService])
+    dispatch({ type: 'SET_TYPING', payload: isTyping })
+  }, [])
 
   const contextValue: ChatContextType = {
     state,

@@ -85,27 +85,37 @@
 @layer components {
   /* Estilos do Chat */
   .chat-container {
-    @apply max-w-[650px] mx-auto;
+    @apply max-w-5xl mx-auto px-6;
   }
   
   .chat-message {
-    @apply py-6 px-4 transition-all duration-200;
+    @apply py-3 px-4 transition-all duration-200;
   }
   
   .chat-message-user {
-    @apply bg-secondary/50;
+    @apply rounded-2xl shadow-sm
+           transition-all duration-200 ease-out;
+    background-color: #F4F4F4;
+  }
+  
+  @media (prefers-color-scheme: dark) {
+    .chat-message-user {
+      background-color: rgba(55, 65, 81, 0.3);
+    }
   }
   
   .chat-message-assistant {
-    @apply bg-background;
+    @apply bg-transparent
+           rounded-2xl 
+           transition-all duration-200 ease-out;
   }
   
   .chat-input-container {
-    @apply bg-background border border-border rounded-xl shadow-sm transition-all duration-200 hover:border-primary/30 focus-within:border-primary/50 focus-within:shadow-md mb-8;
+    @apply bg-white/95 dark:bg-gray-900/95 border border-gray-200/50 dark:border-gray-700/50 rounded-2xl shadow-lg dark:shadow-xl transition-all duration-300 ease-out hover:border-orange-500/50 hover:shadow-xl focus-within:border-orange-500/70 focus-within:shadow-xl focus-within:ring-2 focus-within:ring-orange-500/20;
   }
   
   .chat-input-textarea {
-    @apply p-3 resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base;
+    @apply p-4 resize-none bg-transparent border-0 focus:ring-0 focus:outline-none text-base leading-relaxed font-medium placeholder:text-gray-400 dark:placeholder:text-gray-500;
   }
   
   .chat-button {
@@ -114,6 +124,15 @@
   
   .chat-button-primary {
     @apply bg-gradient-to-r from-[#f35500] to-[#ff7e00] text-white rounded-md hover:opacity-90 transition-opacity duration-200;
+  }
+
+  /* Chat dropdown refinements */
+  .chat-dropdown-refined {
+    margin-bottom: 0 !important;
+  }
+
+  .chat-dropdown-refined > div {
+    margin-bottom: 0 !important;
   }
   
   .chat-selector-button {
@@ -211,6 +230,10 @@
     animation: fadeIn 0.3s ease-in-out;
   }
 
+  .animate-fade-in {
+    animation: fade-in 0.3s ease-out forwards;
+  }
+
   @keyframes fadeIn {
     from {
       opacity: 0;
@@ -219,6 +242,17 @@
     to {
       opacity: 1;
       transform: translateY(0);
+    }
+  }
+
+  @keyframes fade-in {
+    from { 
+      opacity: 0; 
+      transform: translateY(8px); 
+    }
+    to { 
+      opacity: 1; 
+      transform: translateY(0); 
     }
   }
 
@@ -353,7 +387,7 @@
   
   /* Espaçamento entre funcionalidades e borda do bloco de enviar mensagem */
   .chat-input-actions {
-    @apply pb-4 pt-2; /* Aumentado o padding inferior para criar mais espaço */
+    @apply pb-2 pt-2; /* Voltando ao espaçamento original menor */
   }
 }
 

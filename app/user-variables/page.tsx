@@ -1,100 +1,101 @@
 "use client"
 
 import { useState, useEffect } from "react"
-import { motion } from "framer-motion"
-import { AlertCircle, Eye, EyeOff, Info, Plus, RefreshCw, Search, X } from "lucide-react"
+import { motion, AnimatePresence } from "framer-motion"
+import { 
+  AlertCircle, Info, Plus, RefreshCw, Search, 
+  X, Key, ExternalLink, Upload, Download, Copy, Check, 
+  ChevronDown, Filter, Tag, Shield, Lock
+} from "lucide-react"
 import { Input } from "@/components/ui/input"
 import { Button } from "@/components/ui/button"
-import { Card, CardContent } from "@/components/ui/card"
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card"
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, DialogFooter } from "@/components/ui/dialog"
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog"
 import { Label } from "@/components/ui/label"
 import { Badge } from "@/components/ui/badge"
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from "@/components/ui/tooltip"
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select"
 import { Textarea } from "@/components/ui/textarea"
-import { Switch } from "@/components/ui/switch"
+import { Separator } from "@/components/ui/separator"
 import { toast } from "sonner"
-import { useVariables } from "@/context/variable-context" // ✅ Corrigido
+import { useVariables } from "@/context/variable-context"
 import { useAuth } from "@/context/auth-context"
 import ServiceLogo from "../../components/ui/service-logo"
-import type { Variable, VariableScope } from "@/types/variable"
+import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
+import { Switch } from "@/components/ui/switch"
 
-// Tipos para as variáveis do usuário
+// Tipos para as variáveis do usuário baseados na API
 type VariableCategory = "ai" | "analytics" | "ads" | "social" | "custom"
-type VariableStatus = "connected" | "not_connected"
 
-interface UserVariable {
+interface Variable {
   id: string
-  name: string
-  description: string
-  category: VariableCategory
-  logo: string
-  status: VariableStatus
+  key: string
   value?: string
+  description?: string
+  category?: string
+  is_encrypted: boolean
+  is_active: boolean
+  created_at: string
+  updated_at: string
 }
 
 // Interface para formulário de nova variável
 interface NewVariableForm {
-  name: string
   key: string
-  type: Variable['type']
   value: string
-  scope: VariableScope
   description: string
-  isSecret: boolean
-  tags: string[]
+  category: string
+  is_encrypted: boolean
+  is_active: boolean
 }
 
-// Dados de exemplo para as variáveis de serviços
-const serviceVariables: UserVariable[] = [
+// Templates de serviços de IA para facilitar criação
+const serviceTemplates = [
   {
     id: "openai",
     name: "OpenAI API Key",
+    key: "OPENAI_API_KEY",
     description: "Conecte sua conta OpenAI para usar GPT-4 e outros modelos",
     category: "ai",
     logo: "openai",
-    status: "not_connected"
+    placeholder: "sk-..."
   },
   {
-    id: "gemini",
-    name: "Gemini AI API Key",
-    description: "Conecte sua conta Google para usar modelos Gemini",
-    category: "ai",
-    logo: "google-ads",
-    status: "not_connected"
-  },
-  {
-    id: "claude",
-    name: "Claude API Key",
-    description: "Conecte sua conta Anthropic para usar Claude",
+    id: "anthropic",
+    name: "Anthropic Claude API Key",
+    key: "ANTHROPIC_API_KEY", 
+    description: "Conecte sua conta Anthropic para usar modelos Claude",
     category: "ai",
     logo: "anthropic",
-    status: "not_connected"
+    placeholder: "sk-ant-..."
   },
   {
-    id: "google-analytics",
-    name: "Google Analytics",
-    description: "Conecte sua conta Google Analytics para métricas",
-    category: "analytics",
-    logo: "google-analytics",
-    status: "not_connected"
+    id: "google",
+    name: "Google AI API Key",
+    key: "GOOGLE_API_KEY",
+    description: "Conecte sua conta Google para usar modelos Gemini",
+    category: "ai", 
+    logo: "google",
+    placeholder: "AI..."
   },
   {
-    id: "facebook-ads",
-    name: "Facebook Ads",
-    description: "Conecte sua conta Facebook Ads para campanhas",
-    category: "ads",
-    logo: "facebook",
-    status: "not_connected"
+    id: "groq",
+    name: "Groq API Key",
+    key: "GROQ_API_KEY",
+    description: "Conecte sua conta Groq para modelos ultrarrápidos",
+    category: "ai",
+    logo: "groq",
+    placeholder: "gsk_..."
   },
   {
-    id: "instagram",
-    name: "Instagram Business",
-    description: "Conecte sua conta Instagram Business",
-    category: "social",
-    logo: "instagram",
-    status: "not_connected"
+    id: "perplexity",
+    name: "Perplexity API Key", 
+    key: "PERPLEXITY_API_KEY",
+    description: "Conecte sua conta Perplexity para busca em tempo real",
+    category: "ai",
+    logo: "perplexity",
+    placeholder: "pplx-..."
   }
 ]
 
@@ -111,543 +112,892 @@ export default function UserVariablesPage() {
     deleteVariable,
     syncVariables,
     loadVariables,
-    clearError
-  } = useVariables() // ✅ Corrigido
+    clearError,
+    getVariablesByCategory,
+    importVariables,
+    exportVariables
+  } = useVariables()
 
   const [searchTerm, setSearchTerm] = useState("")
   const [selectedCategory, setSelectedCategory] = useState<VariableCategory | "all">("all")
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false)
-  const [editingVariable, setEditingVariable] = useState<Variable | null>(null)
-  const [showSecrets, setShowSecrets] = useState<Record<string, boolean>>({})
+
+  const [importDialogOpen, setImportDialogOpen] = useState(false)
+  const [selectedFile, setSelectedFile] = useState<File | null>(null)
+  const [copiedId, setCopiedId] = useState<string | null>(null)
+
   
   const [newVariableForm, setNewVariableForm] = useState<NewVariableForm>({
-    name: "",
     key: "",
-    type: "string",
     value: "",
-    scope: "global" as VariableScope, // ✅ Corrigido - usar valor válido
     description: "",
-    isSecret: false,
-    tags: []
+    category: "",
+    is_encrypted: true,
+    is_active: true
   })
 
+  // Carrega variáveis apenas uma vez quando autenticado
+  useEffect(() => {
+    if (isAuthenticated && variables.length === 0 && !loading) {
+      loadVariables()
+    }
+  }, [isAuthenticated])
+
   // Filtra variáveis baseado na busca e categoria
-  const filteredVariables = variables.filter((variable: Variable) => { // ✅ Corrigido
-    const matchesSearch = variable.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-                         variable.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
+  const filteredVariables = variables.filter((variable: Variable) => {
+    const matchesSearch = variable.key.toLowerCase().includes(searchTerm.toLowerCase()) ||
                          variable.description?.toLowerCase().includes(searchTerm.toLowerCase())
     
-    const matchesCategory = selectedCategory === "all" || 
-                           (selectedCategory === "custom" && !variable.isSystem)
+    const matchesCategory = selectedCategory === "all" || variable.category === selectedCategory
     
     return matchesSearch && matchesCategory
   })
 
-  // Separa variáveis por tipo
-  const userVariables = filteredVariables.filter((v: Variable) => !v.isSystem) // ✅ Corrigido
-  const systemVariables = filteredVariables.filter((v: Variable) => v.isSystem) // ✅ Corrigido
+  // Obtém variáveis por categoria para estatísticas
+  const aiVariables = getVariablesByCategory("ai")
 
   // Handlers para formulário
   const handleCreateVariable = async () => {
-    if (!newVariableForm.name || !newVariableForm.key) {
-      toast.error("Nome e chave são obrigatórios")
+    if (!newVariableForm.key || !newVariableForm.value) {
+      toast.error("Chave e valor são obrigatórios")
       return
     }
 
     const result = await addVariable({
-      name: newVariableForm.name,
       key: newVariableForm.key,
-      type: newVariableForm.type,
       value: newVariableForm.value,
-      scope: newVariableForm.scope,
       description: newVariableForm.description,
-      // isSecret: newVariableForm.isSecret, // ✅ Removido se não existe no tipo
-      tags: newVariableForm.tags
+      category: newVariableForm.category,
+      is_encrypted: newVariableForm.is_encrypted,
+      is_active: newVariableForm.is_active,
+      // Campos de compatibilidade obrigatórios
+      name: newVariableForm.key,
+      type: newVariableForm.is_encrypted ? 'secret' : 'string',
+      scope: 'global',
+      tags: newVariableForm.category ? [newVariableForm.category] : [],
+      isSecret: newVariableForm.is_encrypted,
+      isActive: newVariableForm.is_active
     })
 
     if (result) {
       toast.success("Variável criada com sucesso!")
       setIsCreateDialogOpen(false)
-      setNewVariableForm({
-        name: "",
-        key: "",
-        type: "string",
-        value: "",
-        scope: "global" as VariableScope, // ✅ Corrigido
-        description: "",
-        isSecret: false,
-        tags: []
-      })
+      resetForm()
     }
   }
 
-  const handleUpdateVariable = async (variable: Variable) => {
-    if (!editingVariable) return
-
-    const success = await updateVariable(variable.id, {
-      name: editingVariable.name,
-      value: editingVariable.value,
-      description: editingVariable.description,
-      // isSecret: editingVariable.isSecret, // ✅ Removido se não existe no tipo
-      tags: editingVariable.tags
-    })
-
+  const handleDeleteVariable = async (id: string) => {
+    const success = await deleteVariable(id)
     if (success) {
-      toast.success("Variável atualizada com sucesso!")
-      setEditingVariable(null)
-    }
-  }
-
-  const handleDeleteVariable = async (variableId: string) => {
-    const success = await deleteVariable(variableId)
-    if (success) {
-      toast.success("Variável deletada com sucesso!")
+      toast.success("Variável removida com sucesso!")
     }
   }
 
   const handleSync = async () => {
     const success = await syncVariables()
     if (success) {
-      toast.success("Variáveis sincronizadas com sucesso!")
+      toast.success("Variáveis sincronizadas!")
     }
   }
 
-  const toggleShowSecret = (variableId: string) => {
-    setShowSecrets(prev => ({
-      ...prev,
-      [variableId]: !prev[variableId]
-    }))
+  const handleImportFile = async () => {
+    if (!selectedFile) return
+    
+    const success = await importVariables(selectedFile)
+    if (success) {
+      toast.success("Variáveis importadas com sucesso!")
+      setImportDialogOpen(false)
+      setSelectedFile(null)
+    }
   }
 
-  // Componente para exibir valor da variável
-  const VariableValue = ({ variable }: { variable: Variable }) => { // ✅ Corrigido
-    // const isSecret = variable.isSecret // ✅ Removido se não existe
-    const isSecret = false // ✅ Temporário
-    const shouldHide = isSecret && !showSecrets[variable.id]
-    
+  const handleExport = async (format: 'json' | 'env') => {
+    await exportVariables(format)
+    toast.success(`Variáveis exportadas como ${format.toUpperCase()}!`)
+  }
+
+  const resetForm = () => {
+    setNewVariableForm({
+      key: "",
+      value: "",
+      description: "",
+      category: "",
+      is_encrypted: true,
+      is_active: true
+    })
+  }
+
+  const fillTemplateData = (template: typeof serviceTemplates[0]) => {
+    setNewVariableForm({
+      key: template.key,
+      value: "",
+      description: template.description,
+      category: template.category,
+      is_encrypted: true,
+      is_active: true
+    })
+    setIsCreateDialogOpen(true)
+  }
+
+  // Helper functions for documentation
+  const getHelpText = (serviceName: string) => {
+    const helpTexts: Record<string, string> = {
+      "OpenAI API Key": "Acesse sua conta OpenAI, vá em 'API Keys' no painel e gere uma nova chave.",
+      "Anthropic Claude API Key": "Entre na console da Anthropic e crie uma nova API key na seção de configurações.",
+      "Google AI API Key": "No Google Cloud Console, ative a API do Gemini e gere suas credenciais.",
+      "Groq API Key": "Faça login no Groq Console e gere uma nova API key na seção de desenvolvimento.",
+      "Perplexity API Key": "Acesse o painel da Perplexity e gere uma chave na seção de integrações."
+    }
+    return helpTexts[serviceName] || "Consulte a documentação oficial do serviço para obter sua API key."
+  }
+
+  const getDocumentationUrl = (serviceName: string) => {
+    const urls: Record<string, string> = {
+      "OpenAI API Key": "https://platform.openai.com/docs/quickstart",
+      "Anthropic Claude API Key": "https://docs.anthropic.com/claude/docs/getting-access-to-claude",
+      "Google AI API Key": "https://ai.google.dev/docs",
+      "Groq API Key": "https://console.groq.com/docs/quickstart",
+      "Perplexity API Key": "https://docs.perplexity.ai/"
+    }
+    return urls[serviceName] || "#"
+  }
+
+  const copyToClipboard = (text: string, id: string) => {
+    navigator.clipboard.writeText(text)
+    setCopiedId(id)
+    setTimeout(() => setCopiedId(null), 2000)
+    toast.success("Copiado para a área de transferência!")
+  }
+
+
+
+  if (!isAuthenticated) {
     return (
-      <div className="flex items-center gap-2">
-        <code className="text-sm bg-gray-100 dark:bg-gray-800 px-2 py-1 rounded">
-          {shouldHide ? "••••••••" : String(variable.value)}
-        </code>
-        {isSecret && (
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={() => toggleShowSecret(variable.id)}
-          >
-            {shouldHide ? <Eye className="h-4 w-4" /> : <EyeOff className="h-4 w-4" />}
-          </Button>
-        )}
+      <div className="container mx-auto py-12 text-center">
+        <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
+        <p className="text-muted-foreground">Você precisa estar logado para acessar esta página.</p>
       </div>
     )
   }
 
-  // Componente para card de variável
-  const VariableCard = ({ variable }: { variable: Variable }) => ( // ✅ Corrigido
-    <Card className="hover:shadow-md transition-shadow">
-      <CardContent className="p-4">
-        <div className="flex items-start justify-between">
-          <div className="flex-1">
-            <div className="flex items-center gap-2 mb-2">
-              <h3 className="font-semibold">{variable.name}</h3>
-              <Badge variant={variable.isSystem ? "secondary" : "default"}>
-                {variable.scope}
-              </Badge>
-              {/* ✅ Removido badge de secreto se não existe */}
-            </div>
-            
-            <p className="text-sm text-gray-600 dark:text-gray-400 mb-2">
-              {variable.description}
-            </p>
-            
-            <div className="space-y-2">
-              <div>
-                <span className="text-xs font-medium text-gray-500">Chave:</span>
-                <code className="ml-2 text-sm bg-gray-100 dark:bg-gray-800 px-1 py-0.5 rounded">
-                  {variable.key}
-                </code>
-              </div>
-              
-              <div>
-                <span className="text-xs font-medium text-gray-500">Valor:</span>
-                <div className="ml-2">
-                  <VariableValue variable={variable} />
-                </div>
-              </div>
-              
-              <div>
-                <span className="text-xs font-medium text-gray-500">Tipo:</span>
-                <Badge variant="outline" className="ml-2">
-                  {variable.type}
-                </Badge>
-              </div>
-              
-              {variable.tags && variable.tags.length > 0 && (
-                <div>
-                  <span className="text-xs font-medium text-gray-500">Tags:</span>
-                  <div className="flex flex-wrap gap-1 ml-2">
-                    {variable.tags.map(tag => (
-                      <Badge key={tag} variant="outline" className="text-xs">
-                        {tag}
-                      </Badge>
-                    ))}
-                  </div>
-                </div>
-              )}
-            </div>
-          </div>
-          
-          {!variable.isSystem && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => setEditingVariable(variable)}
-              >
-                Editar
-              </Button>
-              <Button
-                variant="outline"
-                size="sm"
-                onClick={() => handleDeleteVariable(variable.id)}
-                className="text-red-600 hover:text-red-700"
-              >
-                <X className="h-4 w-4" />
-              </Button>
-            </div>
-          )}
-        </div>
-      </CardContent>
-    </Card>
-  )
-
   return (
-    <div className="container mx-auto p-6 space-y-6">
+    <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
-          <h1 className="text-3xl font-bold">Variáveis do Usuário</h1>
-          <p className="text-gray-600 dark:text-gray-400">
-            Gerencie suas variáveis e conecte serviços externos
+          <h1 className="text-2xl font-bold tracking-tight">Variáveis do Usuário</h1>
+          <p className="text-muted-foreground">
+            Gerencie suas chaves de API e conexões com serviços externos
           </p>
         </div>
-        
-        <div className="flex items-center gap-2">
-          {isAuthenticated && (
-            <>
+        <div className="flex flex-wrap gap-2">
+          <Button
+            variant="outline"
+            size="sm"
+            onClick={() => setImportDialogOpen(true)}
+            className="gap-2"
+          >
+            <Upload className="h-4 w-4" />
+            Importar
+          </Button>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
               <Button
                 variant="outline"
-                onClick={handleSync}
-                disabled={syncing}
+                size="sm"
+                className="gap-2"
               >
-                {syncing ? (
-                  <RefreshCw className="h-4 w-4 animate-spin mr-2" />
-                ) : (
-                  <RefreshCw className="w-4 h-4" />
-                )}
-                Sincronizar
+                <Download className="h-4 w-4" />
+                Exportar
+                <ChevronDown className="h-3 w-3 opacity-50" />
               </Button>
-              
-              {lastSync && (
-                <span className="text-sm text-gray-500">
-                  Última sync: {lastSync.toLocaleTimeString()}
-                </span>
-              )}
-            </>
-          )}
-          
-          <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Nova Variável
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-md">
-              <DialogHeader>
-                <DialogTitle>Criar Nova Variável</DialogTitle>
-              </DialogHeader>
-              
-              <div className="space-y-4">
-                <div>
-                  <Label htmlFor="name">Nome</Label>
-                  <Input
-                    id="name"
-                    value={newVariableForm.name}
-                    onChange={(e) => setNewVariableForm(prev => ({ ...prev, name: e.target.value }))}
-                    placeholder="Nome da variável"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="key">Chave</Label>
-                  <Input
-                    id="key"
-                    value={newVariableForm.key}
-                    onChange={(e) => setNewVariableForm(prev => ({ ...prev, key: e.target.value }))}
-                    placeholder="chave_da_variavel"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="type">Tipo</Label>
-                  <Select
-                    value={newVariableForm.type}
-                    onValueChange={(value: Variable['type']) => 
-                      setNewVariableForm(prev => ({ ...prev, type: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="string">String</SelectItem>
-                      <SelectItem value="number">Number</SelectItem>
-                      <SelectItem value="boolean">Boolean</SelectItem>
-                      <SelectItem value="object">Object</SelectItem>
-                      <SelectItem value="array">Array</SelectItem>
-                      <SelectItem value="expression">Expression</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="scope">Escopo</Label>
-                  <Select
-                    value={newVariableForm.scope}
-                    onValueChange={(value: VariableScope) => 
-                      setNewVariableForm(prev => ({ ...prev, scope: value }))
-                    }
-                  >
-                    <SelectTrigger>
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="global">Global</SelectItem>
-                      <SelectItem value="workflow">Workflow</SelectItem>
-                      <SelectItem value="node">Node</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                
-                <div>
-                  <Label htmlFor="value">Valor</Label>
-                  <Textarea
-                    id="value"
-                    value={newVariableForm.value}
-                    onChange={(e) => setNewVariableForm(prev => ({ ...prev, value: e.target.value }))}
-                    placeholder="Valor da variável"
-                  />
-                </div>
-                
-                <div>
-                  <Label htmlFor="description">Descrição</Label>
-                  <Textarea
-                    id="description"
-                    value={newVariableForm.description}
-                    onChange={(e) => setNewVariableForm(prev => ({ ...prev, description: e.target.value }))}
-                    placeholder="Descrição da variável"
-                  />
-                </div>
-                
-                {/* ✅ Removido switch de isSecret se não existe no tipo */}
-              </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreateDialogOpen(false)}>
-                  Cancelar
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onClick={() => handleExport('env')}>
+                Como arquivo .env
+              </DropdownMenuItem>
+              <DropdownMenuItem onClick={() => handleExport('json')}>
+                Como JSON
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <TooltipProvider>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="outline"
+                  size="sm"
+                  onClick={handleSync}
+                  disabled={syncing}
+                  className="gap-2"
+                >
+                  <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                  Sincronizar
                 </Button>
-                <Button onClick={handleCreateVariable} disabled={loading}>
-                  {loading ? "Criando..." : "Criar"}
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+              </TooltipTrigger>
+              <TooltipContent>
+                <p>Sincronizar variáveis com o servidor</p>
+              </TooltipContent>
+            </Tooltip>
+          </TooltipProvider>
+          <Button 
+            onClick={() => setIsCreateDialogOpen(true)}
+            size="sm"
+            className="gap-2"
+          >
+            <Plus className="h-4 w-4" />
+            Nova Variável
+          </Button>
         </div>
       </div>
 
-      {/* Status e Erro */}
-      {error && (
-        <div className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <AlertCircle className="h-5 w-5 text-red-600" />
-            <span className="text-red-800 dark:text-red-200">{error}</span>
-            <Button variant="outline" size="sm" onClick={clearError}>
-              Fechar
-            </Button>
-          </div>
-        </div>
-      )}
-
-      {!isAuthenticated && (
-        <div className="bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg p-4">
-          <div className="flex items-center gap-2">
-            <Info className="h-5 w-5 text-yellow-600" />
-            <span className="text-yellow-800 dark:text-yellow-200">
-              Faça login para sincronizar suas variáveis com o servidor
-            </span>
-          </div>
-        </div>
-      )}
-
-      {/* Filtros */}
-      <div className="flex gap-4">
-        <div className="flex-1">
-          <div className="relative">
-            <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
-            <Input
-              placeholder="Buscar variáveis..."
-              value={searchTerm}
-              onChange={(e) => setSearchTerm(e.target.value)}
-              className="pl-10"
-            />
-          </div>
-        </div>
+      {/* Stats Cards */}
+      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.1 }}
+        >
+          <Card className="bg-background/50 hover:bg-background/80 transition-colors border-l-4 border-l-primary/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{variables.length}</div>
+                  <p className="text-xs text-muted-foreground">Total de Variáveis</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                  <Tag className="h-5 w-5 text-primary" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
         
-        <Select value={selectedCategory} onValueChange={(value: VariableCategory | "all") => setSelectedCategory(value)}>
-          <SelectTrigger className="w-48">
-            <SelectValue />
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.2 }}
+        >
+          <Card className="bg-background/50 hover:bg-background/80 transition-colors border-l-4 border-l-blue-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{aiVariables.length}</div>
+                  <p className="text-xs text-muted-foreground">Provedores IA</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-blue-500/10 flex items-center justify-center">
+                  <Key className="h-5 w-5 text-blue-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.3 }}
+        >
+          <Card className="bg-background/50 hover:bg-background/80 transition-colors border-l-4 border-l-amber-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{variables.filter(v => v.is_encrypted).length}</div>
+                  <p className="text-xs text-muted-foreground">Criptografadas</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
+                  <Key className="h-5 w-5 text-amber-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+        
+        <motion.div 
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          transition={{ duration: 0.3, delay: 0.4 }}
+        >
+          <Card className="bg-background/50 hover:bg-background/80 transition-colors border-l-4 border-l-green-500/50">
+            <CardContent className="p-4">
+              <div className="flex items-center justify-between">
+                <div>
+                  <div className="text-2xl font-bold">{variables.filter(v => v.is_active).length}</div>
+                  <p className="text-xs text-muted-foreground">Ativas</p>
+                </div>
+                <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
+                  <Check className="h-5 w-5 text-green-500" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+        </motion.div>
+      </div>
+
+      {/* Search and Filter */}
+      <div className="flex flex-col md:flex-row md:items-center gap-4">
+        <div className="relative flex-1">
+          <Search className="absolute left-2.5 top-2.5 h-4 w-4 text-muted-foreground" />
+          <Input
+            placeholder="Buscar variáveis..."
+            className="pl-8"
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+        </div>
+        <Select value={selectedCategory} onValueChange={(value) => setSelectedCategory(value as any)}>
+          <SelectTrigger className="w-full md:w-48">
+            <div className="flex items-center gap-2">
+              <Filter className="h-4 w-4 text-muted-foreground" />
+              <SelectValue placeholder="Filtrar por categoria" />
+            </div>
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">Todas as categorias</SelectItem>
-            <SelectItem value="custom">Personalizadas</SelectItem>
-            <SelectItem value="ai">IA</SelectItem>
+            <SelectItem value="ai">Inteligência Artificial</SelectItem>
             <SelectItem value="analytics">Analytics</SelectItem>
-            <SelectItem value="ads">Anúncios</SelectItem>
-            <SelectItem value="social">Social</SelectItem>
+            <SelectItem value="ads">Publicidade</SelectItem>
+            <SelectItem value="social">Redes Sociais</SelectItem>
+            <SelectItem value="custom">Personalizadas</SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Conteúdo */}
-      <Tabs defaultValue="custom" className="space-y-6">
-        <TabsList>
-          <TabsTrigger value="custom">Variáveis Personalizadas ({userVariables.length})</TabsTrigger>
-          <TabsTrigger value="system">Variáveis do Sistema ({systemVariables.length})</TabsTrigger>
-          <TabsTrigger value="services">Serviços Externos</TabsTrigger>
-        </TabsList>
-
-        <TabsContent value="custom" className="space-y-4">
-          {loading && (
-            <div className="flex items-center justify-center py-8">
-              <RefreshCw className="h-6 w-6 animate-spin mr-2" />
-              <span>Carregando variáveis...</span>
-            </div>
-          )}
-          
-          {!loading && userVariables.length === 0 && (
-            <div className="text-center py-8">
-              <p className="text-gray-500">Nenhuma variável personalizada encontrada</p>
-              <Button
-                variant="outline"
-                className="mt-4"
-                onClick={() => setIsCreateDialogOpen(true)}
-              >
-                <Plus className="h-4 w-4 mr-2" />
-                Criar primeira variável
-              </Button>
-            </div>
-          )}
-          
-          <div className="grid gap-4">
-            {userVariables.map(variable => (
-              <VariableCard key={variable.id} variable={variable} />
-            ))}
+      {/* Error display */}
+      {error && (
+        <motion.div 
+          initial={{ opacity: 0, y: -10 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-destructive/10 border border-destructive/20 rounded-lg p-4"
+        >
+          <div className="flex items-center gap-2">
+            <AlertCircle className="h-4 w-4 text-destructive" />
+            <span className="text-destructive">{error}</span>
+            <Button variant="ghost" size="sm" onClick={clearError} className="ml-auto">
+              <X className="h-4 w-4" />
+            </Button>
           </div>
-        </TabsContent>
+        </motion.div>
+      )}
 
-        <TabsContent value="system" className="space-y-4">
-          <div className="grid gap-4">
-            {systemVariables.map(variable => (
-              <VariableCard key={variable.id} variable={variable} />
-            ))}
+      {/* Loading State */}
+      {loading && variables.length === 0 && (
+        <div className="flex items-center justify-center py-12">
+          <div className="flex items-center gap-2">
+            <RefreshCw className="h-5 w-5 animate-spin" />
+            <span>Carregando variáveis...</span>
           </div>
-        </TabsContent>
+        </div>
+      )}
 
-        <TabsContent value="services" className="space-y-4">
-          <div className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
-            {serviceVariables.map(service => (
-              <Card key={service.id} className="hover:shadow-md transition-shadow">
-                <CardContent className="p-4">
-                  <div className="flex items-center gap-3 mb-3">
-                    <ServiceLogo service={service.logo} size={20} /> {/* ✅ Corrigido */}
-                    <div>
-                      <h3 className="font-semibold">{service.name}</h3>
-                      <Badge variant={service.status === "connected" ? "default" : "secondary"}>
-                        {service.status === "connected" ? "Conectado" : "Não conectado"}
-                      </Badge>
+      {/* Content */}
+      {!loading || variables.length > 0 ? (
+        <Tabs defaultValue="templates" className="space-y-6">
+          <TabsList className="w-full md:w-auto">
+            <TabsTrigger value="templates" className="flex-1 md:flex-initial">
+              <div className="flex items-center gap-2">
+                <Key className="h-4 w-4" />
+                Templates de IA
+              </div>
+            </TabsTrigger>
+            <TabsTrigger value="variables" className="flex-1 md:flex-initial">
+              <div className="flex items-center gap-2">
+                <Tag className="h-4 w-4" />
+                Minhas Variáveis ({filteredVariables.length})
+              </div>
+            </TabsTrigger>
+          </TabsList>
+
+          <TabsContent value="templates" className="space-y-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+              <AnimatePresence>
+                {serviceTemplates.map((template, index) => {
+                  const existingVariable = variables.find(v => v.key === template.key)
+                  return (
+                    <motion.div
+                      key={template.id}
+                      initial={{ opacity: 0, scale: 0.95 }}
+                      animate={{ opacity: 1, scale: 1 }}
+                      exit={{ opacity: 0, scale: 0.95 }}
+                      transition={{ duration: 0.2, delay: index * 0.05 }}
+                    >
+                      <Card className="h-full hover:shadow-md transition-all duration-200 border-l-4 border-l-primary/20 hover:border-l-primary">
+                        <CardContent className="p-4">
+                          <div className="flex items-start gap-3 mb-4">
+                            <div className="w-12 h-12 rounded-lg bg-primary/10 flex items-center justify-center flex-shrink-0">
+                              <ServiceLogo service={template.logo} size={32} />
+                            </div>
+                            <div className="flex-1">
+                              <h3 className="font-semibold mb-1">{template.name}</h3>
+                              <p className="text-sm text-muted-foreground mb-3">{template.description}</p>
+                              <Badge variant={existingVariable ? "default" : "secondary"} className="rounded-full">
+                                {existingVariable ? "Configurado" : "Não configurado"}
+                              </Badge>
+                            </div>
+                          </div>
+                          <div className="mt-4 flex justify-end">
+                            <Button 
+                              variant={existingVariable ? "outline" : "default"} 
+                              size="sm"
+                              onClick={() => fillTemplateData(template)}
+                              className="gap-2"
+                            >
+                              {existingVariable ? "Reconfigurar" : "Configurar"}
+                              <ExternalLink className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  )
+                })}
+              </AnimatePresence>
+            </div>
+          </TabsContent>
+
+          <TabsContent value="variables" className="space-y-6">
+            {filteredVariables.length === 0 ? (
+              <Card className="p-12 text-center">
+                <div className="mx-auto w-16 h-16 bg-muted rounded-full flex items-center justify-center mb-4">
+                  <Tag className="h-8 w-8 text-muted-foreground" />
+                </div>
+                <h3 className="text-lg font-semibold mb-2">Nenhuma variável encontrada</h3>
+                <p className="text-muted-foreground mb-6">
+                  {searchTerm || selectedCategory !== "all" 
+                    ? "Tente ajustar os filtros de busca."
+                    : "Comece criando sua primeira variável ou configure um template de IA."
+                  }
+                </p>
+                <div className="flex gap-2 justify-center">
+                  <Button onClick={() => setIsCreateDialogOpen(true)} className="gap-2">
+                    <Plus className="h-4 w-4" />
+                    Nova Variável
+                  </Button>
+                </div>
+              </Card>
+            ) : (
+              <div className="grid gap-4">
+                <AnimatePresence>
+                  {filteredVariables.map((variable, index) => (
+                    <motion.div
+                      key={variable.id}
+                      initial={{ opacity: 0, y: 10 }}
+                      animate={{ opacity: 1, y: 0 }}
+                      exit={{ opacity: 0, y: -10 }}
+                      transition={{ duration: 0.2, delay: index * 0.03 }}
+                    >
+                      <Card className="hover:shadow-md transition-shadow border-l-4 border-l-primary/10 hover:border-l-primary/50">
+                        <CardContent className="p-4">
+                          <div className="flex items-start justify-between">
+                            <div className="flex-1">
+                              <div className="flex items-center gap-2 mb-2">
+                                <h3 className="font-semibold">{variable.key}</h3>
+                                <Badge variant="secondary" className="text-xs rounded-full">
+                                  <Shield className="h-3 w-3 mr-1" />
+                                  Criptografado
+                                </Badge>
+                              </div>
+                              {variable.description && (
+                                <p className="text-sm text-muted-foreground mb-2">{variable.description}</p>
+                              )}
+                              {variable.category && (
+                                <Badge variant="outline" className="text-xs rounded-full">
+                                  {variable.category}
+                                </Badge>
+                              )}
+                              
+                              {variable.value && (
+                                <div className="mt-2">
+                                  <div className="font-mono text-xs bg-muted p-1.5 rounded truncate">
+                                    ••••••••••••••••••••••••••
+                                  </div>
+                                </div>
+                              )}
+                            </div>
+                            <div className="flex items-center gap-3">
+                              <div className="flex items-center gap-2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <div className="flex items-center gap-2">
+                                        <span className="text-xs text-muted-foreground">
+                                          {variable.is_active ? "Ativa" : "Inativa"}
+                                        </span>
+                                        <Switch
+                                          checked={variable.is_active}
+                                          onCheckedChange={async (checked) => {
+                                            const success = await updateVariable(variable.id, {
+                                              ...variable,
+                                              is_active: checked
+                                            })
+                                            if (success) {
+                                              toast.success(checked ? "Variável ativada!" : "Variável desativada!")
+                                            }
+                                          }}
+                                        />
+                                      </div>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>{variable.is_active ? "Desativar variável" : "Ativar variável"}</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                              <div className="flex items-center gap-2">
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => copyToClipboard(variable.key, variable.id)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        {copiedId === variable.id ? (
+                                          <Check className="h-4 w-4 text-green-600" />
+                                        ) : (
+                                          <Copy className="h-4 w-4" />
+                                        )}
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Copiar chave</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                                <TooltipProvider>
+                                  <Tooltip>
+                                    <TooltipTrigger asChild>
+                                      <Button
+                                        variant="ghost"
+                                        size="sm"
+                                        onClick={() => handleDeleteVariable(variable.id)}
+                                        className="h-8 w-8 p-0"
+                                      >
+                                        <X className="h-4 w-4" />
+                                      </Button>
+                                    </TooltipTrigger>
+                                    <TooltipContent>
+                                      <p>Deletar variável</p>
+                                    </TooltipContent>
+                                  </Tooltip>
+                                </TooltipProvider>
+                              </div>
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
+          </TabsContent>
+        </Tabs>
+      ) : null}
+
+      {/* Create Variable Dialog - Refined Design */}
+      <Dialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen}>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden">
+          <div className="bg-gradient-to-b from-primary/10 to-background pt-8 pb-6 px-6">
+            <DialogHeader className="text-center">
+              <div className="mx-auto w-16 h-16 bg-primary/10 rounded-full flex items-center justify-center mb-4 border border-primary/20 shadow-sm">
+                {serviceTemplates.find(t => t.key === newVariableForm.key) ? (
+                  <ServiceLogo 
+                    service={serviceTemplates.find(t => t.key === newVariableForm.key)?.logo || 'key'} 
+                    size={32}
+                    className="w-8 h-8" 
+                  />
+                ) : (
+                  <Key className="h-8 w-8 text-primary" />
+                )}
+              </div>
+              <DialogTitle className="text-xl font-semibold">
+                {serviceTemplates.find(t => t.key === newVariableForm.key)?.name || "Nova Variável"}
+              </DialogTitle>
+              <p className="text-sm text-muted-foreground max-w-sm mx-auto mt-1.5">
+                {newVariableForm.description || "Configure uma nova variável para conectar serviços externos"}
+              </p>
+            </DialogHeader>
+          </div>
+          
+          <div className="px-6 py-5 space-y-5">
+            {/* Service Information - Read Only */}
+            {serviceTemplates.find(t => t.key === newVariableForm.key) && (
+              <div className="bg-muted/30 rounded-lg p-4 border">
+                <div className="flex items-center justify-between mb-3">
+                  <h4 className="font-medium text-sm flex items-center gap-2">
+                    <Info className="h-4 w-4 text-blue-500" />
+                    Informações do Serviço
+                  </h4>
+                  <Badge variant="outline" className="text-xs">
+                    Pré-configurado
+                  </Badge>
+                </div>
+                <div className="grid grid-cols-2 gap-3 text-sm">
+                  <div>
+                    <span className="text-muted-foreground">Serviço:</span>
+                    <p className="font-medium">{serviceTemplates.find(t => t.key === newVariableForm.key)?.name}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Categoria:</span>
+                    <p className="font-medium capitalize">{newVariableForm.category}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Identificador:</span>
+                    <p className="font-mono text-xs">{newVariableForm.key}</p>
+                  </div>
+                  <div>
+                    <span className="text-muted-foreground">Segurança:</span>
+                    <div className="flex items-center gap-1">
+                      <Key className="h-3 w-3 text-green-600" />
+                      <span className="text-green-600 font-medium">Criptografado</span>
                     </div>
                   </div>
-                  
-                  <p className="text-sm text-gray-600 dark:text-gray-400 mb-4">
-                    {service.description}
-                  </p>
-                  
-                  <Button
-                    variant={service.status === "connected" ? "outline" : "default"}
-                    className="w-full"
-                  >
-                    {service.status === "connected" ? "Gerenciar" : "Conectar"}
-                  </Button>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </TabsContent>
-      </Tabs>
+                </div>
+              </div>
+            )}
 
-      {/* Dialog de Edição */}
-      {editingVariable && (
-        <Dialog open={!!editingVariable} onOpenChange={() => setEditingVariable(null)}>
-          <DialogContent className="max-w-md">
-            <DialogHeader>
-              <DialogTitle>Editar Variável</DialogTitle>
-            </DialogHeader>
-            
-            <div className="space-y-4">
-              <div>
-                <Label htmlFor="edit-name">Nome</Label>
+            {/* Custom Key Input - Only for non-template variables */}
+            {!serviceTemplates.find(t => t.key === newVariableForm.key) && (
+              <div className="space-y-2">
+                <Label htmlFor="custom-key" className="text-sm font-medium flex items-center gap-1.5">
+                  <Tag className="h-4 w-4 text-primary" />
+                  Nome da Variável
+                </Label>
                 <Input
-                  id="edit-name"
-                  value={editingVariable.name}
-                  onChange={(e) => setEditingVariable(prev => prev ? { ...prev, name: e.target.value } : null)}
+                  id="custom-key"
+                  value={newVariableForm.key}
+                  onChange={(e) => setNewVariableForm(prev => ({ ...prev, key: e.target.value.toUpperCase() }))}
+                  placeholder="Ex: MY_API_KEY"
+                  className="font-mono"
                 />
+                <p className="text-xs text-muted-foreground mt-1">
+                  Use letras maiúsculas e underscores para nomes de variáveis (ex: API_KEY)
+                </p>
               </div>
+            )}
+
+            {/* Main Input - API Key */}
+            <div className="space-y-2.5">
+              <Label htmlFor="api-key" className="text-base font-medium flex items-center gap-2">
+                <Key className="h-5 w-5 text-primary" />
+                {serviceTemplates.find(t => t.key === newVariableForm.key)?.name 
+                  ? `Sua ${serviceTemplates.find(t => t.key === newVariableForm.key)?.name}` 
+                  : "Valor da Variável"}
+              </Label>
               
-              <div>
-                <Label htmlFor="edit-value">Valor</Label>
+              <div className="relative">
                 <Textarea
-                  id="edit-value"
-                  value={String(editingVariable.value)}
-                  onChange={(e) => setEditingVariable(prev => prev ? { ...prev, value: e.target.value } : null)}
+                  id="api-key"
+                  value={newVariableForm.value}
+                  onChange={(e) => setNewVariableForm(prev => ({ ...prev, value: e.target.value }))}
+                  placeholder={
+                    serviceTemplates.find(t => t.key === newVariableForm.key)
+                      ? `Cole sua ${serviceTemplates.find(t => t.key === newVariableForm.key)?.name.toLowerCase()} aqui...`
+                      : "Digite o valor da variável..."
+                  }
+                  className="font-mono text-base resize-none min-h-[80px] pr-20"
+                  rows={3}
                 />
+                {newVariableForm.value && (
+                  <div className="absolute top-3 right-3">
+                    <Badge variant="secondary" className="text-xs">
+                      <Shield className="h-3 w-3 mr-1" />
+                      Criptografado
+                    </Badge>
+                  </div>
+                )}
               </div>
               
-              <div>
-                <Label htmlFor="edit-description">Descrição</Label>
-                <Textarea
-                  id="edit-description"
-                  value={editingVariable.description || ""}
-                  onChange={(e) => setEditingVariable(prev => prev ? { ...prev, description: e.target.value } : null)}
-                />
+              <div className="flex items-start gap-2 text-sm text-muted-foreground bg-blue-50 dark:bg-blue-950/30 p-3 rounded-md">
+                <AlertCircle className="h-4 w-4 text-blue-600 dark:text-blue-400 mt-0.5 flex-shrink-0" />
+                <div>
+                  <p className="font-medium text-blue-900 dark:text-blue-300">Sua API key será criptografada</p>
+                  <p className="text-blue-700 dark:text-blue-400">
+                    Este valor será automaticamente criptografado e armazenado com segurança. 
+                    Apenas você poderá visualizá-lo posteriormente.
+                  </p>
+                </div>
               </div>
-              
-              {/* ✅ Removido switch de isSecret se não existe no tipo */}
+            </div>
+
+            {/* Optional Description */}
+            <div className="space-y-2">
+              <Label htmlFor="notes" className="text-sm font-medium flex items-center gap-2">
+                <svg className="h-4 w-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M7 8h10M7 12h4m1 8l-4-4H5a2 2 0 01-2-2V6a2 2 0 012-2h14a2 2 0 012 2v8a2 2 0 01-2 2h-1.586l-4.414 4.414z" />
+                </svg>
+                Notas (opcional)
+              </Label>
+              <Textarea
+                id="notes"
+                value={newVariableForm.description}
+                onChange={(e) => setNewVariableForm(prev => ({ ...prev, description: e.target.value }))}
+                placeholder="Adicione observações sobre esta configuração..."
+                rows={2}
+                className="text-sm resize-none"
+              />
+            </div>
+
+            {/* Help Section */}
+            {serviceTemplates.find(t => t.key === newVariableForm.key) && (
+              <div className="border rounded-lg p-4 bg-gray-50 dark:bg-gray-900/50">
+                <div className="flex items-start gap-3">
+                  <div className="w-8 h-8 bg-blue-100 dark:bg-blue-900/50 rounded-full flex items-center justify-center flex-shrink-0">
+                    <svg className="h-4 w-4 text-blue-600 dark:text-blue-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                    </svg>
+                  </div>
+                  <div className="text-sm">
+                    <h4 className="font-medium text-gray-900 dark:text-gray-100 mb-1">Como obter sua API key?</h4>
+                    <p className="text-gray-600 dark:text-gray-400 mb-2">
+                      {getHelpText(serviceTemplates.find(t => t.key === newVariableForm.key)?.name || "")}
+                    </p>
+                    <Button variant="outline" size="sm" className="text-xs h-7" asChild>
+                      <a href={getDocumentationUrl(serviceTemplates.find(t => t.key === newVariableForm.key)?.name || "")} target="_blank" rel="noopener noreferrer">
+                        <ExternalLink className="h-3 w-3 mr-1" />
+                        Documentação oficial
+                      </a>
+                    </Button>
+                  </div>
+                </div>
+              </div>
+            )}
+
+            {/* Category Selection for Custom Variables */}
+            {!serviceTemplates.find(t => t.key === newVariableForm.key) && (
+              <div className="space-y-2">
+                <Label htmlFor="category" className="flex items-center gap-1.5">
+                  <Tag className="h-4 w-4 text-primary" />
+                  <span>Categoria</span>
+                </Label>
+                <Select
+                  value={newVariableForm.category}
+                  onValueChange={(value) => setNewVariableForm(prev => ({ ...prev, category: value }))}
+                >
+                  <SelectTrigger id="category">
+                    <SelectValue placeholder="Selecione uma categoria" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="ai">Inteligência Artificial</SelectItem>
+                    <SelectItem value="analytics">Analytics</SelectItem>
+                    <SelectItem value="ads">Publicidade</SelectItem>
+                    <SelectItem value="social">Redes Sociais</SelectItem>
+                    <SelectItem value="custom">Personalizada</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            )}
+          </div>
+          
+          <DialogFooter className="px-6 py-4 border-t bg-muted/30 flex flex-row gap-3 justify-end">
+            <Button 
+              variant="outline" 
+              onClick={() => {
+                setIsCreateDialogOpen(false)
+                resetForm()
+              }}
+              className="flex-1 sm:flex-none"
+            >
+              Cancelar
+            </Button>
+            <Button 
+              onClick={handleCreateVariable} 
+              disabled={loading || !newVariableForm.value.trim() || !newVariableForm.key.trim()}
+              className="flex-1 sm:flex-none gap-2"
+            >
+              {loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Configurando...
+                </>
+              ) : (
+                <>
+                  <Check className="h-4 w-4" />
+                  {serviceTemplates.find(t => t.key === newVariableForm.key) ? "Configurar" : "Salvar Variável"}
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Import Dialog */}
+      <Dialog open={importDialogOpen} onOpenChange={setImportDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Importar Variáveis</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="border-2 border-dashed border-muted-foreground/20 rounded-lg p-6 text-center hover:bg-muted/50 transition-colors cursor-pointer">
+              <Input
+                id="file-upload"
+                type="file"
+                accept=".env,.txt,.json"
+                onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                className="hidden"
+              />
+              <Label htmlFor="file-upload" className="cursor-pointer flex flex-col items-center gap-2">
+                <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mb-2">
+                  <Upload className="h-6 w-6 text-primary" />
+                </div>
+                <span className="font-medium">Clique para selecionar um arquivo</span>
+                <span className="text-sm text-muted-foreground">ou arraste e solte aqui</span>
+                <span className="text-xs text-muted-foreground mt-2">Suporta arquivos .env, .txt e .json</span>
+              </Label>
             </div>
             
-            <DialogFooter>
-              <Button variant="outline" onClick={() => setEditingVariable(null)}>
-                Cancelar
-              </Button>
-              <Button onClick={() => handleUpdateVariable(editingVariable)} disabled={loading}>
-                {loading ? "Salvando..." : "Salvar"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      )}
+            {selectedFile && (
+              <motion.div 
+                initial={{ opacity: 0, y: 10 }}
+                animate={{ opacity: 1, y: 0 }}
+                className="p-4 bg-muted rounded-lg"
+              >
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-primary/10 flex items-center justify-center">
+                    <Check className="h-5 w-5 text-primary" />
+                  </div>
+                  <div className="flex-1">
+                    <p className="font-medium">
+                      {selectedFile.name}
+                    </p>
+                    <p className="text-xs text-muted-foreground">
+                      Tamanho: {(selectedFile.size / 1024).toFixed(2)} KB
+                    </p>
+                  </div>
+                  <Button 
+                    variant="ghost" 
+                    size="sm" 
+                    onClick={() => setSelectedFile(null)}
+                    className="h-8 w-8 p-0"
+                  >
+                    <X className="h-4 w-4" />
+                  </Button>
+                </div>
+              </motion.div>
+            )}
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setImportDialogOpen(false)}>
+              Cancelar
+            </Button>
+            <Button onClick={handleImportFile} disabled={!selectedFile || loading} className="gap-2">
+              {loading ? (
+                <>
+                  <RefreshCw className="h-4 w-4 animate-spin" />
+                  Importando...
+                </>
+              ) : (
+                <>
+                  <Upload className="h-4 w-4" />
+                  Importar
+                </>
+              )}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
-}
-
+} 

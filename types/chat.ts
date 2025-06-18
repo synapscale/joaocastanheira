@@ -228,6 +228,9 @@ export interface Conversation {
   /** Modelo de IA usado na conversa */
   model?: string
 
+  /** Configurações específicas da conversa */
+  settings?: Record<string, any>
+
   /** Metadados adicionais da conversa */
   metadata?: {
     /** Modelo de IA usado */
@@ -244,6 +247,15 @@ export interface Conversation {
 
     /** Indicador de favorito */
     isFavorite?: boolean
+
+    /** ID do agente associado */
+    agent_id?: string
+
+    /** ID do workspace */
+    workspace_id?: string
+
+    /** Contexto adicional */
+    context?: Record<string, any>
 
     /** Outros metadados */
     [key: string]: any
