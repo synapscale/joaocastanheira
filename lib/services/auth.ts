@@ -47,6 +47,9 @@ class AuthStorageImpl implements AuthStorage {
   setToken(token: string): void {
     if (typeof window === 'undefined') return
     localStorage.setItem(this.tokenKey, token)
+    
+    // Também definir como cookie para compatibilidade com middleware
+    this.setCookie(this.tokenKey, token, 7) // 7 dias
   }
 
   getRefreshToken(): string | null {
@@ -57,6 +60,9 @@ class AuthStorageImpl implements AuthStorage {
   setRefreshToken(token: string): void {
     if (typeof window === 'undefined') return
     localStorage.setItem(this.refreshTokenKey, token)
+    
+    // Também definir como cookie para compatibilidade com middleware
+    this.setCookie(this.refreshTokenKey, token, 30) // 30 dias
   }
 
   getUser(): AuthUser | null {
@@ -75,6 +81,31 @@ class AuthStorageImpl implements AuthStorage {
     localStorage.removeItem(this.tokenKey)
     localStorage.removeItem(this.refreshTokenKey)
     localStorage.removeItem(this.userKey)
+    
+    // Também limpar cookies
+    this.deleteCookie(this.tokenKey)
+    this.deleteCookie(this.refreshTokenKey)
+  }
+
+  /**
+   * Define um cookie
+   */
+  private setCookie(name: string, value: string, days: number): void {
+    if (typeof document === 'undefined') return
+    
+    const expires = new Date()
+    expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
+    
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax`
+  }
+
+  /**
+   * Remove um cookie
+   */
+  private deleteCookie(name: string): void {
+    if (typeof document === 'undefined') return
+    
+    document.cookie = `${name}=;expires=Thu, 01 Jan 1970 00:00:00 UTC;path=/;`
   }
 }
 
@@ -345,16 +376,56 @@ export class AuthService {
     try {
       const token = this.storage.getToken()
       
+      console.log('AuthService - checkAuthStatus - Token presente:', !!token);
+      
       if (!token) {
         return false
       }
 
-      // Verificar se token ainda é válido
-      await this.getCurrentUser()
-      return true
+      // Verificar se o token está expirado localmente primeiro
+      try {
+        const payload = JSON.parse(atob(token.split('.')[1]))
+        const currentTime = Math.floor(Date.now() / 1000)
+        const isExpired = payload.exp <= currentTime
+        
+        console.log('AuthService - checkAuthStatus - Token info:', {
+          exp: payload.exp,
+          currentTime,
+          isExpired
+        });
+        
+        if (isExpired) {
+          console.log('AuthService - checkAuthStatus - Token expirado');
+          this.storage.clear()
+          return false
+        }
+      } catch (parseError) {
+        console.error('AuthService - checkAuthStatus - Erro ao decodificar token:', parseError);
+        this.storage.clear()
+        return false
+      }
+
+      // Verificar com o servidor se possível
+      try {
+        console.log('AuthService - checkAuthStatus - Verificando com servidor...');
+        await apiService.get(config.endpoints.auth.me)
+        console.log('AuthService - checkAuthStatus - Verificação com servidor bem-sucedida');
+        return true
+      } catch (error: any) {
+        console.log('AuthService - checkAuthStatus - Erro na verificação com servidor:', error?.status || error?.message);
+        
+        // Se for erro 401, token inválido
+        if (error?.status === 401) {
+          this.storage.clear()
+          return false
+        }
+        
+        // Para outros erros, assumir que o token local está válido
+        // (pode ser problema de conectividade)
+        return true
+      }
     } catch (error) {
-      // Token inválido, limpar storage
-      this.storage.clear()
+      console.error('AuthService - checkAuthStatus - Erro geral:', error)
       return false
     }
   }

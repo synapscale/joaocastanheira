@@ -22,9 +22,9 @@ export default function LoginPage() {
   useEffect(() => {
     console.log('LoginPage - isInitialized:', isInitialized, 'isAuthenticated:', isAuthenticated, 'redirectTo:', redirectTo);
     if (isInitialized && isAuthenticated) {
-      router.replace(redirectTo);
+      window.location.replace(redirectTo);
     }
-  }, [isInitialized, isAuthenticated, redirectTo, router]);
+  }, [isInitialized, isAuthenticated, redirectTo]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">

@@ -78,22 +78,38 @@ function isPublicRoute(pathname: string): boolean {
  * Verifica se o usuário está autenticado baseado no token
  */
 function isAuthenticated(request: NextRequest): boolean {
-  const token = request.cookies.get(appConfig.auth.tokenKey)?.value
+  // Primeiro tenta verificar pelo cookie
+  const tokenFromCookie = request.cookies.get(appConfig.auth.tokenKey)?.value
   
-  if (!token) {
-    return false
+  if (tokenFromCookie) {
+    try {
+      // Verificar se o token não está expirado
+      const payload = JSON.parse(atob(tokenFromCookie.split('.')[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      return payload.exp > currentTime
+    } catch (error) {
+      // Token inválido no cookie, continua para verificar outras fontes
+    }
   }
 
-  try {
-    // Verificar se o token não está expirado
-    const payload = JSON.parse(atob(token.split('.')[1]))
-    const currentTime = Math.floor(Date.now() / 1000)
-    
-    return payload.exp > currentTime
-  } catch (error) {
-    // Token inválido
-    return false
+  // Como fallback, verificamos se há token no header Authorization
+  // (para casos onde o frontend define o header mas não o cookie)
+  const authHeader = request.headers.get('Authorization')
+  if (authHeader?.startsWith('Bearer ')) {
+    const tokenFromHeader = authHeader.substring(7)
+    try {
+      const payload = JSON.parse(atob(tokenFromHeader.split('.')[1]))
+      const currentTime = Math.floor(Date.now() / 1000)
+      
+      return payload.exp > currentTime
+    } catch (error) {
+      // Token inválido no header
+    }
   }
+
+  // Se chegou até aqui, não conseguiu verificar autenticação
+  return false
 }
 
 /**
