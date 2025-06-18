@@ -14,14 +14,15 @@ import { Suspense } from 'react'
 import LoginForm from '../../components/auth/login-form'
 
 export default function LoginPage() {
-  const { isAuthenticated } = useAuth();
+  const { isAuthenticated, isInitialized } = useAuth();
   const router = useRouter();
 
   useEffect(() => {
-    if (isAuthenticated) {
+    console.log('LoginPage - isInitialized:', isInitialized, 'isAuthenticated:', isAuthenticated);
+    if (isInitialized && isAuthenticated) {
       router.replace('/chat');
     }
-  }, [isAuthenticated, router]);
+  }, [isInitialized, isAuthenticated, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
