@@ -18,7 +18,7 @@ interface LoginFormProps {
   className?: string
 }
 
-export function LoginForm({ redirectTo = '/', onSuccess, className = '' }: LoginFormProps) {
+export function LoginForm({ redirectTo = '/chat', onSuccess, className = '' }: LoginFormProps) {
   const router = useRouter()
   const { login, isLoading, error, clearError } = useLogin()
   
