@@ -8,7 +8,7 @@ export const dynamic = 'force-dynamic'
  */
 
 import { useAuth } from '@/context/auth-context';
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Suspense } from 'react'
 import LoginForm from '../../components/auth/login-form'
@@ -16,13 +16,15 @@ import LoginForm from '../../components/auth/login-form'
 export default function LoginPage() {
   const { isAuthenticated, isInitialized } = useAuth();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectTo = searchParams.get('redirect') || '/chat';
 
   useEffect(() => {
-    console.log('LoginPage - isInitialized:', isInitialized, 'isAuthenticated:', isAuthenticated);
+    console.log('LoginPage - isInitialized:', isInitialized, 'isAuthenticated:', isAuthenticated, 'redirectTo:', redirectTo);
     if (isInitialized && isAuthenticated) {
-      router.replace('/chat');
+      router.replace(redirectTo);
     }
-  }, [isInitialized, isAuthenticated, router]);
+  }, [isInitialized, isAuthenticated, redirectTo, router]);
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
@@ -45,7 +47,7 @@ export default function LoginPage() {
               </div>
             }
           >
-            <LoginForm />
+            <LoginForm redirectTo={redirectTo} />
           </Suspense>
 
           {/* Footer */}
