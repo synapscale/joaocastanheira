@@ -131,14 +131,14 @@ export function Sidebar() {
         >
           {/* Header */}
           <div className="flex items-center justify-between p-4">
-            <Link href="/" className="flex items-center gap-2">
-              <div className="flex items-center justify-center w-9 h-9 rounded-md bg-transparent text-white shadow-sm">
-                <img src="/images/synapscale-symbol.png" alt="SynapScale Logo" className="w-8 h-8" />
-              </div>
-              <span className="font-semibold text-lg bg-gradient-to-r from-[#f35500] to-[#ff7e00] bg-clip-text text-transparent">
-                SynapScale
-              </span>
-            </Link>
+                      <Link href="/" className="flex items-center gap-2">
+            <div className="flex items-center justify-center w-9 h-9 rounded-md bg-transparent text-white shadow-sm">
+              <img src="/images/synapscale-symbol-orange.png" alt="SynapScale Logo" className="w-8 h-8" />
+            </div>
+            <span className="font-semibold text-lg bg-gradient-to-r from-[#f35500] to-[#ff7e00] bg-clip-text text-transparent">
+              SynapScale
+            </span>
+          </Link>
             
             {/* Botão de fechar */}
             <button
@@ -272,10 +272,14 @@ export function Sidebar() {
       transition={{ duration: 0.3, ease: "easeInOut" }}
     >
       {/* Header */}
-      <div className="flex items-center justify-between p-4 flex-shrink-0">
-        <Link href="/" className="flex items-center gap-2 min-w-0">
+      <div className={`flex items-center p-4 flex-shrink-0 ${isCollapsed ? 'justify-center relative' : 'justify-between'}`}>
+        <Link 
+          href="/" 
+          className="flex items-center gap-2 min-w-0"
+          onClick={isCollapsed ? (e) => { e.preventDefault(); toggleCollapse(); } : undefined}
+        >
           <div className="flex items-center justify-center w-9 h-9 rounded-md bg-transparent text-white shadow-sm flex-shrink-0">
-            <img src="/images/synapscale-symbol.png" alt="SynapScale Logo" className="w-8 h-8" />
+            <img src="/images/synapscale-symbol-orange.png" alt="SynapScale Logo" className="w-8 h-8" />
           </div>
           {!isCollapsed && (
             <motion.span
@@ -291,16 +295,23 @@ export function Sidebar() {
         </Link>
         
         {/* Botão de toggle */}
-        <button
-          onClick={toggleCollapse}
-          className="p-1.5 rounded-md hover:bg-muted transition-colors hover:text-primary flex-shrink-0"
-          aria-label={isCollapsed ? "Expandir sidebar" : "Colapsar sidebar"}
-        >
-          {isCollapsed ? 
-            <ChevronRight className="h-4 w-4" /> : 
+        {isCollapsed ? (
+          <button
+            onClick={toggleCollapse}
+            className="absolute left-12 top-1/2 transform -translate-y-1/2 p-1 rounded-md hover:bg-muted transition-colors hover:text-primary"
+            aria-label="Expandir sidebar"
+          >
+            <ChevronRight className="h-3 w-3" />
+          </button>
+        ) : (
+          <button
+            onClick={toggleCollapse}
+            className="p-1.5 rounded-md hover:bg-muted transition-colors hover:text-primary flex-shrink-0"
+            aria-label="Colapsar sidebar"
+          >
             <ChevronLeft className="h-4 w-4" />
-          }
-        </button>
+          </button>
+        )}
       </div>
       
       {/* Links de navegação */}
