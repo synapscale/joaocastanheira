@@ -5,10 +5,22 @@ export const dynamic = 'force-dynamic'
  * Interface de autenticação para usuários
  */
 
+import { useAuth } from '@/context/auth-context';
+import { useRouter } from 'next/navigation';
+import { useEffect } from 'react';
 import { Suspense } from 'react'
 import LoginForm from '../../components/auth/login-form'
 
 export default function LoginPage() {
+  const { isAuthenticated } = useAuth();
+  const router = useRouter();
+
+  useEffect(() => {
+    if (isAuthenticated) {
+      router.replace('/chat');
+    }
+  }, [isAuthenticated, router]);
+
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">
       {/* HERO */}
