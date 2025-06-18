@@ -1,9 +1,4 @@
-/**
- * Contexto de autenticação
- * Gerencia estado global de autenticação da aplicação
- */
-
-'use client'
+"use client"
 
 import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
 import { authService } from '../lib/services/auth'
@@ -136,6 +131,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
    * Inicializa autenticação verificando dados salvos
    */
   const initializeAuth = useCallback(async () => {
+    if (typeof window === 'undefined') return; // Só roda no client!
     try {
       const storedUser = authService.getStoredUser()
       const storedToken = authService.getStoredToken()
