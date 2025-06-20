@@ -28,7 +28,9 @@ import {
   Workflow,
   Layers,
   PanelLeft,
+  Users,
 } from "lucide-react"
+import { WorkspaceSelector } from "@/components/workspace/workspace-selector"
 
 /**
  * Componente de barra lateral principal.
@@ -75,6 +77,11 @@ export default function Sidebar() {
           </Link>
         </div>
 
+        {/* Seletor de Workspace */}
+        <div className="border-b px-4 py-3">
+          <WorkspaceSelector className="w-full" />
+        </div>
+
         {/* Conteúdo principal da barra lateral */}
         <div className="flex-1 overflow-auto">
           <div className="px-3 py-2">
@@ -98,6 +105,12 @@ export default function Sidebar() {
                 href="/marketplace"
                 icon={<ShoppingBag className="h-5 w-5" />}
                 label="Marketplace"
+                pathname={pathname}
+              />
+              <NavItem
+                href="/team"
+                icon={<Users className="h-5 w-5" />}
+                label="Equipe & Workspaces"
                 pathname={pathname}
               />
             </div>

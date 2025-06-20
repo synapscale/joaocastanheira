@@ -66,7 +66,7 @@ export function useConversations(): UseConversationsReturn {
 
   // Função para fazer chamadas autenticadas à API
   const apiCall = useCallback(async (endpoint: string, options: RequestInit = {}) => {
-    const token = localStorage.getItem("token")
+    const token = localStorage.getItem("synapsefrontend_auth_token")
     const headers = {
       "Content-Type": "application/json",
       ...(token && { "Authorization": `Bearer ${token}` }),

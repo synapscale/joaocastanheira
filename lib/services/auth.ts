@@ -257,11 +257,20 @@ export class AuthService {
       this.storage.setRefreshToken(normalized.tokens.refreshToken)
       this.storage.setUser(normalized.user)
 
+      console.log('🔍 DEBUG AuthService.login - Tokens obtidos:', {
+        hasAccessToken: !!normalized.tokens.accessToken,
+        hasRefreshToken: !!normalized.tokens.refreshToken,
+        user: normalized.user.email
+      })
+
       // Sincronizar tokens com o ApiService
+      console.log('🔄 Sincronizando tokens com ApiService...')
       apiService.syncTokensWithAuthService(
         normalized.tokens.accessToken,
         normalized.tokens.refreshToken
       )
+      
+      console.log('✅ Tokens sincronizados - initializeUserData será chamado automaticamente')
 
       return normalized
     } catch (error) {
@@ -288,19 +297,9 @@ export class AuthService {
         password: data.password,
       })
 
-      // Criar workspace padrão do usuário (ignorar erros se já existir)
-      try {
-        const workspaceName = `${loginResponse.user.name?.split(' ')[0] || 'Meu'} Workspace`
-        await apiService.post('/workspaces/', {
-          name: workspaceName,
-          description: 'Workspace pessoal - criado automaticamente',
-          is_public: false,
-        })
-        console.log('Workspace padrão criado com sucesso')
-      } catch (workspaceErr: any) {
-        // Ignorar erro se workspace já existir ou por outros motivos
-        console.log('Workspace padrão não foi criado:', workspaceErr.message)
-      }
+      // O workspace padrão será criado automaticamente pelo ApiService
+      // através do initializeUserData() quando os tokens forem sincronizados
+      console.log('✅ Registro concluído - workspace será criado automaticamente')
 
       return loginResponse
     } catch (error) {

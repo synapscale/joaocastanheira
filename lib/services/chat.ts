@@ -156,15 +156,59 @@ class ChatService {
    */
   private async getUserApiKeys(): Promise<Record<string, string>> {
     try {
-      // Tentar obter do localStorage primeiro (cache)
-      const cachedKeys = localStorage.getItem('userApiKeys')
-      if (cachedKeys) {
-        return JSON.parse(cachedKeys)
+      // Buscar do serviço de variáveis integrado com o backend  
+      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.variables.base}`, {
+        method: 'GET',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        console.warn('Não foi possível obter API keys do usuário:', response.status)
+        return {}
+      }
+
+      const text = await response.text()
+      if (!text || text.trim() === '') {
+        console.warn('Response vazia do servidor para getUserApiKeys')
+        return {}
+      }
+
+      let result: any = {}
+      try {
+        result = JSON.parse(text)
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta getUserApiKeys:', parseError)
+        console.error('Resposta recebida:', text)
+        return {}
+      }
+
+      const apiKeys = result.items || result || []
+      
+      // Converter para formato esperado pelo validador
+      const formattedKeys: Record<string, string> = {}
+      
+      // Mapear chaves de variáveis para nomes de provedores baseado na API spec
+      if (Array.isArray(apiKeys)) {
+        apiKeys.forEach((keyData: any) => {
+          if (keyData.key === 'OPENAI_API_KEY' && keyData.value) {
+            formattedKeys.openai = keyData.value
+          }
+          if (keyData.key === 'ANTHROPIC_API_KEY' && keyData.value) {
+            formattedKeys.anthropic = keyData.value
+          }
+          if (keyData.key === 'GOOGLE_API_KEY' && keyData.value) {
+            formattedKeys.google = keyData.value
+          }
+        })
       }
       
-      // Se não tiver cache, buscar do serviço de variáveis
-      // Esta integração seria feita com o VariableService
-      return {}
+      // Cache local para performance
+      localStorage.setItem('userApiKeys', JSON.stringify(formattedKeys))
+      
+      return formattedKeys
     } catch (error) {
       console.error('Erro ao obter API keys do usuário:', error)
       return {}
@@ -232,7 +276,19 @@ class ChatService {
       
       // Salvar no localStorage para analytics
       const existingLogs = localStorage.getItem('chatConfigurationLogs')
-      const logs = existingLogs ? JSON.parse(existingLogs) : []
+      let logs: any[] = []
+      
+      if (existingLogs && existingLogs.trim() !== '') {
+        try {
+          logs = JSON.parse(existingLogs)
+          if (!Array.isArray(logs)) {
+            logs = []
+          }
+        } catch (parseError) {
+          console.warn('Erro ao fazer parse dos logs existentes, reiniciando logs:', parseError)
+          logs = []
+        }
+      }
       logs.push(logEntry)
       
       // Manter apenas os últimos 100 logs
@@ -292,7 +348,7 @@ class ChatService {
       })
       if (agent_id) params.append('agent_id', agent_id)
 
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.http}?${params}`, {
+      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.conversations}?${params}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
@@ -439,17 +495,21 @@ class ChatService {
       }
 
       // Fazer requisição para a API
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.http}`, {
+      const response = await fetch(`${config.apiBaseUrl}/llm/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
         },
         body: JSON.stringify({
-          message: messageData.content,
-          conversationId,
-          settings,
-          apiKeys
+          messages: [{ role: 'user', content: messageData.content }],
+          provider: settings.provider,
+          model: settings.model,
+          temperature: settings.temperature,
+          max_tokens: settings.maxTokens,
+          top_p: settings.topP,
+          frequency_penalty: settings.frequencyPenalty,
+          presence_penalty: settings.presencePenalty
         })
       })
 
@@ -504,7 +564,17 @@ class ChatService {
   getOfflineConversations(): Conversation[] {
     try {
       const stored = localStorage.getItem('offline_conversations')
-      return stored ? JSON.parse(stored) : []
+      if (!stored || stored.trim() === '') {
+        return []
+      }
+      
+      try {
+        const parsed = JSON.parse(stored)
+        return Array.isArray(parsed) ? parsed : []
+      } catch (parseError) {
+        console.error('Erro ao fazer parse das conversas offline:', parseError)
+        return []
+      }
     } catch (error) {
       console.error('Failed to get offline conversations:', error)
       return []
@@ -531,7 +601,17 @@ class ChatService {
   getOfflineMessages(conversationId: string): Message[] {
     try {
       const stored = localStorage.getItem(`offline_messages_${conversationId}`)
-      return stored ? JSON.parse(stored) : []
+      if (!stored || stored.trim() === '') {
+        return []
+      }
+      
+      try {
+        const parsed = JSON.parse(stored)
+        return Array.isArray(parsed) ? parsed : []
+      } catch (parseError) {
+        console.error('Erro ao fazer parse das mensagens offline:', parseError)
+        return []
+      }
     } catch (error) {
       console.error('Failed to get offline messages:', error)
       return []
@@ -609,7 +689,7 @@ class ChatService {
   } {
     try {
       const logs = localStorage.getItem('chatConfigurationLogs')
-      if (!logs) {
+      if (!logs || logs.trim() === '') {
         return {
           totalMessages: 0,
           successRate: 0,
@@ -618,7 +698,21 @@ class ChatService {
         }
       }
 
-      const parsedLogs = JSON.parse(logs)
+      let parsedLogs: any[] = []
+      try {
+        parsedLogs = JSON.parse(logs)
+        if (!Array.isArray(parsedLogs)) {
+          parsedLogs = []
+        }
+      } catch (parseError) {
+        console.error('Erro ao fazer parse dos logs de analytics:', parseError)
+        return {
+          totalMessages: 0,
+          successRate: 0,
+          mostUsedSettings: { models: {}, tools: {}, personalities: {} },
+          errorsByType: {}
+        }
+      }
       const successfulLogs = parsedLogs.filter((log: any) => log.success)
       
       return {
@@ -676,8 +770,36 @@ class ChatService {
   }
 
   /**
-   * Testar configurações (para validação)
+   * Testar se um provider específico está disponível
    */
+  async testProvider(provider: string): Promise<{ available: boolean; error?: string }> {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/llm/providers`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        return { available: false, error: `HTTP ${response.status}: ${response.statusText}` }
+      }
+
+      const providers = await response.json()
+      const providerInfo = providers.find((p: any) => p.id === provider || p.name === provider)
+      
+      return {
+        available: providerInfo && providerInfo.status === 'available',
+        error: providerInfo ? providerInfo.error : `Provider ${provider} not found`
+      }
+    } catch (error) {
+      return {
+        available: false,
+        error: error instanceof Error ? error.message : 'Unknown error'
+      }
+    }
+  }
+
   async testConfiguration(settings: ChatSettings): Promise<{ valid: boolean; errors: string[] }> {
     try {
       const userApiKeys = await this.getUserApiKeys()
@@ -715,6 +837,121 @@ class ChatService {
         valid: false,
         errors: [error instanceof Error ? error.message : 'Erro desconhecido']
       }
+    }
+  }
+
+  /**
+   * Configurar API key via API (seguindo especificação OpenAPI)
+   */
+  async configureApiKey(provider: string, apiKey: string): Promise<void> {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/user-variables/api-keys/${provider}`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        },
+        body: JSON.stringify({
+          key: `${provider.toUpperCase()}_API_KEY`,
+          value: apiKey,
+          category: 'api_keys',
+          is_encrypted: true,
+          is_active: true,
+          description: `API key para ${provider}`
+        })
+      })
+
+      if (!response.ok) {
+        const errorText = await response.text()
+        throw new Error(`Erro ao configurar API key: ${response.status} ${response.statusText}. Detalhes: ${errorText}`)
+      }
+
+      // Verificar se há conteúdo na resposta antes de tentar processar
+      const text = await response.text()
+      if (text && text.trim() !== '') {
+        try {
+          const result = JSON.parse(text)
+          console.log(`✅ API key configurada para ${provider}:`, result)
+        } catch (parseError) {
+          console.log(`✅ API key configurada para ${provider} (resposta não-JSON)`)
+        }
+      } else {
+        console.log(`✅ API key configurada para ${provider}`)
+      }
+    } catch (error) {
+      console.error(`❌ Erro ao configurar API key para ${provider}:`, error)
+      throw error
+    }
+  }
+
+  /**
+   * Verificar providers disponíveis
+   */
+  async checkProviders(): Promise<any[]> {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/llm/providers`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Erro ao verificar providers: ${response.status}`)
+      }
+
+      const text = await response.text()
+      if (!text || text.trim() === '') {
+        console.warn('Response vazia do servidor para providers')
+        return []
+      }
+
+      try {
+        const data = JSON.parse(text)
+        return data.providers || []
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta de providers:', parseError)
+        console.error('Resposta recebida:', text)
+        return []
+      }
+    } catch (error) {
+      console.error('Erro ao verificar providers:', error)
+      return []
+    }
+  }
+
+  /**
+   * Verificar API keys configuradas
+   */
+  async checkApiKeys(): Promise<any[]> {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/user-variables/api-keys`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`Erro ao verificar API keys: ${response.status}`)
+      }
+
+      const text = await response.text()
+      if (!text || text.trim() === '') {
+        console.warn('Response vazia do servidor para API keys')
+        return []
+      }
+
+      try {
+        return JSON.parse(text)
+      } catch (parseError) {
+        console.error('Erro ao fazer parse da resposta:', parseError)
+        console.error('Resposta recebida:', text)
+        return []
+      }
+    } catch (error) {
+      console.error('Erro ao verificar API keys:', error)
+      return []
     }
   }
 }

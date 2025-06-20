@@ -1,6 +1,7 @@
 "use client"
 
 import React, { useState, useEffect } from "react"
+import { useRouter } from 'next/navigation'
 import { motion, AnimatePresence } from "framer-motion"
 import { 
   AlertCircle, Info, Plus, RefreshCw, Search, 
@@ -91,6 +92,7 @@ const serviceTemplates = [
 ]
 
 export default function UserVariablesPage() {
+  const router = useRouter()
   const { user, isAuthenticated } = useAuth()
   const {
     variables,
@@ -297,21 +299,29 @@ export default function UserVariablesPage() {
     toast.success("Copiado para a área de transferência!")
   }
 
-  // Função para mascarar API key mostrando os primeiros 4 e últimos 4 caracteres reais
+  // Função para mascarar API key usando boas práticas da indústria
   const maskApiKey = (apiKey: string | null | undefined) => {
     if (!apiKey || typeof apiKey !== 'string' || apiKey.trim() === '') {
-      return '••••••••••••••••'
+      return '••••••••'
     }
     
+    // Para chaves muito curtas (≤ 8 caracteres), mostrar tudo
     if (apiKey.length <= 8) {
-      return apiKey // Se for muito curto, mostra tudo
+      return apiKey
     }
     
-    const first4 = apiKey.slice(0, 4)
+    // Para chaves médias (9-16 caracteres), mostrar primeiros 4 + asteriscos fixos + últimos 4
+    if (apiKey.length <= 16) {
+      const first4 = apiKey.slice(0, 4)
+      const last4 = apiKey.slice(-4)
+      return `${first4}••••${last4}`
+    }
+    
+    // Para chaves longas (> 16 caracteres), mostrar primeiros 6 + asteriscos fixos + últimos 4
+    // Padrão da indústria: número fixo de asteriscos independente do tamanho
+    const first6 = apiKey.slice(0, 6)
     const last4 = apiKey.slice(-4)
-    const maskedLength = Math.max(4, apiKey.length - 8)
-    const masked = '*'.repeat(maskedLength)
-    return first4 + masked + last4
+    return `${first6}••••••••${last4}`
   }
 
   // Função para iniciar edição de variável existente
@@ -345,11 +355,22 @@ export default function UserVariablesPage() {
 
 
 
+  // Redirect se não autenticado
+  useEffect(() => {
+    if (!isAuthenticated) {
+      console.log('🔐 Usuario não autenticado na página user-variables, redirecionando para /login...')
+      router.push('/login')
+    }
+  }, [isAuthenticated, router])
+
+  // Se não está autenticado, mostrar loading enquanto redireciona
   if (!isAuthenticated) {
     return (
-      <div className="container mx-auto py-12 text-center">
-        <h1 className="text-2xl font-bold mb-4">Acesso Negado</h1>
-        <p className="text-muted-foreground">Você precisa estar logado para acessar esta página.</p>
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="text-center">
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
+          <p className="text-muted-foreground">Redirecionando para login...</p>
+        </div>
       </div>
     )
   }

@@ -99,7 +99,7 @@ interface UserVariableContextType {
 const UserVariableContext = createContext<UserVariableContextType | undefined>(undefined)
 
 export function UserVariableProvider({ children }: { children: React.ReactNode }) {
-  const { user, token } = useAuth()
+  const { user, token, isAuthenticated } = useAuth()
   const [variables, setVariables] = useState<UserVariable[]>([])
   const [categories, setCategories] = useState<string[]>([])
   const [stats, setStats] = useState<UserVariableStats | null>(null)
@@ -157,7 +157,10 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao carregar variáveis"
       setError(errorMessage)
-      toast.error(errorMessage)
+      console.error("UserVariableProvider - Error loading variables:", err)
+      
+      // Não mostrar toast de erro para evitar spam
+      // toast.error(errorMessage)
     } finally {
       setLoading(false)
     }
@@ -171,15 +174,21 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       const data = await apiRequest("/stats/summary")
       setStats(data)
     } catch (err) {
-      console.error("Erro ao carregar estatísticas:", err)
+      console.error("UserVariableProvider - Error loading stats:", err)
+      // Não definir como erro crítico, apenas log
     }
   }, [user, token, apiRequest])
 
   // Carregar dados iniciais quando usuário faz login
   useEffect(() => {
-    if (user && token) {
-      loadVariables()
-      loadStats()
+    if (isAuthenticated && user && token) {
+      // Aguardar um pouco para garantir que tudo está inicializado
+      const timer = setTimeout(() => {
+        loadVariables()
+        loadStats()
+      }, 2000) // Aumentei para 2 segundos
+      
+      return () => clearTimeout(timer)
     } else {
       // Limpar dados quando usuário faz logout
       setVariables([])
@@ -187,7 +196,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       setStats(null)
       setError(null)
     }
-  }, [user, token, loadVariables, loadStats])
+  }, [isAuthenticated, user, token, loadVariables, loadStats])
 
   // Criar variável
   const createVariable = useCallback(async (data: UserVariableCreate): Promise<UserVariable | null> => {

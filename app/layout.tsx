@@ -10,6 +10,7 @@ import { VariableProvider } from '@/context/variable-context';
 import { CodeTemplateProvider } from '@/context/code-template-context';
 import { SidebarProvider } from '@/context/sidebar-context';
 import { AuthProvider, useAuth } from '@/context/auth-context';
+import { WorkspaceProvider } from '@/context/workspace-context';
 import { AppProvider } from '@/context/app-context';
 import { DevBanner } from '@/components/ui/dev-banner';
 import { VariableAutoSync } from '@/components/variables/auto-sync';
@@ -21,6 +22,40 @@ import { UserVariableProvider } from '@/context/user-variable-context';
 import { NodeTemplateProvider } from '@/context/node-template-context';
 import { MarketplaceProvider } from '@/context/marketplace-context';
 import { PlanProvider } from '@/context/plan-context';
+import { PostSignupOnboarding, usePostSignupOnboarding } from '@/components/onboarding/post-signup-onboarding';
+import { Toaster } from '@/components/ui/toaster';
+
+// Componente interno para layout com onboarding
+function AppLayoutContent({ children }: { children: React.ReactNode }) {
+  const { shouldShow, hideOnboarding } = usePostSignupOnboarding()
+
+  return (
+    <>
+      {/* Sincronização automática de variáveis */}
+      <VariableAutoSync />
+      
+      {/* Layout flexbox horizontal */}
+      <div className="flex h-screen overflow-hidden">
+        {/* Sidebar */}
+        <Sidebar />
+        
+        {/* Conteúdo principal */}
+        <main className="flex-1 overflow-auto">
+          {children}
+        </main>
+      </div>
+
+      {/* Onboarding pós-signup */}
+      <PostSignupOnboarding
+        isOpen={shouldShow}
+        onComplete={hideOnboarding}
+      />
+      
+      {/* Toast notifications */}
+      <Toaster />
+    </>
+  )
+}
 
 // Componente interno que usa o contexto de autenticação
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -29,7 +64,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   
   // Rotas de autenticação que não devem mostrar a sidebar
   const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
-  const isAuthRoute = authRoutes.some(route => pathname.startsWith(route));
+  const isAuthRoute = pathname ? authRoutes.some(route => pathname.startsWith(route)) : false;
   
   // Mostrar loading enquanto inicializa
   if (!isInitialized) {
@@ -66,21 +101,7 @@ function AppLayout({ children }: { children: React.ReactNode }) {
                       <NodeTemplateProvider>
                         <MarketplaceProvider>
                           <CustomCategoryProvider>
-                            <PlanProvider>
-                              {/* Sincronização automática de variáveis */}
-                              <VariableAutoSync />
-                              
-                              {/* Layout flexbox horizontal */}
-                              <div className="flex h-screen overflow-hidden">
-                                {/* Sidebar */}
-                                <Sidebar />
-                                
-                                {/* Conteúdo principal */}
-                                <main className="flex-1 overflow-auto">
-                                  {children}
-                                </main>
-                              </div>
-                            </PlanProvider>
+                            <AppLayoutContent>{children}</AppLayoutContent>
                           </CustomCategoryProvider>
                         </MarketplaceProvider>
                       </NodeTemplateProvider>
@@ -111,34 +132,16 @@ export default function RootLayout({
           disableTransitionOnChange={false}
         >
           <AuthProvider>
-            <PlanProvider>
-              <WorkflowProvider>
-                <SidebarProvider>
-                  <VariableProvider>
-                    <UserVariableProvider>
-                      <TemplateProvider>
-                        <CodeTemplateProvider>
-                          <NodeDefinitionProvider>
-                            <NodeTemplateProvider>
-                              <MarketplaceProvider>
-                                <CustomCategoryProvider>
-                                  <AppProvider>
-                                    <DevBanner />
-                                    <AppLayout>
-                                      {children}
-                                    </AppLayout>
-                                  </AppProvider>
-                                </CustomCategoryProvider>
-                              </MarketplaceProvider>
-                            </NodeTemplateProvider>
-                          </NodeDefinitionProvider>
-                        </CodeTemplateProvider>
-                      </TemplateProvider>
-                    </UserVariableProvider>
-                  </VariableProvider>
-                </SidebarProvider>
-              </WorkflowProvider>
-            </PlanProvider>
+            <WorkspaceProvider>
+              <PlanProvider>
+                <AppProvider>
+                  <DevBanner />
+                  <AppLayout>
+                    {children}
+                  </AppLayout>
+                </AppProvider>
+              </PlanProvider>
+            </WorkspaceProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

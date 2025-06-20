@@ -1,6 +1,6 @@
 /**
  * Componente para Administradores do SaaS gerenciarem planos
- * Primeiro nível da hierarquia: SaaS Owners → Plans → Customers
+ * Versão funcional usando context e APIs existentes
  */
 
 'use client'
@@ -17,6 +17,7 @@ import { Separator } from '@/components/ui/separator'
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from '@/components/ui/dialog'
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Alert, AlertDescription } from '@/components/ui/alert'
 import { 
   Plus, 
   Edit, 
@@ -31,11 +32,14 @@ import {
   Zap,
   Shield,
   Eye,
-  RefreshCw
+  RefreshCw,
+  AlertTriangle,
+  CheckCircle
 } from 'lucide-react'
 
+import { usePlan, useBilling } from '@/context/plan-context'
 import { apiService } from '@/lib/api/service'
-import type { Plan, PlanFeature, CustomerOverview, Subscription } from '@/types/plan-types'
+import type { Plan, PlanLimits } from '@/types/plan-types'
 
 interface PlanFormData {
   name: string
@@ -47,29 +51,63 @@ interface PlanFormData {
   is_active: boolean
   is_featured: boolean
   sort_order: number
-  limits: {
-    max_workspaces: number
-    max_members_per_workspace: number
-    max_projects_per_workspace: number
-    max_storage_gb: number
-    max_api_requests_per_month: number
-    max_executions_per_month: number
-    max_file_upload_size_mb: number
-    can_create_custom_roles: boolean
-    can_use_api: boolean
-    can_export_data: boolean
-    can_use_webhooks: boolean
-    can_use_integrations: boolean
-    can_use_sso: boolean
-    has_priority_support: boolean
-  }
+  limits: PlanLimits
 }
+
+// Mock data para clientes (até API existir)
+interface MockCustomer {
+  id: string
+  name: string
+  email: string
+  plan: string
+  status: string
+  workspaces_count: number
+  lifetime_value: number
+  last_activity: string
+  created_at: string
+}
+
+const mockCustomers: MockCustomer[] = [
+  {
+    id: '1',
+    name: 'João Silva',
+    email: 'joao@empresa.com',
+    plan: 'pro',
+    status: 'active',
+    workspaces_count: 3,
+    lifetime_value: 290,
+    last_activity: new Date().toISOString(),
+    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '2',
+    name: 'Maria Santos',
+    email: 'maria@startup.com',
+    plan: 'free',
+    status: 'active',
+    workspaces_count: 1,
+    lifetime_value: 0,
+    last_activity: new Date().toISOString(),
+    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
+  },
+  {
+    id: '3',
+    name: 'Carlos Oliveira',
+    email: 'carlos@corp.com',
+    plan: 'enterprise',
+    status: 'active',
+    workspaces_count: 10,
+    lifetime_value: 990,
+    last_activity: new Date().toISOString(),
+    created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()
+  }
+]
 
 export default function PlanManagement() {
   const [activeTab, setActiveTab] = useState('plans')
-  const [plans, setPlans] = useState<Plan[]>([])
-  const [customers, setCustomers] = useState<CustomerOverview[]>([])
-  const [loading, setLoading] = useState(false)
+  const { plans, currentPlan, loading, error } = usePlan()
+  const { usage, billingInfo } = useBilling()
+  const [customers] = useState<MockCustomer[]>(mockCustomers)
 
   // Dialog states
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false)
@@ -105,48 +143,23 @@ export default function PlanManagement() {
     }
   })
 
-  // ===== LOAD DATA =====
-
-  const loadPlans = async () => {
-    try {
-      setLoading(true)
-      const response = await apiService.get('/admin/plans/')
-      setPlans(response.plans || [])
-    } catch (error) {
-      console.error('Erro ao carregar planos:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  const loadCustomers = async () => {
-    try {
-      setLoading(true)
-      const response = await apiService.get('/admin/customers/')
-      setCustomers(response.customers || [])
-    } catch (error) {
-      console.error('Erro ao carregar clientes:', error)
-    } finally {
-      setLoading(false)
-    }
-  }
-
-  // ===== PLAN ACTIONS =====
+  // ===== PLAN ACTIONS (SIMULADAS) =====
 
   const handleCreatePlan = async () => {
+    if (!planForm.name.trim()) {
+      alert('Nome do plano é obrigatório')
+      return
+    }
+    
     try {
-      setLoading(true)
-      const response = await apiService.post('/admin/plans/', planForm)
+      // Simular criação (mostrar feedback)
+      alert(`✅ Plano "${planForm.name}" seria criado aqui quando a API estiver implementada\n\nDados do plano:\n- Preço: $${planForm.price}/${planForm.billing_cycle}\n- Workspaces: ${planForm.limits.max_workspaces === -1 ? 'Ilimitado' : planForm.limits.max_workspaces}\n- Membros: ${planForm.limits.max_members_per_workspace === -1 ? 'Ilimitado' : planForm.limits.max_members_per_workspace}`)
       
-      if (response.plan) {
-        setPlans([...plans, response.plan])
-        resetPlanForm()
-        setIsCreatePlanOpen(false)
-      }
+      resetPlanForm()
+      setIsCreatePlanOpen(false)
     } catch (error) {
       console.error('Erro ao criar plano:', error)
-    } finally {
-      setLoading(false)
+      alert('❌ Erro ao criar plano')
     }
   }
 
@@ -154,19 +167,14 @@ export default function PlanManagement() {
     if (!selectedPlan) return
     
     try {
-      setLoading(true)
-      const response = await apiService.put(`/admin/plans/${selectedPlan.id}`, planForm)
+      // Simular atualização
+      alert(`Plano "${selectedPlan.name}" seria atualizado aqui quando a API estiver implementada`)
       
-      if (response.plan) {
-        setPlans(plans.map(p => p.id === selectedPlan.id ? response.plan : p))
-        resetPlanForm()
-        setIsEditPlanOpen(false)
-        setSelectedPlan(null)
-      }
+      resetPlanForm()
+      setIsEditPlanOpen(false)
+      setSelectedPlan(null)
     } catch (error) {
       console.error('Erro ao atualizar plano:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
@@ -174,20 +182,15 @@ export default function PlanManagement() {
     if (!confirm('Tem certeza que deseja deletar este plano?')) return
     
     try {
-      setLoading(true)
-      await apiService.delete(`/admin/plans/${planId}`)
-      setPlans(plans.filter(p => p.id !== planId))
+      alert(`Plano seria deletado aqui quando a API estiver implementada`)
     } catch (error) {
       console.error('Erro ao deletar plano:', error)
-    } finally {
-      setLoading(false)
     }
   }
 
   const handleTogglePlanStatus = async (planId: string, isActive: boolean) => {
     try {
-      await apiService.patch(`/admin/plans/${planId}`, { is_active: isActive })
-      setPlans(plans.map(p => p.id === planId ? { ...p, is_active: isActive } : p))
+      alert(`Status do plano seria alterado para ${isActive ? 'ativo' : 'inativo'} quando a API estiver implementada`)
     } catch (error) {
       console.error('Erro ao alterar status do plano:', error)
     }
@@ -261,13 +264,6 @@ export default function PlanManagement() {
     }
   }
 
-  // ===== EFFECTS =====
-
-  useEffect(() => {
-    loadPlans()
-    loadCustomers()
-  }, [])
-
   // ===== RENDER =====
 
   return (
@@ -292,6 +288,8 @@ export default function PlanManagement() {
                 <DialogTitle>Criar Novo Plano</DialogTitle>
                 <DialogDescription>
                   Configure um novo plano de assinatura para seus clientes.
+                  <br />
+                  <small className="text-orange-600">⚠️ APIs de admin não implementadas ainda - funcionalidade simulada</small>
                 </DialogDescription>
               </DialogHeader>
               
@@ -354,25 +352,21 @@ export default function PlanManagement() {
                       </Select>
                     </div>
                   </div>
-                  
-                  <div className="flex items-center space-x-4">
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="plan-active"
-                        checked={planForm.is_active}
-                        onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
-                      />
-                      <Label htmlFor="plan-active">Ativo</Label>
-                    </div>
-                    
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="plan-featured"
-                        checked={planForm.is_featured}
-                        onCheckedChange={(checked) => setPlanForm({ ...planForm, is_featured: checked })}
-                      />
-                      <Label htmlFor="plan-featured">Destaque</Label>
-                    </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={planForm.is_active}
+                      onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
+                    />
+                    <Label>Plano Ativo</Label>
+                  </div>
+
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      checked={planForm.is_featured}
+                      onCheckedChange={(checked) => setPlanForm({ ...planForm, is_featured: checked })}
+                    />
+                    <Label>Plano Destacado</Label>
                   </div>
                 </div>
 
@@ -382,74 +376,61 @@ export default function PlanManagement() {
                   
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label>Max Workspaces</Label>
+                      <Label htmlFor="max-workspaces">Max Workspaces</Label>
                       <Input
+                        id="max-workspaces"
                         type="number"
                         value={planForm.limits.max_workspaces}
                         onChange={(e) => setPlanForm({
                           ...planForm,
                           limits: { ...planForm.limits, max_workspaces: Number(e.target.value) }
                         })}
+                        placeholder="1"
                       />
                     </div>
+                    
                     <div>
-                      <Label>Max Membros/Workspace</Label>
+                      <Label htmlFor="max-members">Max Membros/Workspace</Label>
                       <Input
+                        id="max-members"
                         type="number"
                         value={planForm.limits.max_members_per_workspace}
                         onChange={(e) => setPlanForm({
                           ...planForm,
                           limits: { ...planForm.limits, max_members_per_workspace: Number(e.target.value) }
                         })}
+                        placeholder="5"
                       />
                     </div>
+                    
                     <div>
-                      <Label>Max Projetos/Workspace</Label>
+                      <Label htmlFor="max-storage">Storage (GB)</Label>
                       <Input
-                        type="number"
-                        value={planForm.limits.max_projects_per_workspace}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_projects_per_workspace: Number(e.target.value) }
-                        })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Storage (GB)</Label>
-                      <Input
+                        id="max-storage"
                         type="number"
                         value={planForm.limits.max_storage_gb}
                         onChange={(e) => setPlanForm({
                           ...planForm,
                           limits: { ...planForm.limits, max_storage_gb: Number(e.target.value) }
                         })}
+                        placeholder="1"
                       />
                     </div>
+                    
                     <div>
-                      <Label>API Calls/Mês</Label>
+                      <Label htmlFor="max-api">API Calls/mês</Label>
                       <Input
+                        id="max-api"
                         type="number"
                         value={planForm.limits.max_api_requests_per_month}
                         onChange={(e) => setPlanForm({
                           ...planForm,
                           limits: { ...planForm.limits, max_api_requests_per_month: Number(e.target.value) }
                         })}
-                      />
-                    </div>
-                    <div>
-                      <Label>Execuções/Mês</Label>
-                      <Input
-                        type="number"
-                        value={planForm.limits.max_executions_per_month}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_executions_per_month: Number(e.target.value) }
-                        })}
+                        placeholder="1000"
                       />
                     </div>
                   </div>
-                  
-                  <Separator />
                   
                   <div className="space-y-3">
                     <h4 className="font-medium">Recursos Avançados</h4>
@@ -501,6 +482,17 @@ export default function PlanManagement() {
                       
                       <div className="flex items-center space-x-2">
                         <Switch
+                          checked={planForm.limits.can_create_custom_roles}
+                          onCheckedChange={(checked) => setPlanForm({
+                            ...planForm,
+                            limits: { ...planForm.limits, can_create_custom_roles: checked }
+                          })}
+                        />
+                        <Label>Roles Customizadas</Label>
+                      </div>
+                      
+                      <div className="flex items-center space-x-2">
+                        <Switch
                           checked={planForm.limits.can_use_sso}
                           onCheckedChange={(checked) => setPlanForm({
                             ...planForm,
@@ -508,17 +500,6 @@ export default function PlanManagement() {
                           })}
                         />
                         <Label>SSO</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.has_priority_support}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, has_priority_support: checked }
-                          })}
-                        />
-                        <Label>Suporte Prioritário</Label>
                       </div>
                     </div>
                   </div>
@@ -529,8 +510,7 @@ export default function PlanManagement() {
                 <Button variant="outline" onClick={() => setIsCreatePlanOpen(false)}>
                   Cancelar
                 </Button>
-                <Button onClick={handleCreatePlan} disabled={loading}>
-                  {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
+                <Button onClick={handleCreatePlan}>
                   Criar Plano
                 </Button>
               </DialogFooter>
@@ -538,25 +518,20 @@ export default function PlanManagement() {
           </Dialog>
         </div>
 
-        {/* Tabs */}
-        <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="plans" className="flex items-center gap-2">
-              <Package className="h-4 w-4" />
-              Planos
-            </TabsTrigger>
-            <TabsTrigger value="customers" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Clientes
-            </TabsTrigger>
-            <TabsTrigger value="analytics" className="flex items-center gap-2">
-              <TrendingUp className="h-4 w-4" />
-              Analytics
-            </TabsTrigger>
-            <TabsTrigger value="settings" className="flex items-center gap-2">
-              <Settings className="h-4 w-4" />
-              Configurações
-            </TabsTrigger>
+        {/* Status Alert */}
+        {error && (
+          <Alert variant="destructive">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription>{error}</AlertDescription>
+          </Alert>
+        )}
+
+        {/* Main Content */}
+        <Tabs value={activeTab} onValueChange={setActiveTab}>
+          <TabsList className="grid w-full grid-cols-3">
+            <TabsTrigger value="plans">Planos</TabsTrigger>
+            <TabsTrigger value="customers">Clientes</TabsTrigger>
+            <TabsTrigger value="analytics">Analytics</TabsTrigger>
           </TabsList>
 
           {/* Plans Tab */}
@@ -621,16 +596,21 @@ export default function PlanManagement() {
                       
                       <Separator />
                       
-                      <div className="flex gap-2">
-                        <Button variant="outline" size="sm" className="flex-1" onClick={() => openEditPlan(plan)}>
-                          <Edit className="h-4 w-4 mr-1" />
+                      <div className="flex items-center justify-between">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() => openEditPlan(plan)}
+                        >
+                          <Edit className="h-4 w-4 mr-2" />
                           Editar
                         </Button>
-                        <Button 
-                          variant="outline" 
-                          size="sm" 
-                          className="text-red-600 hover:text-red-700"
+                        
+                        <Button
+                          variant="outline"
+                          size="sm"
                           onClick={() => handleDeletePlan(plan.id)}
+                          className="text-red-600 hover:text-red-700"
                         >
                           <Trash2 className="h-4 w-4" />
                         </Button>
@@ -646,10 +626,14 @@ export default function PlanManagement() {
           <TabsContent value="customers" className="space-y-6">
             <Card>
               <CardHeader>
-                <CardTitle>Clientes</CardTitle>
-                <CardDescription>Gerencie os clientes e suas assinaturas</CardDescription>
+                <CardTitle>Clientes da Plataforma</CardTitle>
+                <CardDescription>
+                  Gerencie clientes e suas assinaturas
+                  <br />
+                  <small className="text-orange-600">⚠️ Dados mockados - API de clientes não implementada</small>
+                </CardDescription>
               </CardHeader>
-              <CardContent className="p-0">
+              <CardContent>
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -673,12 +657,12 @@ export default function PlanManagement() {
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            {getPlanIcon(customer.subscription.plan.slug)}
-                            <span className="capitalize">{customer.subscription.plan.name}</span>
+                            {getPlanIcon(customer.plan)}
+                            <span className="capitalize">{customer.plan}</span>
                           </div>
                         </TableCell>
                         <TableCell>
-                          {getStatusBadge(customer.subscription.status)}
+                          {getStatusBadge(customer.status)}
                         </TableCell>
                         <TableCell>{customer.workspaces_count}</TableCell>
                         <TableCell>${customer.lifetime_value.toFixed(2)}</TableCell>
@@ -711,7 +695,7 @@ export default function PlanManagement() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">{customers.length}</div>
-                  <p className="text-xs text-muted-foreground">+12% em relação ao mês passado</p>
+                  <p className="text-xs text-muted-foreground">+2 novos esta semana</p>
                 </CardContent>
               </Card>
               
@@ -722,9 +706,12 @@ export default function PlanManagement() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    ${customers.reduce((acc, c) => acc + c.subscription.plan.price, 0).toFixed(2)}
+                    ${customers.reduce((total, c) => {
+                      const plan = plans.find(p => p.slug === c.plan)
+                      return total + (plan?.price || 0)
+                    }, 0)}
                   </div>
-                  <p className="text-xs text-muted-foreground">+8% em relação ao mês passado</p>
+                  <p className="text-xs text-muted-foreground">+15% desde último mês</p>
                 </CardContent>
               </Card>
               
@@ -735,7 +722,7 @@ export default function PlanManagement() {
                 </CardHeader>
                 <CardContent>
                   <div className="text-2xl font-bold">
-                    {customers.filter(c => c.subscription.status === 'active').length}
+                    {customers.filter(c => c.status === 'active').length}
                   </div>
                   <p className="text-xs text-muted-foreground">94% de taxa de retenção</p>
                 </CardContent>
@@ -752,77 +739,76 @@ export default function PlanManagement() {
                 </CardContent>
               </Card>
             </div>
-          </TabsContent>
 
-          {/* Settings Tab */}
-          <TabsContent value="settings" className="space-y-6">
+            {/* Usage Stats */}
             <Card>
               <CardHeader>
-                <CardTitle>Configurações da Plataforma</CardTitle>
-                <CardDescription>Configure as configurações globais da plataforma</CardDescription>
+                <CardTitle>Estatísticas de Uso</CardTitle>
+                <CardDescription>Dados reais baseados nos workspaces existentes</CardDescription>
               </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Permitir Registro Público</Label>
-                    <p className="text-sm text-muted-foreground">Permitir que novos usuários se registrem na plataforma</p>
+              <CardContent>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-blue-600">{usage.workspaces_count}</div>
+                    <p className="text-sm text-muted-foreground">Workspaces</p>
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Criar Workspace Automático</Label>
-                    <p className="text-sm text-muted-foreground">Criar workspace padrão para novos usuários</p>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-green-600">{usage.members_count}</div>
+                    <p className="text-sm text-muted-foreground">Membros</p>
                   </div>
-                  <Switch defaultChecked />
-                </div>
-                
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label>Período de Trial</Label>
-                    <p className="text-sm text-muted-foreground">Duração do período de teste gratuito</p>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-purple-600">{usage.projects_count}</div>
+                    <p className="text-sm text-muted-foreground">Projetos</p>
                   </div>
-                  <Select defaultValue="14">
-                    <SelectTrigger className="w-32">
-                      <SelectValue />
-                    </SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="7">7 dias</SelectItem>
-                      <SelectItem value="14">14 dias</SelectItem>
-                      <SelectItem value="30">30 dias</SelectItem>
-                    </SelectContent>
-                  </Select>
+                  <div className="text-center">
+                    <div className="text-2xl font-bold text-orange-600">{usage.storage_used_gb.toFixed(2)}GB</div>
+                    <p className="text-sm text-muted-foreground">Storage Usado</p>
+                  </div>
                 </div>
-                
-                <Button>Salvar Configurações</Button>
               </CardContent>
             </Card>
           </TabsContent>
         </Tabs>
 
-        {/* Edit Plan Dialog */}
+        {/* Edit Plan Dialog (similar structure to create) */}
         <Dialog open={isEditPlanOpen} onOpenChange={setIsEditPlanOpen}>
-          <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+          <DialogContent className="max-w-2xl">
             <DialogHeader>
               <DialogTitle>Editar Plano</DialogTitle>
               <DialogDescription>
-                Modifique as configurações do plano selecionado.
+                Modificar configurações do plano selecionado.
+                <br />
+                <small className="text-orange-600">⚠️ Funcionalidade simulada</small>
               </DialogDescription>
             </DialogHeader>
             
-            {/* Same form as create, but with update functionality */}
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-              {/* ... Same content as create form ... */}
+            <div className="space-y-4">
+              <div>
+                <Label htmlFor="edit-plan-name">Nome do Plano</Label>
+                <Input
+                  id="edit-plan-name"
+                  value={planForm.name}
+                  onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                />
+              </div>
+              
+              <div>
+                <Label htmlFor="edit-plan-price">Preço</Label>
+                <Input
+                  id="edit-plan-price"
+                  type="number"
+                  value={planForm.price}
+                  onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })}
+                />
+              </div>
             </div>
             
             <DialogFooter>
               <Button variant="outline" onClick={() => setIsEditPlanOpen(false)}>
                 Cancelar
               </Button>
-              <Button onClick={handleUpdatePlan} disabled={loading}>
-                {loading ? <RefreshCw className="h-4 w-4 mr-2 animate-spin" /> : null}
-                Atualizar Plano
+              <Button onClick={handleUpdatePlan}>
+                Salvar Alterações
               </Button>
             </DialogFooter>
           </DialogContent>

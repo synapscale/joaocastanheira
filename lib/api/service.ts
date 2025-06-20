@@ -185,6 +185,13 @@ export class ApiService {
   private baseURL: string;
   private accessToken: string | null = null;
   private refreshToken: string | null = null;
+  
+  // Listeners para mudanças de workspace
+  private workspaceChangeCallbacks: (() => void)[] = []
+  
+  // Flag para controlar inicialização única
+  private hasInitializedUserData: boolean = false;
+  private isInitializingUserData: boolean = false;
 
   constructor() {
     this.baseURL = API_BASE_URL;
@@ -199,18 +206,24 @@ export class ApiService {
   }
 
   private handleStorageChange(e: StorageEvent) {
-    if (e.key === 'synapsefrontend_auth_token') {
+    const tokenKey = process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapsefrontend_auth_token';
+    const refreshKey = process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapsefrontend_refresh_token';
+    
+    if (e.key === tokenKey) {
       this.accessToken = e.newValue;
     }
-    if (e.key === 'synapsefrontend_refresh_token') {
+    if (e.key === refreshKey) {
       this.refreshToken = e.newValue;
     }
   }
 
   private loadTokensFromStorage() {
     if (typeof window !== 'undefined') {
-      this.accessToken = localStorage.getItem('synapsefrontend_auth_token');
-      this.refreshToken = localStorage.getItem('synapsefrontend_refresh_token');
+      const tokenKey = process.env.NEXT_PUBLIC_JWT_STORAGE_KEY || 'synapsefrontend_auth_token';
+      const refreshKey = process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY || 'synapsefrontend_refresh_token';
+      
+      this.accessToken = localStorage.getItem(tokenKey);
+      this.refreshToken = localStorage.getItem(refreshKey);
 
       // Log para debug
       console.log('ApiService - Tokens carregados:', {
@@ -219,8 +232,8 @@ export class ApiService {
         accessTokenLength: this.accessToken?.length || 0
       });
 
-      // Se temos tokens, inicializar dados básicos
-      if (this.accessToken) {
+      // Se temos tokens, inicializar dados básicos (uma única vez)
+      if (this.accessToken && !this.hasInitializedUserData && !this.isInitializingUserData) {
         this.initializeUserData();
       }
     }
@@ -228,8 +241,17 @@ export class ApiService {
 
   /**
    * Inicializa dados básicos do usuário após login
+   * REGRA CRÍTICA: Só pode criar um workspace individual por usuário!
    */
-  private async initializeUserData() {
+  async initializeUserData() {
+    // Evitar múltiplas execuções
+    if (this.hasInitializedUserData || this.isInitializingUserData) {
+      console.log('⚠️ initializeUserData já executado ou em execução, ignorando...');
+      return;
+    }
+
+    this.isInitializingUserData = true;
+
     try {
       console.log('🔄 Inicializando dados do usuário...');
       
@@ -237,52 +259,113 @@ export class ApiService {
       const workspaces = await this.getWorkspaces();
       console.log('📋 Workspaces encontrados:', workspaces.length);
       
-      // Se não tem workspaces, criar um padrão
+      // REGRA DE NEGÓCIO: Só criar workspace se não existir NENHUM
       if (workspaces.length === 0) {
-        console.log('🏗️ Criando workspace padrão...');
-        const defaultWorkspace = await this.createDefaultWorkspace();
+        console.log('🏗️ Usuário sem workspace - criando workspace individual obrigatório...');
         
-        // Criar projeto padrão no workspace
-        if (defaultWorkspace) {
-          console.log('🏗️ Criando projeto padrão...');
-          await this.createDefaultProject(defaultWorkspace.id);
+        // Verificar se o usuário tem permissão (com base no plano)
+        const user = await this.getCurrentUser();
+        if (user) {
+          const defaultWorkspace = await this.createDefaultWorkspace();
+          
+          // Criar projeto padrão no workspace
+          if (defaultWorkspace) {
+            console.log('🏗️ Criando projeto padrão...');
+            await this.createDefaultProject(defaultWorkspace.id);
+          }
         }
+      } else {
+        // Notificar que workspaces existentes foram carregados
+        console.log('✅ Workspaces existentes carregados, notificando...');
+        this.notifyWorkspaceChange();
       }
+      
+      this.hasInitializedUserData = true;
     } catch (error) {
       console.error('❌ Erro ao inicializar dados do usuário:', error);
+    } finally {
+      this.isInitializingUserData = false;
     }
   }
 
   /**
-   * Cria workspace padrão para novos usuários
+   * Cria workspace individual obrigatório para novos usuários
+   * REGRA DE NEGÓCIO: Todo usuário deve ter exatamente um workspace individual
    */
   private async createDefaultWorkspace(): Promise<Workspace | null> {
     try {
       const user = await this.getCurrentUser();
+      
+      // Verificar novamente se não existem workspaces (segurança dupla)
+      const existingWorkspaces = await this.getWorkspaces();
+      if (existingWorkspaces.length > 0) {
+        console.log('⚠️ Usuário já possui workspaces, cancelando criação');
+        return existingWorkspaces[0];
+      }
+      
       const workspaceName = `Workspace de ${user.full_name || user.email}`;
+      
+      // Definir configurações baseadas no plano do usuário
+      const planLimits = this.getPlanLimits(user.subscription_plan);
       
       const workspace = await this.createWorkspace({
         name: workspaceName,
-        description: 'Workspace padrão criado automaticamente',
+        description: 'Workspace individual criado automaticamente',
         is_public: false,
         allow_guest_access: false,
         require_approval: false,
-        max_members: 10,
-        max_projects: 100,
-        max_storage_mb: 1000,
+        max_members: planLimits.maxMembers,
+        max_projects: planLimits.maxProjects,
+        max_storage_mb: planLimits.maxStorageMB,
         enable_real_time_editing: true,
         enable_comments: true,
         enable_chat: true,
-        enable_video_calls: false,
+        enable_video_calls: planLimits.enableVideoCalls,
         color: '#3B82F6'
       });
       
-      console.log('✅ Workspace padrão criado com sucesso');
+      console.log('✅ Workspace individual criado com sucesso:', {
+        name: workspace.name,
+        plan: user.subscription_plan,
+        limits: planLimits
+      });
+      
+      // Notificar mudanças de workspace
+      this.notifyWorkspaceChange();
+      
       return workspace;
     } catch (error) {
-      console.error('❌ Erro ao criar workspace padrão:', error);
+      console.error('❌ Erro ao criar workspace individual:', error);
       return null;
     }
+  }
+
+  /**
+   * Define limites baseados no plano do usuário
+   */
+  private getPlanLimits(plan: string) {
+    const limits = {
+      free: {
+        maxMembers: 1,
+        maxProjects: 3,
+        maxStorageMB: 100,
+        enableVideoCalls: false
+      },
+      pro: {
+        maxMembers: 10,
+        maxProjects: 100,
+        maxStorageMB: 1000,
+        enableVideoCalls: true
+      },
+      enterprise: {
+        maxMembers: 100,
+        maxProjects: 1000,
+        maxStorageMB: 10000,
+        enableVideoCalls: true
+      }
+    };
+
+    return limits[plan as keyof typeof limits] || limits.free;
   }
 
   /**
@@ -420,7 +503,7 @@ export class ApiService {
       if (contentType && contentType.includes('application/json')) {
         const text = await response.text();
         try {
-          return text ? JSON.parse(text) : {};
+          return text ? JSON.parse(text) : ({} as T);
         } catch (parseError) {
           console.error('JSON parse error:', parseError, 'Response text:', text);
           throw new Error(`Invalid JSON response: ${text}`);
@@ -979,8 +1062,10 @@ export class ApiService {
       hasRefreshToken: !!this.refreshToken
     });
 
-    // Inicializar dados do usuário após sincronização dos tokens
-    this.initializeUserData();
+    // Inicializar dados do usuário após sincronização (uma única vez)
+    if (!this.hasInitializedUserData && !this.isInitializingUserData) {
+      this.initializeUserData();
+    }
   }
 
   /**
@@ -1038,9 +1123,25 @@ export class ApiService {
   // Workspace Management
   async getWorkspaces(): Promise<Workspace[]> {
     try {
-      return await this.get<Workspace[]>('/workspaces/');
-    } catch (error) {
-      console.error('Error fetching workspaces:', error);
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Iniciando requisição...')
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Token disponível:', !!this.accessToken)
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Base URL:', this.baseURL)
+      
+      const result = await this.get<Workspace[]>('/workspaces/');
+      
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Resultado:', {
+        count: result?.length || 0,
+        workspaces: result
+      })
+      
+      return result;
+    } catch (error: any) {
+      console.error('❌ Error fetching workspaces:', error);
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Erro detalhado:', {
+        message: error?.message,
+        status: error?.status,
+        data: error?.data
+      })
       return [];
     }
   }
@@ -1122,6 +1223,37 @@ export class ApiService {
         active_projects: 0
       };
     }
+  }
+
+  /**
+   * Adiciona callback para mudanças de workspace
+   */
+  onWorkspaceChange(callback: () => void): void {
+    this.workspaceChangeCallbacks.push(callback)
+  }
+
+  /**
+   * Remove callback de mudanças de workspace
+   */
+  offWorkspaceChange(callback: () => void): void {
+    const index = this.workspaceChangeCallbacks.indexOf(callback)
+    if (index > -1) {
+      this.workspaceChangeCallbacks.splice(index, 1)
+    }
+  }
+
+  /**
+   * Notifica todos os callbacks sobre mudanças de workspace
+   */
+  private notifyWorkspaceChange(): void {
+    console.log('🔔 Notificando mudanças de workspace para', this.workspaceChangeCallbacks.length, 'listeners')
+    this.workspaceChangeCallbacks.forEach(callback => {
+      try {
+        callback()
+      } catch (error) {
+        console.error('Erro ao executar callback de workspace:', error)
+      }
+    })
   }
 }
 
