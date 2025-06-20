@@ -3,32 +3,45 @@
  * Gerencia todas as variáveis de ambiente e configurações globais
  */
 
-// Normaliza a URL base, removendo barras finais e elimando sufixo /api ou /api/vX
+import { validateAndPrint } from './validate-env'
+
+// Validar configurações na inicialização (apenas em desenvolvimento)
+if (typeof window === 'undefined' && process.env.NEXT_PUBLIC_APP_ENV === 'development') {
+  console.log('\n🔍 Validando variáveis de ambiente...')
+  validateAndPrint()
+}
+
+// Normaliza a URL base e adiciona /api/v1 automaticamente
 function normalizeApiBase(raw?: string): string {
-  if (!raw) return 'http://localhost:8000'
+  if (!raw) {
+    throw new Error('NEXT_PUBLIC_API_URL é obrigatório. Configure esta variável no arquivo .env')
+  }
 
   let url = raw.trim()
 
   // Remove barra(s) finais
   url = url.replace(/\/+$/, '')
 
-  // Remove sufixo /api ou /api/v{n}
+  // Remove sufixo /api ou /api/v{n} se existir (para limpar)
   url = url.replace(/\/api(\/v\d+)?$/, '')
 
-  return url || 'http://localhost:8000'
+  // Adiciona /api/v1 sempre
+  return `${url}/api/v1`
 }
 
 export const config = {
   // URLs base para comunicação com o backend
   apiBaseUrl: normalizeApiBase(process.env.NEXT_PUBLIC_API_URL),
-  wsUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+  wsUrl: process.env.NEXT_PUBLIC_WS_URL || (() => {
+    throw new Error('NEXT_PUBLIC_WS_URL não está definida no arquivo .env')
+  })(),
   
   // Ambiente da aplicação
   environment: process.env.NEXT_PUBLIC_APP_ENV || 'development',
   
   // Configurações de API
   api: {
-    baseUrl: process.env.NEXT_PUBLIC_API_URL || 'https://api.synapscale.com',
+    baseUrl: normalizeApiBase(process.env.NEXT_PUBLIC_API_URL),
     timeout: 30000,
     retries: 3,
   },
@@ -42,7 +55,8 @@ export const config = {
   
   // Chat Configuration  
   chat: {
-    endpoint: '/conversations',
+    endpoint: '/llm/chat',
+    conversations: '/conversations',
     maxRetries: 3,
     timeout: 30000,
     reconnectInterval: 5000,
@@ -98,7 +112,8 @@ export const config = {
     },
     chat: {
       websocket: '/ws/chat',
-      http: '/conversations',
+      http: '/llm/chat',
+      conversations: '/conversations',
     },
     workflows: {
       base: '/workflows',
@@ -167,7 +182,6 @@ export function getWsUrl(endpoint: string): string {
  */
 export const devConfig = {
   enableDebugLogs: config.isDevelopment,
-  enableMockData: false,
   enablePerformanceMonitoring: config.isDevelopment,
 }
 

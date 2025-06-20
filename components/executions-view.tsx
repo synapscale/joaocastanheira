@@ -27,48 +27,43 @@ import {
 export function ExecutionsView() {
   const [filter, setFilter] = useState("")
 
-  // Mock execution data - in a real app, this would come from an API
+  // TODO: Usar dados reais da API - execuções serão carregadas de /api/v1/workflow-executions
   const executions = [
     {
       id: "exec-001",
-      startTime: new Date(Date.now() - 1000 * 60 * 5),
-      duration: "2.3s",
       status: "success",
-      mode: "manual",
-      nodes: 5,
+      startTime: new Date(Date.now() - 2 * 60 * 60 * 1000), // 2 horas atrás
+      duration: "1m 23s",
+      mode: "manual"
     },
     {
-      id: "exec-002",
-      startTime: new Date(Date.now() - 1000 * 60 * 30),
-      duration: "1.8s",
+      id: "exec-002", 
       status: "error",
-      mode: "scheduled",
-      nodes: 5,
+      startTime: new Date(Date.now() - 4 * 60 * 60 * 1000), // 4 horas atrás
+      duration: "45s",
+      mode: "scheduled"
     },
     {
       id: "exec-003",
-      startTime: new Date(Date.now() - 1000 * 60 * 60),
-      duration: "3.1s",
-      status: "success",
-      mode: "webhook",
-      nodes: 5,
+      status: "success", 
+      startTime: new Date(Date.now() - 6 * 60 * 60 * 1000), // 6 horas atrás
+      duration: "2m 15s",
+      mode: "webhook"
     },
     {
       id: "exec-004",
-      startTime: new Date(Date.now() - 1000 * 60 * 60 * 2),
-      duration: "2.7s",
       status: "warning",
-      mode: "manual",
-      nodes: 5,
+      startTime: new Date(Date.now() - 8 * 60 * 60 * 1000), // 8 horas atrás  
+      duration: "3m 2s",
+      mode: "manual"
     },
     {
       id: "exec-005",
-      startTime: new Date(Date.now() - 1000 * 60 * 60 * 3),
-      duration: "1.5s",
       status: "success",
-      mode: "scheduled",
-      nodes: 5,
-    },
+      startTime: new Date(Date.now() - 12 * 60 * 60 * 1000), // 12 horas atrás
+      duration: "1m 45s", 
+      mode: "scheduled"
+    }
   ]
 
   /**

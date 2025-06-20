@@ -365,10 +365,35 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
     )
   }, [])
 
-  const saveWorkflow = useCallback(() => {
-    // Mock save function
-    console.log("Saving workflow:", { nodes, connections, workflowName })
-    alert("Workflow saved!")
+  const saveWorkflow = useCallback(async () => {
+    try {
+      const apiService = new (await import("@/lib/api/service")).ApiService()
+      
+      if (!workflowName) {
+        throw new Error("Nome do workflow é obrigatório")
+      }
+
+      const workflowData = {
+        name: workflowName,
+        description: `Workflow com ${nodes.length} nós e ${connections.length} conexões`,
+        definition: {
+          nodes,
+          connections
+        },
+        is_public: false,
+        tags: [],
+        category: "custom"
+      }
+
+      const savedWorkflow = await apiService.createWorkflow(workflowData)
+      console.log("Workflow salvo com sucesso:", savedWorkflow)
+      
+      // Opcional: mostrar notificação de sucesso em vez de alert
+      alert(`Workflow "${workflowName}" salvo com sucesso!`)
+    } catch (error) {
+      console.error("Erro ao salvar workflow:", error)
+      alert(`Erro ao salvar workflow: ${error instanceof Error ? error.message : String(error)}`)
+    }
   }, [nodes, connections, workflowName])
 
   // Memoize the context value to prevent unnecessary re-renders

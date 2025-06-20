@@ -1,4 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
+import { ApiService } from "@/lib/api/service"
 
 // Interface para métricas de analytics
 interface ChatAnalytics {
@@ -35,129 +36,7 @@ interface ChatAnalytics {
   }
 }
 
-// Dados simulados para desenvolvimento
-const generateMockAnalytics = (): ChatAnalytics => {
-  const now = new Date()
-  const last7Days = Array.from({ length: 7 }, (_, i) => {
-    const date = new Date(now)
-    date.setDate(date.getDate() - i)
-    return date.toISOString().split('T')[0]
-  }).reverse()
-
-  return {
-    overview: {
-      totalMessages: 1247,
-      totalConversations: 89,
-      successRate: 0.94,
-      averageResponseTime: 1850,
-      activeUsers: 23
-    },
-    usage: {
-      mostUsedModels: {
-        'gpt-4o': 456,
-        'gpt-4': 321,
-        'claude-3': 287,
-        'gpt-3.5-turbo': 183
-      },
-      mostUsedTools: {
-        'tools': 523,
-        'internet': 298,
-        'deep-analysis': 187,
-        'wikipedia': 156,
-        'no-tools': 83
-      },
-      mostUsedPersonalities: {
-        'natural': 487,
-        'criativa': 298,
-        'objetiva': 234,
-        'sistematica': 156,
-        'imaginativa': 72
-      },
-      temperatureDistribution: {
-        '0.1-0.3': 234,
-        '0.4-0.6': 298,
-        '0.7-0.9': 487,
-        '1.0+': 228
-      }
-    },
-    errors: {
-      totalErrors: 78,
-      errorsByType: {
-        'api_keys': 34,
-        'rate_limit': 23,
-        'network': 12,
-        'invalid_config': 7,
-        'unknown': 2
-      },
-      errorTrends: last7Days.map((date, index) => ({
-        date,
-        count: Math.floor(Math.random() * 15) + 2
-      })),
-      mostCommonErrors: [
-        { message: 'API keys necessárias não encontradas: openai', count: 23 },
-        { message: 'Limite de requisições atingido', count: 18 },
-        { message: 'Erro de conexão com o servidor', count: 12 },
-        { message: 'Modelo gpt-5 não é suportado', count: 7 }
-      ]
-    },
-    performance: {
-      responseTimeByModel: {
-        'gpt-4o': 1650,
-        'gpt-4': 2100,
-        'claude-3': 1890,
-        'gpt-3.5-turbo': 1200,
-        'gemini-pro': 1750
-      },
-      tokensUsageByModel: {
-        'gpt-4o': 234567,
-        'gpt-4': 187654,
-        'claude-3': 156789,
-        'gpt-3.5-turbo': 298765,
-        'gemini-pro': 98765
-      },
-      successRateByTool: {
-        'tools': 0.96,
-        'internet': 0.89,
-        'deep-analysis': 0.92,
-        'wikipedia': 0.98,
-        'no-tools': 0.99
-      },
-      peakUsageHours: {
-        '09': 145,
-        '10': 167,
-        '11': 189,
-        '14': 156,
-        '15': 178,
-        '16': 134,
-        '20': 98,
-        '21': 87
-      }
-    },
-    presets: {
-      totalPresets: 47,
-      mostUsedPresets: {
-        'Default': 298,
-        'Academic': 187,
-        'Creative': 156,
-        'Research': 134,
-        'Custom-1': 89,
-        'Custom-2': 67
-      },
-      presetSuccessRate: {
-        'Default': 0.96,
-        'Academic': 0.94,
-        'Creative': 0.91,
-        'Research': 0.97,
-        'Custom-1': 0.89,
-        'Custom-2': 0.92
-      },
-      customVsSystemPresets: {
-        custom: 234,
-        system: 456
-      }
-    }
-  }
-}
+const apiService = new ApiService()
 
 export async function GET(req: NextRequest) {
   try {
@@ -165,90 +44,119 @@ export async function GET(req: NextRequest) {
     const timeRange = searchParams.get('timeRange') || '7d'
     const includeDetails = searchParams.get('includeDetails') === 'true'
 
-    // Em produção, isso viria do banco de dados
-    const analytics = generateMockAnalytics()
-
-    // Filtrar dados baseado no timeRange se necessário
-    if (timeRange === '24h') {
-      // Filtrar para últimas 24 horas
-      analytics.overview.totalMessages = Math.floor(analytics.overview.totalMessages * 0.1)
-      analytics.overview.totalConversations = Math.floor(analytics.overview.totalConversations * 0.1)
-    } else if (timeRange === '30d') {
-      // Expandir para 30 dias
-      analytics.overview.totalMessages = Math.floor(analytics.overview.totalMessages * 4.3)
-      analytics.overview.totalConversations = Math.floor(analytics.overview.totalConversations * 4.3)
-    }
-
-    // Se não incluir detalhes, remover dados sensíveis
-    const responseData = includeDetails ? analytics : {
-      ...analytics,
+    // TODO: Implementar chamada real para o backend quando disponível
+    // const analytics = await apiService.getChatAnalytics({ timeRange, includeDetails })
+    
+    // Retornar dados mockados para desenvolvimento
+    const mockAnalytics: ChatAnalytics = {
+      overview: {
+        totalMessages: 1250,
+        totalConversations: 89,
+        successRate: 95.2,
+        averageResponseTime: 1.8,
+        activeUsers: 45
+      },
+      usage: {
+        mostUsedModels: {
+          "gpt-4": 45,
+          "gpt-3.5-turbo": 32,
+          "claude-3": 23
+        },
+        mostUsedTools: {
+          "search": 67,
+          "calculator": 34,
+          "translator": 21
+        },
+        mostUsedPersonalities: {
+          "assistant": 56,
+          "expert": 28,
+          "creative": 16
+        },
+        temperatureDistribution: {
+          "0.7": 40,
+          "0.5": 35,
+          "0.9": 25
+        }
+      },
       errors: {
-        ...analytics.errors,
-        mostCommonErrors: undefined
+        totalErrors: 12,
+        errorsByType: {
+          "timeout": 5,
+          "rate_limit": 4,
+          "invalid_request": 3
+        },
+        errorTrends: [
+          { date: "2025-06-13", count: 2 },
+          { date: "2025-06-14", count: 3 },
+          { date: "2025-06-15", count: 1 }
+        ],
+        mostCommonErrors: [
+          { message: "Request timeout", count: 5 },
+          { message: "Rate limit exceeded", count: 4 }
+        ]
       },
       performance: {
-        ...analytics.performance,
-        tokensUsageByModel: undefined
+        responseTimeByModel: {
+          "gpt-4": 2.1,
+          "gpt-3.5-turbo": 1.5,
+          "claude-3": 1.9
+        },
+        tokensUsageByModel: {
+          "gpt-4": 15420,
+          "gpt-3.5-turbo": 8950,
+          "claude-3": 12100
+        },
+        successRateByTool: {
+          "search": 98.5,
+          "calculator": 99.1,
+          "translator": 96.8
+        },
+        peakUsageHours: {
+          "09:00": 25,
+          "14:00": 32,
+          "20:00": 28
+        }
+      },
+      presets: {
+        totalPresets: 24,
+        mostUsedPresets: {
+          "General Assistant": 45,
+          "Code Helper": 28,
+          "Research Assistant": 19
+        },
+        presetSuccessRate: {
+          "General Assistant": 96.2,
+          "Code Helper": 94.8,
+          "Research Assistant": 97.1
+        },
+        customVsSystemPresets: {
+          custom: 15,
+          system: 9
+        }
       }
     }
-
-    return NextResponse.json({
-      success: true,
-      data: responseData,
-      timeRange,
-      generatedAt: new Date().toISOString()
-    })
+    
+    return NextResponse.json(mockAnalytics)
+    
   } catch (error) {
     console.error("Erro ao obter analytics:", error)
-    return NextResponse.json({ 
-      success: false,
-      error: "Erro ao obter analytics" 
-    }, { status: 500 })
+    return NextResponse.json({ error: "Erro ao obter analytics" }, { status: 500 })
   }
 }
 
 export async function POST(req: NextRequest) {
   try {
+    // TODO: Implementar chamada real para criar/atualizar analytics no backend
     const body = await req.json()
-    const { event, data, timestamp } = body
-
-    // Em produção, isso salvaria no banco de dados
-    console.log('Analytics Event:', {
-      event,
-      data,
-      timestamp: timestamp || new Date().toISOString(),
-      userAgent: req.headers.get('user-agent'),
-      ip: req.headers.get('x-forwarded-for') || req.headers.get('x-real-ip')
-    })
-
-    // Simular diferentes tipos de eventos
-    const eventTypes = [
-      'message_sent',
-      'preset_used',
-      'model_changed',
-      'tool_selected',
-      'personality_changed',
-      'error_occurred',
-      'configuration_saved'
-    ]
-
-    if (!eventTypes.includes(event)) {
-      return NextResponse.json({ 
-        success: false,
-        error: "Tipo de evento não suportado" 
-      }, { status: 400 })
-    }
-
-    return NextResponse.json({
-      success: true,
-      message: "Evento registrado com sucesso",
-      eventId: `evt_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`
-    })
-  } catch (error) {
-    console.error("Erro ao registrar evento:", error)
+    
+    // Por enquanto, apenas retornar sucesso
     return NextResponse.json({ 
-      success: false,
-      error: "Erro ao registrar evento" 
-    }, { status: 500 })
+      success: true, 
+      message: "Analytics data received (mock response)" 
+    })
+    
+  } catch (error) {
+    console.error("Erro ao atualizar analytics:", error)
+    return NextResponse.json({ error: "Erro ao atualizar analytics" }, { status: 500 })
   }
 } 

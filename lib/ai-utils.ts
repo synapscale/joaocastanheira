@@ -116,86 +116,126 @@ export function isDocumentFile(file: File): boolean {
 }
 
 /**
- * Integração com a API de chat
+ * Integração com a API de chat usando o endpoint /api/v1/llm/chat
  * 
- * Envia uma mensagem para a API e retorna a resposta
- * @param message Mensagem do usuário
- * @param conversationId ID da conversa
+ * Envia mensagens para o LLM e retorna a resposta
+ * @param messages Array de mensagens do chat (ou string única para compatibilidade)
+ * @param conversationId Mantido para compatibilidade, mas não usado
  * @param options Opções adicionais
  * @returns Promessa com a resposta
  */
 export async function sendChatMessage(
-  message: string, 
-  conversationId: string,
+  messages: Array<{role: string; content: string}> | string,
+  conversationId?: string, // Mantido para compatibilidade
   options?: {
     model?: string;
-    tools?: string[];
-    personality?: string;
+    provider?: string;
+    temperature?: number;
+    max_tokens?: number;
+    top_p?: number;
+    frequency_penalty?: number;
+    presence_penalty?: number;
+    stream?: boolean;
     files?: File[];
   }
 ): Promise<{
-  reply: string;
-  usage?: {
-    promptTokens: number;
-    completionTokens: number;
-    totalTokens: number;
-  };
+  content: string;
+  model: string;
+  provider: string;
+  usage?: any;
+  metadata?: any;
+  finish_reason?: string;
 }> {
   try {
-    // Prepara o corpo da requisição
-    const body: any = {
-      message,
-      conversationId,
+    const apiUrl = process.env.NEXT_PUBLIC_API_URL?.replace(/\/+$/, '') || '';
+    const token = localStorage.getItem('synapsefrontend_auth_token');
+    
+    if (!token) {
+      throw new Error('Token de autenticação não encontrado');
+    }
+
+    // Converter string para array de mensagens se necessário
+    let messageArray: Array<{role: string; content: string}>;
+    if (typeof messages === 'string') {
+      messageArray = [{ role: 'user', content: messages }];
+    } else {
+      messageArray = messages;
+    }
+
+    // Preparar dados da requisição conforme a especificação da API
+    const requestData: any = {
+      messages: messageArray,
     };
 
-    // Adiciona opções se fornecidas
-    if (options?.model) body.model = options.model;
-    if (options?.tools) body.tools = options.tools;
-    if (options?.personality) body.personality = options.personality;
-    
-    // Se houver arquivos, cria um FormData
+    // Adicionar opções se fornecidas
+    if (options?.provider) requestData.provider = options.provider;
+    if (options?.model) requestData.model = options.model;
+    if (options?.temperature !== undefined) requestData.temperature = options.temperature;
+    if (options?.max_tokens) requestData.max_tokens = options.max_tokens;
+    if (options?.top_p !== undefined) requestData.top_p = options.top_p;
+    if (options?.frequency_penalty !== undefined) requestData.frequency_penalty = options.frequency_penalty;
+    if (options?.presence_penalty !== undefined) requestData.presence_penalty = options.presence_penalty;
+    if (options?.stream !== undefined) requestData.stream = options.stream;
+
+    console.log('🔍 Enviando para LLM Chat:', {
+      url: `${apiUrl}/api/v1/llm/chat`,
+      requestData
+    });
+
+    // Se houver arquivos, usar FormData
     if (options?.files && options.files.length > 0) {
       const formData = new FormData();
-      formData.append("message", message);
-      formData.append("conversationId", conversationId);
+      formData.append('messages', JSON.stringify(messageArray));
       
-      if (options.model) formData.append("model", options.model);
-      if (options.tools) formData.append("tools", JSON.stringify(options.tools));
-      if (options.personality) formData.append("personality", options.personality);
+      // Adicionar opções ao FormData
+      if (options.provider) formData.append('provider', options.provider);
+      if (options.model) formData.append('model', options.model);
+      if (options.temperature !== undefined) formData.append('temperature', options.temperature.toString());
+      if (options.max_tokens) formData.append('max_tokens', options.max_tokens.toString());
       
-      options.files.forEach((file) => {
-        formData.append("files", file);
+      // Adicionar arquivos
+      options.files.forEach((file, index) => {
+        formData.append(`file_${index}`, file);
       });
-      
-      // Envia a requisição com FormData
-      const response = await fetch("/api/chat", {
-        method: "POST",
+
+      const response = await fetch(`${apiUrl}/api/v1/llm/chat`, {
+        method: 'POST',
+        headers: {
+          'Authorization': `Bearer ${token}`,
+        },
         body: formData,
       });
-      
+
       if (!response.ok) {
-        throw new Error(`Erro na API: ${response.status}`);
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Erro na API: ${response.statusText}`);
       }
-      
+
       return await response.json();
+    } else {
+      // Enviar requisição JSON
+      const response = await fetch(`${apiUrl}/api/v1/llm/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${token}`,
+        },
+        body: JSON.stringify(requestData),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.detail || `Erro na API: ${response.statusText}`);
+      }
+
+      const result = await response.json();
+      console.log('✅ Resposta do LLM Chat:', result);
+      
+      return result;
     }
-    
-    // Envia a requisição com JSON
-    const response = await fetch("/api/chat", {
-      method: "POST",
-      headers: {
-        "Content-Type": "application/json",
-      },
-      body: JSON.stringify(body),
-    });
-    
-    if (!response.ok) {
-      throw new Error(`Erro na API: ${response.status}`);
-    }
-    
-    return await response.json();
+
   } catch (error) {
-    console.error("Erro ao enviar mensagem:", error);
+    console.error('🚨 Erro ao enviar mensagem para LLM:', error);
     throw error;
   }
 }

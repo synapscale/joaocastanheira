@@ -29,10 +29,10 @@ class AuthStorageImpl implements AuthStorage {
     const authConfig = (config as any)?.auth ?? {}
 
     this.tokenKey =
-      authConfig.tokenKey ?? (config as any)?.jwtStorageKey ?? 'synapse_auth_token'
+      authConfig.tokenKey ?? process.env.NEXT_PUBLIC_JWT_STORAGE_KEY ?? 'synapsefrontend_auth_token'
 
     this.refreshTokenKey =
-      authConfig.refreshTokenKey ?? (config as any)?.refreshTokenKey ?? 'synapse_refresh_token'
+      authConfig.refreshTokenKey ?? process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? 'synapsefrontend_refresh_token'
 
     // A chave do usuário só existe no objeto aninhado `auth` na configuração
     // "padrão". Caso não exista, usa-se um valor de fallback estático.
@@ -50,6 +50,15 @@ class AuthStorageImpl implements AuthStorage {
     
     // Também definir como cookie para compatibilidade com middleware
     this.setCookie(this.tokenKey, token, 7) // 7 dias
+    
+    // Notificar o ApiService sobre a mudança de token
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: this.tokenKey,
+        newValue: token,
+        storageArea: localStorage
+      }));
+    }
     
     // Verificar se o cookie foi definido corretamente
     setTimeout(() => {
@@ -71,6 +80,15 @@ class AuthStorageImpl implements AuthStorage {
     
     // Também definir como cookie para compatibilidade com middleware
     this.setCookie(this.refreshTokenKey, token, 30) // 30 dias
+    
+    // Notificar o ApiService sobre a mudança de token
+    if (typeof window !== 'undefined') {
+      window.dispatchEvent(new StorageEvent('storage', {
+        key: this.refreshTokenKey,
+        newValue: token,
+        storageArea: localStorage
+      }));
+    }
   }
 
   getUser(): AuthUser | null {
@@ -239,6 +257,12 @@ export class AuthService {
       this.storage.setRefreshToken(normalized.tokens.refreshToken)
       this.storage.setUser(normalized.user)
 
+      // Sincronizar tokens com o ApiService
+      apiService.syncTokensWithAuthService(
+        normalized.tokens.accessToken,
+        normalized.tokens.refreshToken
+      )
+
       return normalized
     } catch (error) {
       throw this.handleAuthError(error)
@@ -258,11 +282,25 @@ export class AuthService {
         full_name: data.name,
       })
 
-      // For registration, we need to login after successful registration
+      // Após registrar, efetuar login para obter tokens
       const loginResponse = await this.login({
         email: data.email,
         password: data.password,
       })
+
+      // Criar workspace padrão do usuário (ignorar erros se já existir)
+      try {
+        const workspaceName = `${loginResponse.user.name?.split(' ')[0] || 'Meu'} Workspace`
+        await apiService.post('/workspaces/', {
+          name: workspaceName,
+          description: 'Workspace pessoal - criado automaticamente',
+          is_public: false,
+        })
+        console.log('Workspace padrão criado com sucesso')
+      } catch (workspaceErr: any) {
+        // Ignorar erro se workspace já existir ou por outros motivos
+        console.log('Workspace padrão não foi criado:', workspaceErr.message)
+      }
 
       return loginResponse
     } catch (error) {
@@ -303,6 +341,13 @@ export class AuthService {
       
       if (response) {
         this.storage.setToken(response.access_token)
+        
+        // Sincronizar tokens com o ApiService
+        apiService.syncTokensWithAuthService(
+          response.access_token,
+          this.storage.getRefreshToken() || ''
+        )
+        
         return response.access_token
       }
       return null

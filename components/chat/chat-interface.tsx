@@ -14,6 +14,7 @@ import { useApp } from "@/context/app-context"
 import type { Message, Conversation } from "@/types/chat"
 import { useToast } from "@/hooks/use-toast"
 import type { BaseComponentProps } from "@/types/component-types"
+import { sendChatMessage } from "@/lib/ai-utils"
 
 type Status = "idle" | "loading" | "error"
 
@@ -71,6 +72,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false)
   const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
+  const [localMessages, setLocalMessages] = useState<Message[]>(initialMessages || [])
 
   const appContext = useApp()
   const {
@@ -112,18 +114,26 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
   const isConversationActive = useMemo(() => Boolean(currentConversationId), [currentConversationId])
   const isInputDisabled = useMemo(
-    () => disabled || !isConversationActive || isLoading,
-    [disabled, isConversationActive, isLoading],
+    () => disabled || isLoading,
+    [disabled, isLoading],
   )
 
   const safeMessages = useMemo(() => {
     if (currentConversationId && currentConversation) {
       return currentConversation.messages || []
     }
-    return currentConversationId ? getMessages(currentConversationId) || [] : initialMessages || []
-  }, [currentConversation?.messages, currentConversationId, getMessages, initialMessages])
+    if (currentConversationId && getMessages) {
+      return getMessages(currentConversationId) || []
+    }
+    return localMessages
+  }, [currentConversation?.messages, currentConversationId, getMessages, localMessages])
 
   useEffect(() => {
+    // Desabilitar sincronização com API para conversas
+    if (conversationsHook?.setSyncWithAPI) {
+      conversationsHook.setSyncWithAPI(false)
+    }
+    
     if (!conversationsLoading && !currentConversationId && conversations.length === 0 && createConversation && selectedModel) {
       const newConversation = createConversation({
         title: "Nova Conversa",
@@ -144,6 +154,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     selectedTool,
     selectedPersonality,
     onConversationCreated,
+    conversationsHook,
   ])
 
   useEffect(() => {
@@ -168,12 +179,23 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       if (
         !message.trim() ||
         isLoading ||
-        !currentConversationId ||
         disabled ||
-        !addMessageToConversation ||
         !selectedModel
       )
         return
+
+      // Se não há conversa ativa, criar uma nova
+      if (!currentConversationId && createConversation) {
+        const newConversation = createConversation({
+          title: "Nova Conversa",
+          settings: {
+            model: selectedModel.id,
+            tool: selectedTool || "tools",
+            personality: selectedPersonality || "natural",
+          }
+        })
+        onConversationCreated?.(newConversation)
+      }
 
       const userMessage: Message = {
         id: `msg_${Date.now()}`,
@@ -183,7 +205,13 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
         status: "sent",
       }
 
-      addMessageToConversation(userMessage)
+      // Adicionar mensagem se a função existir, senão usar estado local
+      if (addMessageToConversation) {
+        addMessageToConversation(userMessage)
+      } else {
+        setLocalMessages(prev => [...prev, userMessage])
+      }
+      
       setStatus("loading")
       setIsLoading(true)
       onMessageSent?.(userMessage)
@@ -204,68 +232,54 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           maxTokens: 2048,
         }
 
-        // Preparar dados da requisição - usando novo formato da API
-        const requestData = {
-          message: message,
+        // Preparar mensagens para o chat (formato correto da API)
+        const currentMessages = currentConversation?.messages || localMessages
+        const messages = [
+          ...currentMessages.map(msg => ({
+            role: msg.role,
+            content: msg.content
+          })),
+          { role: "user", content: message }
+        ];
+
+        console.log('🔍 Enviando mensagens para o chat:', {
+          messages,
           model: selectedModel.id,
-          personality: selectedPersonality || "natural",
-          tools: selectedTool || "tools",
+          provider: selectedModel.provider || "openai",
+          hasFiles: uploadedFiles.length > 0
+        });
+
+        // Usar a função sendChatMessage do ai-utils
+        const data = await sendChatMessage(messages, undefined, {
+          model: selectedModel.id,
+          provider: selectedModel.provider || "openai",
+          temperature: 0.7,
+          max_tokens: 2048,
           files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-        }
-
-        let response: Response
-
-        // Se há arquivos, usar FormData
-        if (uploadedFiles.length > 0) {
-          const formData = new FormData()
-          formData.append("message", message)
-          formData.append("model", selectedModel.id)
-          formData.append("personality", selectedPersonality || "natural")
-          formData.append("tools", selectedTool || "tools")
-          
-          uploadedFiles.forEach((file, index) => {
-            formData.append(`file_${index}`, file)
-          })
-
-          response = await fetch("/api/chat", {
-            method: "POST",
-            body: formData,
-          })
-        } else {
-          // Requisição JSON simples
-          response = await fetch("/api/chat", {
-            method: "POST",
-            headers: {
-              "Content-Type": "application/json",
-            },
-            body: JSON.stringify(requestData),
-          })
-        }
-
-        if (!response.ok) {
-          throw new Error(`API error: ${response.status} ${response.statusText}`)
-        }
-
-        const data = await response.json()
+        });
 
         // Criar mensagem de resposta
         const assistantMessage: Message = {
           id: `msg_${Date.now()}_assistant`,
           role: "assistant",
-          content: data.content || data.reply || "Desculpe, ocorreu um erro ao processar sua mensagem.",
+          content: data.content || "Desculpe, ocorreu um erro ao processar sua mensagem.",
           timestamp: Date.now(),
           status: "sent",
-          model: data.model_used || selectedModel.id,
+          model: data.model || selectedModel.id,
           metadata: {
-            temperature_used: data.temperature,
-            tokens_used: data.tokens_used,
-            processing_time_ms: data.processing_time_ms,
-            model_provider: data.model_provider,
-            max_tokens: data.max_tokens,
+            provider: data.provider,
+            usage: data.usage,
+            finish_reason: data.finish_reason,
+            metadata: data.metadata,
           },
         }
 
-        addMessageToConversation(assistantMessage)
+        // Adicionar resposta se a função existir, senão usar estado local
+        if (addMessageToConversation) {
+          addMessageToConversation(assistantMessage)
+        } else {
+          setLocalMessages(prev => [...prev, assistantMessage])
+        }
         onMessageReceived?.(assistantMessage)
 
         // Limpar arquivos enviados
@@ -290,7 +304,12 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
           timestamp: Date.now(),
         }
 
-        addMessageToConversation(errorMessage)
+        // Adicionar mensagem de erro se a função existir, senão usar estado local
+        if (addMessageToConversation) {
+          addMessageToConversation(errorMessage)
+        } else {
+          setLocalMessages(prev => [...prev, errorMessage])
+        }
         onMessageReceived?.(errorMessage)
 
         toast({

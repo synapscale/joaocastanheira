@@ -32,6 +32,7 @@ import {
 import { ScrollArea } from "@/components/ui/scroll-area"
 import { Separator } from "@/components/ui/separator"
 import { showNotification } from "@/components/ui/notification"
+import { config } from "@/lib/config"
 
 // Interface para um exemplo de código
 export interface CodeExample {
@@ -83,10 +84,11 @@ Esta API suporta diversos modelos de IA, incluindo GPT-4, Claude e Gemini.
           description: "Um exemplo simples de como enviar uma mensagem e receber uma resposta.",
           code: `
 // Exemplo de uso básico da API de Chat
-const response = await fetch('/api/chat', {
+const response = await fetch('${config.apiBaseUrl}/llm/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
   },
   body: JSON.stringify({
     messages: [
@@ -111,7 +113,7 @@ console.log(data.message);
       subsections: [
         {
           id: "send-message",
-          title: "POST /api/chat",
+          title: "POST /api/v1/llm/chat",
           content: `
 Envia uma mensagem para o modelo de IA e recebe uma resposta.
 
@@ -129,10 +131,11 @@ Envia uma mensagem para o modelo de IA e recebe uma resposta.
               title: "Enviar Mensagem",
               description: "Exemplo de como enviar uma mensagem com parâmetros personalizados.",
               code: `
-const response = await fetch('/api/chat', {
+const response = await fetch('${config.apiBaseUrl}/llm/chat', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
   },
   body: JSON.stringify({
     messages: [
@@ -155,13 +158,13 @@ console.log(data.message);
         },
         {
           id: "stream-message",
-          title: "POST /api/chat/stream",
+          title: "POST /api/v1/llm/chat/stream",
           content: `
 Envia uma mensagem e recebe a resposta em formato de stream, permitindo exibir a resposta gradualmente.
 
 **Parâmetros:**
 
-Os mesmos parâmetros de \`/api/chat\`, mas a resposta é enviada como um stream de eventos.
+Os mesmos parâmetros de \`/api/v1/llm/chat\`, mas a resposta é enviada como um stream de eventos.
           `,
           examples: [
             {
@@ -169,10 +172,11 @@ Os mesmos parâmetros de \`/api/chat\`, mas a resposta é enviada como um stream
               title: "Streaming de Resposta",
               description: "Exemplo de como receber respostas em formato de stream.",
               code: `
-const response = await fetch('/api/chat/stream', {
+const response = await fetch('${config.apiBaseUrl}/llm/chat/stream', {
   method: 'POST',
   headers: {
     'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
   },
   body: JSON.stringify({
     messages: [
@@ -220,9 +224,12 @@ A API suporta os seguintes modelos:
           description: "Exemplo de como selecionar diferentes modelos.",
           code: `
 // Usando GPT-4o
-const responseGPT = await fetch('/api/chat', {
+const responseGPT = await fetch('${config.apiBaseUrl}/llm/chat', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
   body: JSON.stringify({
     messages: [{ role: 'user', content: 'Resuma o livro Dom Casmurro.' }],
     model: 'gpt-4o',
@@ -230,9 +237,12 @@ const responseGPT = await fetch('/api/chat', {
 });
 
 // Usando Claude 3
-const responseClaude = await fetch('/api/chat', {
+const responseClaude = await fetch('${config.apiBaseUrl}/llm/chat', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
   body: JSON.stringify({
     messages: [{ role: 'user', content: 'Resuma o livro Dom Casmurro.' }],
     model: 'claude-3-opus',
@@ -262,9 +272,12 @@ A API permite fornecer ferramentas para o modelo usar durante a geração de res
           title: "Function Calling",
           description: "Exemplo de como usar function calling com a API.",
           code: `
-const response = await fetch('/api/chat', {
+const response = await fetch('${config.apiBaseUrl}/llm/chat', {
   method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
+  headers: { 
+    'Content-Type': 'application/json',
+    'Authorization': 'Bearer YOUR_TOKEN'
+  },
   body: JSON.stringify({
     messages: [
       { role: 'user', content: 'Qual é a previsão do tempo para São Paulo amanhã?' }
@@ -308,9 +321,12 @@ if (data.tool_calls && data.tool_calls.length > 0) {
   );
   
   // Envie o resultado de volta para o modelo
-  const finalResponse = await fetch('/api/chat', {
+  const finalResponse = await fetch('${config.apiBaseUrl}/llm/chat', {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
+    headers: { 
+      'Content-Type': 'application/json',
+      'Authorization': 'Bearer YOUR_TOKEN'
+    },
     body: JSON.stringify({
       messages: [
         { role: 'user', content: 'Qual é a previsão do tempo para São Paulo amanhã?' },
@@ -654,7 +670,7 @@ export default function InteractiveDocs({
                   <AccordionContent>
                     <div className="space-y-4 pl-6">
                       <div>
-                        <h3 className="font-medium">POST /api/chat</h3>
+                        <h3 className="font-medium">POST /api/v1/llm/chat</h3>
                         <p className="text-sm text-muted-foreground">
                           Envia uma mensagem para o modelo de IA e recebe uma resposta.
                         </p>
@@ -670,13 +686,13 @@ export default function InteractiveDocs({
                       </div>
                       
                       <div>
-                        <h3 className="font-medium">POST /api/chat/stream</h3>
+                        <h3 className="font-medium">POST /api/v1/llm/chat/stream</h3>
                         <p className="text-sm text-muted-foreground">
                           Envia uma mensagem e recebe a resposta em formato de stream.
                         </p>
                         <div className="mt-2 border-l-2 border-muted-foreground/20 pl-4">
                           <h4 className="text-sm font-medium">Parâmetros</h4>
-                          <p className="text-sm">Os mesmos parâmetros de /api/chat</p>
+                          <p className="text-sm">Os mesmos parâmetros de /api/v1/llm/chat</p>
                         </div>
                       </div>
                     </div>

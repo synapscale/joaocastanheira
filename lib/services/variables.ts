@@ -12,13 +12,13 @@ import { config } from '../config'
 export interface UserVariable {
   id: string
   key: string
-  value?: string
-  description?: string
-  is_encrypted: boolean
+  value?: string | null
+  description?: string | null
+  category?: string | null
   is_active: boolean
-  category?: string
-  created_at: string
-  updated_at: string
+  is_encrypted: boolean
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export interface UserVariableCreate {
@@ -102,6 +102,7 @@ export class VariableService {
     try {
       const queryParams = new URLSearchParams()
       
+      // Usar os parâmetros conforme especificação da API
       if (params?.skip !== undefined) queryParams.append('skip', params.skip.toString())
       if (params?.limit !== undefined) queryParams.append('limit', params.limit.toString())
       if (params?.search) queryParams.append('search', params.search)
@@ -114,7 +115,18 @@ export class VariableService {
       const queryString = queryParams.toString()
       const endpoint = queryString ? `/user-variables/?${queryString}` : '/user-variables/'
 
-      return await apiService.get<UserVariableList>(endpoint)
+      console.log('🔍 VariableService calling endpoint:', endpoint, 'with params:', params)
+      
+      try {
+        return await apiService.get<UserVariableList>(endpoint)
+      } catch (innerError) {
+        console.error('🚨 VariableService error details:', {
+          error: innerError,
+          endpoint: endpoint,
+          params
+        })
+        throw innerError
+      }
     } catch (error) {
       throw this.handleError(error, 'Erro ao carregar variáveis')
     }
@@ -314,11 +326,34 @@ export class VariableService {
    * Tratamento de erros personalizado
    */
   private handleError(error: any, defaultMessage: string): Error {
-    if (error.response?.data?.detail) {
+    console.error('VariableService Error:', error)
+    
+    // Se é erro de rede ou timeout
+    if (error?.name === 'NetworkError' || error?.message?.includes('fetch')) {
+      return new Error('Erro de conexão com o servidor. Verifique sua conexão.')
+    }
+    
+    // Se é erro de autenticação
+    if (error?.status === 401) {
+      return new Error('Sessão expirada. Faça login novamente.')
+    }
+    
+    // Se é erro do servidor
+    if (error?.status === 500) {
+      return new Error('Erro interno do servidor. Tente novamente em alguns instantes.')
+    }
+    
+    // Se é erro de validação
+    if (error?.status === 422 && error?.data?.detail) {
+      return new Error(`Erro de validação: ${JSON.stringify(error.data.detail)}`)
+    }
+    
+    // Outras mensagens de erro
+    if (error?.response?.data?.detail) {
       return new Error(error.response.data.detail)
     }
     
-    if (error.message) {
+    if (error?.message) {
       return new Error(error.message)
     }
     

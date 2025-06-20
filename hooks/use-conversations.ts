@@ -11,6 +11,7 @@ import { useState, useCallback, useEffect, useMemo } from "react"
 import { v4 as uuidv4 } from "uuid"
 import type { Conversation, Message } from "@/types/chat"
 import { useToast } from "@/hooks/use-toast"
+import { config } from "@/lib/config"
 
 /**
  * Gera um título a partir da primeira mensagem do usuário
@@ -72,7 +73,7 @@ export function useConversations(): UseConversationsReturn {
       ...options.headers,
     }
 
-    const response = await fetch(`/api/v1${endpoint}`, {
+    const response = await fetch(`${config.apiBaseUrl}${endpoint}`, {
       ...options,
       headers,
     })
@@ -230,9 +231,8 @@ export function useConversations(): UseConversationsReturn {
 
       // Sincronizar com API se necessário
       if (syncWithAPI && updates.title) {
-        apiCall(`/conversations/${id}/title`, {
+        apiCall(`/conversations/${id}/title?title=${encodeURIComponent(updates.title)}`, {
           method: "PUT",
-          body: JSON.stringify({ title: updates.title }),
         }).catch(error => {
           console.error("Erro ao atualizar título na API:", error)
         })

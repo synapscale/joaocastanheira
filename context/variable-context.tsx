@@ -17,6 +17,12 @@ interface Variable extends UserVariable {
   isSystem?: boolean
   isSecret?: boolean
   isActive?: boolean
+  // Permitir null nos campos opcionais
+  value?: string | null
+  description?: string | null
+  category?: string | null
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 interface VariableContextType {
@@ -141,10 +147,10 @@ function variableToUserVariableCreate(variable: Omit<Variable, "id" | "created_a
   return {
     key: variable.key,
     value: variable.value || '',
-    description: variable.description,
+    description: variable.description || undefined,
     is_encrypted: variable.type === 'secret' || variable.isSecret || false,
     is_active: variable.isActive !== false,
-    category: variable.tags?.[0] || variable.category,
+    category: variable.tags?.[0] || variable.category || undefined,
   }
 }
 
@@ -153,11 +159,11 @@ function variableToUserVariableCreate(variable: Omit<Variable, "id" | "created_a
  */
 function variableToUserVariableUpdate(updates: Partial<Variable>): UserVariableUpdate {
   return {
-    value: updates.value,
-    description: updates.description,
+    value: updates.value ?? undefined,
+    description: updates.description ?? undefined,
     is_encrypted: updates.type === 'secret' || updates.isSecret,
     is_active: updates.isActive,
-    category: updates.tags?.[0] || updates.category,
+    category: (updates.tags?.[0] || updates.category) ?? undefined,
   }
 }
 
@@ -181,23 +187,46 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
    * Carrega variáveis do backend
    */
   const loadVariables = useCallback(async () => {
-    if (!isAuthenticated) return
+    if (!isAuthenticated) {
+      console.log('User not authenticated, skipping variable loading')
+      return
+    }
 
     dispatch({ type: 'SET_LOADING', payload: true })
     dispatch({ type: 'CLEAR_ERROR' })
     
     try {
       const response = await variableService.getVariables({
-        include_values: false // Por segurança, não carregar valores por padrão
+        include_values: true // Incluir valores para exibir mascarados na interface
       })
       
       const variables = response.variables.map(userVariableToVariable)
       dispatch({ type: 'SET_VARIABLES', payload: variables })
     } catch (error) {
-      dispatch({ 
-        type: 'SET_ERROR', 
-        payload: error instanceof Error ? error.message : 'Erro ao carregar variáveis' 
-      })
+      console.error('Error loading variables:', error)
+      
+      // Handling specific error types
+      if (error instanceof Error && 'status' in error) {
+        const httpError = error as Error & { status: number }
+        if (httpError.status === 401) {
+          dispatch({ 
+            type: 'SET_ERROR', 
+            payload: 'Não autenticado. Faça login para acessar suas variáveis.' 
+          })
+        } else {
+          dispatch({ 
+            type: 'SET_ERROR', 
+            payload: httpError.message || 'Erro ao carregar variáveis' 
+          })
+        }
+      } else {
+        dispatch({ 
+          type: 'SET_ERROR', 
+          payload: error instanceof Error ? error.message : 'Erro ao carregar variáveis' 
+        })
+      }
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false })
     }
   }, [isAuthenticated])
 
@@ -289,7 +318,7 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
 
     try {
       const response = await variableService.getVariables({
-        include_values: false
+        include_values: true
       })
       
       const variables = response.variables.map(userVariableToVariable)
@@ -319,7 +348,7 @@ export function VariableProvider({ children }: { children: React.ReactNode }) {
       await variableService.importVariablesFromFile(file, category, false)
       // Recarrega as variáveis após a importação
       const response = await variableService.getVariables({
-        include_values: false
+        include_values: true
       })
       const variables = response.variables.map(userVariableToVariable)
       dispatch({ type: 'SET_VARIABLES', payload: variables })

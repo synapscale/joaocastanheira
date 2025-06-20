@@ -107,7 +107,9 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   const [error, setError] = useState<string | null>(null)
 
   // URL base da API
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000"
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || (() => {
+  throw new Error('NEXT_PUBLIC_API_URL não está definida no arquivo .env')
+})()
   const API_VARIABLES = `${API_BASE}/api/v1/user-variables`
 
   // Headers para requisições autenticadas

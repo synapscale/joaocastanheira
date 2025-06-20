@@ -31,6 +31,23 @@ import { toast } from "sonner"
 import { useUserVariables, type UserVariable, type UserVariableCreate } from "@/context/user-variable-context"
 import { cn } from "@/lib/utils"
 
+// Função para mascarar valores de variáveis mostrando primeiros 4 e últimos 4 caracteres reais
+const maskVariableValue = (value: string): string => {
+  if (!value || typeof value !== 'string' || value.trim() === '') {
+    return '••••••••••••••••'
+  }
+  
+  if (value.length <= 8) {
+    return value // Se for muito curto, mostra tudo
+  }
+  
+  const first4 = value.slice(0, 4)
+  const last4 = value.slice(-4)
+  const maskedLength = Math.max(4, value.length - 8)
+  const masked = '*'.repeat(maskedLength)
+  return first4 + masked + last4
+}
+
 // Categorias predefinidas com cores e ícones
 const CATEGORIES = {
   "AI": { color: "#10A37F", bgColor: "#F0FDF4", icon: "🤖" },
@@ -496,10 +513,10 @@ export default function UserVariablesPage() {
                           
                           <div className="flex items-center space-x-2">
                             <code className="text-xs bg-muted px-2 py-1 rounded">
-                              {showSensitive || !variable.is_encrypted 
-                                ? variable.value 
-                                : "••••••••••••••••"
-                              }
+                                                              {showSensitive || !variable.is_encrypted 
+                                  ? variable.value 
+                                  : maskVariableValue(variable.value)
+                                }
                             </code>
                             <Button
                               variant="ghost"

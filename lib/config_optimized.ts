@@ -66,7 +66,9 @@ function getConfig(): Config {
   
   // Função auxiliar para normalizar URL base
   const normalize = (raw?: string): string => {
-    if (!raw) return 'http://localhost:8000'
+    if (!raw) {
+      throw new Error('NEXT_PUBLIC_API_URL é obrigatório. Configure esta variável no arquivo .env')
+    }
     let url = raw.trim().replace(/\/+$/, '') // remove barra final
     url = url.replace(/\/api(\/v\d+)?$/, '')
     return url
@@ -75,7 +77,9 @@ function getConfig(): Config {
   return {
     // URLs
     apiUrl: normalize(process.env.NEXT_PUBLIC_API_URL),
-    wsUrl: process.env.NEXT_PUBLIC_WS_URL || 'ws://localhost:8000',
+    wsUrl: process.env.NEXT_PUBLIC_WS_URL || (() => {
+      throw new Error('NEXT_PUBLIC_WS_URL não está definida no arquivo .env')
+    })(),
     appUrl: process.env.NEXT_PUBLIC_APP_URL || 'http://localhost:3000',
     
     // Environment

@@ -17,6 +17,10 @@ import { ThemeProvider } from 'next-themes';
 import { Sidebar } from '@/components/sidebar';
 import { usePathname } from 'next/navigation';
 import '@/styles/globals.css';
+import { UserVariableProvider } from '@/context/user-variable-context';
+import { NodeTemplateProvider } from '@/context/node-template-context';
+import { MarketplaceProvider } from '@/context/marketplace-context';
+import { PlanProvider } from '@/context/plan-context';
 
 // Componente interno que usa o contexto de autenticação
 function AppLayout({ children }: { children: React.ReactNode }) {
@@ -52,33 +56,41 @@ function AppLayout({ children }: { children: React.ReactNode }) {
   return (
     <SidebarProvider>
       <VariableProvider>
-        <CodeTemplateProvider>
-          <NodeCreatorProvider>
-            <SharedNodesProvider>
-              <WorkflowProvider>
-                <TemplateProvider>
-                  <NodeDefinitionProvider>
-                    <CustomCategoryProvider>
-                      {/* Sincronização automática de variáveis */}
-                      <VariableAutoSync />
-                      
-                      {/* Layout flexbox horizontal */}
-                      <div className="flex h-screen overflow-hidden">
-                        {/* Sidebar */}
-                        <Sidebar />
-                        
-                        {/* Conteúdo principal */}
-                        <main className="flex-1 overflow-auto">
-                          {children}
-                        </main>
-                      </div>
-                    </CustomCategoryProvider>
-                  </NodeDefinitionProvider>
-                </TemplateProvider>
-              </WorkflowProvider>
-            </SharedNodesProvider>
-          </NodeCreatorProvider>
-        </CodeTemplateProvider>
+        <UserVariableProvider>
+          <CodeTemplateProvider>
+            <NodeCreatorProvider>
+              <SharedNodesProvider>
+                <WorkflowProvider>
+                  <TemplateProvider>
+                    <NodeDefinitionProvider>
+                      <NodeTemplateProvider>
+                        <MarketplaceProvider>
+                          <CustomCategoryProvider>
+                            <PlanProvider>
+                              {/* Sincronização automática de variáveis */}
+                              <VariableAutoSync />
+                              
+                              {/* Layout flexbox horizontal */}
+                              <div className="flex h-screen overflow-hidden">
+                                {/* Sidebar */}
+                                <Sidebar />
+                                
+                                {/* Conteúdo principal */}
+                                <main className="flex-1 overflow-auto">
+                                  {children}
+                                </main>
+                              </div>
+                            </PlanProvider>
+                          </CustomCategoryProvider>
+                        </MarketplaceProvider>
+                      </NodeTemplateProvider>
+                    </NodeDefinitionProvider>
+                  </TemplateProvider>
+                </WorkflowProvider>
+              </SharedNodesProvider>
+            </NodeCreatorProvider>
+          </CodeTemplateProvider>
+        </UserVariableProvider>
       </VariableProvider>
     </SidebarProvider>
   );
@@ -94,17 +106,39 @@ export default function RootLayout({
       <body className="min-h-screen bg-background text-foreground" suppressHydrationWarning={true}>
         <ThemeProvider
           attribute="class"
-          defaultTheme="light"
-          enableSystem={false}
+          defaultTheme="system"
+          enableSystem={true}
           disableTransitionOnChange={false}
         >
           <AuthProvider>
-            <AppProvider>
-              <DevBanner />
-              <AppLayout>
-                {children}
-              </AppLayout>
-            </AppProvider>
+            <PlanProvider>
+              <WorkflowProvider>
+                <SidebarProvider>
+                  <VariableProvider>
+                    <UserVariableProvider>
+                      <TemplateProvider>
+                        <CodeTemplateProvider>
+                          <NodeDefinitionProvider>
+                            <NodeTemplateProvider>
+                              <MarketplaceProvider>
+                                <CustomCategoryProvider>
+                                  <AppProvider>
+                                    <DevBanner />
+                                    <AppLayout>
+                                      {children}
+                                    </AppLayout>
+                                  </AppProvider>
+                                </CustomCategoryProvider>
+                              </MarketplaceProvider>
+                            </NodeTemplateProvider>
+                          </NodeDefinitionProvider>
+                        </CodeTemplateProvider>
+                      </TemplateProvider>
+                    </UserVariableProvider>
+                  </VariableProvider>
+                </SidebarProvider>
+              </WorkflowProvider>
+            </PlanProvider>
           </AuthProvider>
         </ThemeProvider>
       </body>

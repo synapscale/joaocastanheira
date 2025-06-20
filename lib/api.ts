@@ -435,7 +435,7 @@ apiService.addRequestInterceptor({
 
     // Detecta a chave correta onde o JWT é armazenado, compatível com ambas as
     // versões de configuração.
-    const tokenKey = (config as any).auth?.tokenKey ?? (config as any).jwtStorageKey ?? 'synapse_auth_token'
+    const tokenKey = (config as any).auth?.tokenKey ?? process.env.NEXT_PUBLIC_JWT_STORAGE_KEY ?? 'synapsefrontend_auth_token'
 
     const skipAuth = (request as any).skipAuth
 
@@ -457,8 +457,8 @@ apiService.addResponseInterceptor({
   onResponseError: async (error) => {
     // Remove tokens se o backend retornar 401
     if (error.status === 401 && typeof window !== 'undefined') {
-      const tokenKey = (config as any).auth?.tokenKey ?? (config as any).jwtStorageKey ?? 'synapse_auth_token'
-      const refreshTokenKey = (config as any).auth?.refreshTokenKey ?? (config as any).refreshTokenKey ?? 'synapse_refresh_token'
+      const tokenKey = (config as any).auth?.tokenKey ?? process.env.NEXT_PUBLIC_JWT_STORAGE_KEY ?? 'synapsefrontend_auth_token'
+      const refreshTokenKey = (config as any).auth?.refreshTokenKey ?? process.env.NEXT_PUBLIC_REFRESH_TOKEN_KEY ?? 'synapsefrontend_refresh_token'
       const userKey = (config as any).auth?.userKey ?? 'synapse_user'
 
       localStorage.removeItem(tokenKey)

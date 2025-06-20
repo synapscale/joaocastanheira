@@ -145,6 +145,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
         if (isValid) {
           console.log('AuthContext - Restaurando sessão do usuário');
           
+          // Sincronizar tokens com o ApiService
+          const { apiService } = await import('../lib/api/service')
+          apiService.syncTokensWithAuthService(storedToken, storedRefreshToken)
+          
           dispatch({
             type: 'AUTH_SUCCESS',
             payload: {

@@ -7,13 +7,29 @@ import { useVariables } from "@/context/variable-context"
 import { Eye, EyeOff } from "lucide-react"
 import type { Variable } from "@/types/variable"
 
+// Função para mascarar valores secretos mostrando primeiros 4 e últimos 4 caracteres reais
+const maskSecretValue = (value: string): string => {
+  if (!value || typeof value !== 'string' || value.trim() === '') {
+    return '••••••••••••••••'
+  }
+  
+  if (value.length <= 8) {
+    return value // Se for muito curto, mostra tudo
+  }
+  
+  const first4 = value.slice(0, 4)
+  const last4 = value.slice(-4)
+  const maskedLength = Math.max(4, value.length - 8)
+  const masked = '*'.repeat(maskedLength)
+  return first4 + masked + last4
+}
+
 interface VariableValueDisplayProps {
   variable: Variable
   maxLength?: number
 }
 
 export function VariableValueDisplay({ variable, maxLength = 50 }: VariableValueDisplayProps) {
-  const { resolveVariableValue } = useVariables()
   const [showSecret, setShowSecret] = useState(false)
   const [showResolved, setShowResolved] = useState(false)
 
@@ -21,8 +37,8 @@ export function VariableValueDisplay({ variable, maxLength = 50 }: VariableValue
   const getDisplayValue = () => {
     if (showResolved && variable.type === "expression") {
       try {
-        const resolvedValue = resolveVariableValue(variable.id)
-        return formatValue(resolvedValue)
+        // Note: Expression evaluation would need to be implemented
+        return formatValue(variable.value)
       } catch (error) {
         return <Badge variant="destructive">Error evaluating expression</Badge>
       }
@@ -39,9 +55,10 @@ export function VariableValueDisplay({ variable, maxLength = 50 }: VariableValue
 
     if (variable.type === "secret" || variable.encrypted) {
       if (!showSecret) {
+        const maskedValue = maskSecretValue(String(value))
         return (
           <div className="flex items-center gap-2">
-            <span>••••••••</span>
+            <span className="font-mono">{maskedValue}</span>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowSecret(true)}>
               <Eye className="h-3 w-3" />
             </Button>
@@ -50,7 +67,7 @@ export function VariableValueDisplay({ variable, maxLength = 50 }: VariableValue
       } else {
         return (
           <div className="flex items-center gap-2">
-            <span>{String(value)}</span>
+            <span className="font-mono">{String(value)}</span>
             <Button variant="ghost" size="sm" className="h-6 w-6 p-0" onClick={() => setShowSecret(false)}>
               <EyeOff className="h-3 w-3" />
             </Button>
