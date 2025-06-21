@@ -22,6 +22,11 @@ function normalizeApiBase(raw?: string): string {
   // Remove barra(s) finais
   url = url.replace(/\/+$/, '')
 
+  // Se a URL já contém /api/v1, usar como está
+  if (url.endsWith('/api/v1')) {
+    return url;
+  }
+
   // Remove sufixo /api ou /api/v{n} se existir (para limpar)
   url = url.replace(/\/api(\/v\d+)?$/, '')
 

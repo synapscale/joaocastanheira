@@ -3,7 +3,22 @@
  */
 
 import { config } from '../config'
-import type { WorkspaceStats } from '@/types/workspace-types'
+import type { 
+  WorkspaceResponse,
+  WorkspaceCreate,
+  WorkspaceUpdate,
+  MemberResponse,
+  MemberInvite,
+  WorkspaceStats,
+  WorkspaceSearchParams,
+  WorkspaceCreationRules,
+  InvitationResponse,
+  ActivityResponse,
+  IntegrationResponse,
+  BulkMemberOperation,
+  BulkProjectOperation,
+  BulkOperationResponse
+} from '@/types/workspace-types'
 
 // Configuração base da API
 const API_BASE_URL = config.apiBaseUrl;
@@ -129,48 +144,9 @@ export interface Message {
   created_at?: string;
 }
 
-export interface Workspace {
-  id: string;
-  name: string;
-  description?: string;
-  avatar_url?: string;
-  color?: string;
-  is_public: boolean;
-  allow_guest_access: boolean;
-  require_approval: boolean;
-  max_members: number;
-  max_projects: number;
-  max_storage_mb: number;
-  enable_real_time_editing: boolean;
-  enable_comments: boolean;
-  enable_chat: boolean;
-  enable_video_calls: boolean;
-  notification_settings?: any;
-  slug: string;
-  owner_id: string;
-  owner_name: string;
-  member_count: number;
-  project_count: number;
-  activity_count: number;
-  storage_used_mb: number;
-  status: string;
-  last_activity_at?: string;
-  created_at: string;
-  updated_at: string;
-}
-
-export interface WorkspaceMember {
-  id: number;
-  workspace_id: number;
-  user_id: number;
-  user_name: string;
-  user_email: string;
-  user_avatar?: string;
-  role: 'owner' | 'admin' | 'member' | 'guest';
-  status: string;
-  joined_at: string;
-  last_active_at?: string;
-}
+// Legacy type aliases for compatibility
+export type Workspace = WorkspaceResponse;
+export type WorkspaceMember = MemberResponse;
 
 
 
@@ -232,38 +208,44 @@ export class ApiService {
         accessTokenLength: this.accessToken?.length || 0
       });
 
-      // Se temos tokens, inicializar dados básicos (uma única vez)
-      if (this.accessToken && !this.hasInitializedUserData && !this.isInitializingUserData) {
-        this.initializeUserData();
-      }
+      // Temporariamente desabilitado para evitar erros na inicialização
+      // TODO: Reabilitar após correção dos endpoints de workspace
+      // if (this.accessToken && !this.hasInitializedUserData && !this.isInitializingUserData) {
+      //   this.initializeUserData();
+      // }
     }
   }
 
   /**
-   * Inicializa dados básicos do usuário após login
-   * REGRA CRÍTICA: Só pode criar um workspace individual por usuário!
+   * Inicializa dados do usuário após login
+   * Carrega workspaces e cria workspace padrão se necessário
+   * REGRA DE NEGÓCIO: Todo usuário deve ter pelo menos um workspace
    */
   async initializeUserData() {
-    // Evitar múltiplas execuções
-    if (this.hasInitializedUserData || this.isInitializingUserData) {
-      console.log('⚠️ initializeUserData já executado ou em execução, ignorando...');
+    if (this.isInitializingUserData || this.hasInitializedUserData) {
+      console.log('⚠️ InitializeUserData já está em andamento ou foi concluído');
       return;
     }
-
+    
     this.isInitializingUserData = true;
-
+    
     try {
-      console.log('🔄 Inicializando dados do usuário...');
+      console.log('🚀 Inicializando dados do usuário...');
       
-      // Verificar se o usuário tem workspaces
+      // Verificar se o usuário está autenticado
+      if (!this.isAuthenticated()) {
+        console.log('❌ Usuário não autenticado, cancelando inicialização');
+        return;
+      }
+      
+      // Carregar workspaces existentes
       const workspaces = await this.getWorkspaces();
-      console.log('📋 Workspaces encontrados:', workspaces.length);
+      console.log('📋 Workspaces carregados:', workspaces.length);
       
-      // REGRA DE NEGÓCIO: Só criar workspace se não existir NENHUM
+      // Se não há workspaces, criar workspace individual obrigatório
       if (workspaces.length === 0) {
-        console.log('🏗️ Usuário sem workspace - criando workspace individual obrigatório...');
+        console.log('🏗️ Nenhum workspace encontrado, criando workspace individual...');
         
-        // Verificar se o usuário tem permissão (com base no plano)
         const user = await this.getCurrentUser();
         if (user) {
           const defaultWorkspace = await this.createDefaultWorkspace();
@@ -282,7 +264,26 @@ export class ApiService {
       
       this.hasInitializedUserData = true;
     } catch (error) {
-      console.error('❌ Erro ao inicializar dados do usuário:', error);
+      const initErrorDetails = {
+        message: error instanceof Error ? error.message : String(error),
+        name: error instanceof Error ? error.name : 'Unknown',
+        status: (error as any)?.status || 'No status',
+        data: (error as any)?.data || 'No data',
+        stack: error instanceof Error ? error.stack : 'No stack trace'
+      };
+      console.error('❌ Erro ao inicializar dados do usuário:');
+      console.error(JSON.stringify(initErrorDetails, null, 2));
+      
+      // Verificar tipos específicos de erro
+      if (error instanceof Error) {
+        if (error.message.includes('Failed to fetch') || error.message.includes('conectar ao servidor')) {
+          console.error('🌐 Problema de conectividade detectado durante inicialização');
+        } else if ((error as any)?.status === 401) {
+          console.error('🔐 Erro de autenticação durante inicialização - token pode estar inválido');
+        } else if ((error as any)?.status === 403) {
+          console.error('🚫 Acesso negado durante inicialização');
+        }
+      }
     } finally {
       this.isInitializingUserData = false;
     }
@@ -308,7 +309,7 @@ export class ApiService {
       // Definir configurações baseadas no plano do usuário
       const planLimits = this.getPlanLimits(user.subscription_plan);
       
-      const workspace = await this.createWorkspace({
+      const workspaceData: WorkspaceCreate = {
         name: workspaceName,
         description: 'Workspace individual criado automaticamente',
         is_public: false,
@@ -321,8 +322,12 @@ export class ApiService {
         enable_comments: true,
         enable_chat: true,
         enable_video_calls: planLimits.enableVideoCalls,
-        color: '#3B82F6'
-      });
+        color: '#3B82F6',
+        type: 'individual',
+        plan_id: null
+      };
+
+      const workspace = await this.createWorkspace(workspaceData);
       
       console.log('✅ Workspace individual criado com sucesso:', {
         name: workspace.name,
@@ -422,6 +427,7 @@ export class ApiService {
       endpoint,
       fullUrl: url,
       hasToken: !!this.accessToken,
+      tokenPrefix: this.accessToken?.substring(0, 20) + '...',
       environment: process.env.NEXT_PUBLIC_APP_ENV,
       apiFromEnv: process.env.NEXT_PUBLIC_API_URL
     });
@@ -434,6 +440,15 @@ export class ApiService {
         ...(fetchOptions.headers as any),
       },
       ...fetchOptions,
+    }
+
+    // Garantir que o token esteja carregado do localStorage se não estiver em memória
+    if (!this.accessToken && !skipAuth && typeof window !== 'undefined') {
+      const storedToken = localStorage.getItem('synapsefrontend_auth_token');
+      if (storedToken) {
+        console.log('🔄 API Request: Carregando token do localStorage');
+        this.accessToken = storedToken;
+      }
     }
 
     // Adicionar token de autorização se disponível e não for request sem auth
@@ -450,7 +465,9 @@ export class ApiService {
         method: config.method || 'GET',
         headers: config.headers,
         body: config.body,
-        hasToken: !!this.accessToken
+        hasToken: !!this.accessToken,
+        isWorkspaceEndpoint: url.includes('/workspaces'),
+        isAuthEndpoint: url.includes('/auth')
       });
       
       const response = await fetch(url, config);
@@ -476,29 +493,46 @@ export class ApiService {
         }
       }
 
-            if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
+      if (!response.ok) {
+        let errorData: any = {};
+        let responseText = '';
+        
+        try {
+          responseText = await response.text();
+          if (responseText) {
+            errorData = JSON.parse(responseText);
+          }
+        } catch (parseError) {
+          console.warn('Failed to parse error response as JSON:', parseError);
+          errorData = { message: responseText || 'Unknown error' };
+        }
 
-        console.error('🚨 API Response Error:', {
+        const apiErrorDetails = {
           url,
           status: response.status,
           statusText: response.statusText,
           errorData,
+          responseText,
           responseHeaders: Object.fromEntries(response.headers.entries()),
           requestHeaders: config.headers,
           requestBody: config.body
+        };
+        console.warn('🚨 API Response Error:', {
+          url,
+          status: response.status,
+          statusText: response.statusText,
+          errorMessage: errorData?.detail || errorData?.message || 'Unknown error'
         });
 
         // Cria erro com código de status para permitir tratamento específico (ex.: 422)
-        const err: Error & { status?: number; data?: any } = new Error(
-          errorData.detail || errorData.message || `HTTP ${response.status}: ${response.statusText}`
-        )
-        err.status = response.status
-        err.data = errorData
-        throw err
+        const errorMessage = errorData?.detail || errorData?.message || `HTTP ${response.status}: ${response.statusText}`;
+        const err: Error & { status?: number; data?: any } = new Error(errorMessage);
+        err.status = response.status;
+        err.data = errorData;
+        throw err;
       }
 
-            // Verificar se a resposta tem conteúdo JSON válido
+      // Verificar se a resposta tem conteúdo JSON válido
       const contentType = response.headers.get('content-type');
       if (contentType && contentType.includes('application/json')) {
         const text = await response.text();
@@ -508,27 +542,51 @@ export class ApiService {
           console.error('JSON parse error:', parseError, 'Response text:', text);
           throw new Error(`Invalid JSON response: ${text}`);
         }
-             } else {
-         // Se não for JSON, retornar texto ou resposta vazia
-         const text = await response.text();
-         return (text || {}) as T;
-       }
+      } else {
+        // Se não for JSON, retornar texto ou resposta vazia
+        const text = await response.text();
+        return (text || {}) as T;
+      }
     } catch (error) {
-      console.error('🚨 API request failed:', {
+      // Melhor tratamento de erro com informações mais detalhadas
+      const errorInfo = {
         url,
-        error: error instanceof Error ? error.message : error,
-        stack: error instanceof Error ? error.stack : undefined,
         baseURL: this.baseURL,
         endpoint,
-        config: {
-          method: config.method,
-          headers: config.headers
+        method: config.method || 'GET',
+        hasToken: !!this.accessToken,
+        error: {
+          name: error instanceof Error ? error.name : 'Unknown',
+          message: error instanceof Error ? error.message : String(error),
+          stack: error instanceof Error ? error.stack : undefined,
+          status: (error as any)?.status,
+          data: (error as any)?.data
         }
+      };
+
+      console.warn('🚨 API request failed:', {
+        url,
+        method: config.method || 'GET',
+        errorName: error instanceof Error ? error.name : 'Unknown',
+        errorMessage: error instanceof Error ? error.message : String(error),
+        status: (error as any)?.status
       });
       
       // Melhores mensagens de erro para usuário
       if (error instanceof TypeError && error.message.includes('Failed to fetch')) {
-        throw new Error(`Não foi possível conectar ao servidor. Verifique se o backend está rodando em ${this.baseURL}`);
+        const networkError = new Error(`Não foi possível conectar ao servidor. Verifique se o backend está rodando em ${this.baseURL}`);
+        console.error('🚨 Network Error:', networkError.message);
+        throw networkError;
+      }
+
+      // Re-throw o erro original com informações adicionais
+      if (error instanceof Error) {
+        const requestErrorDetails = {
+          message: error.message,
+          status: (error as any).status,
+          data: (error as any).data
+        };
+        console.warn('🚨 Request Error Details:', requestErrorDetails);
       }
       
       throw error;
@@ -779,6 +837,12 @@ export class ApiService {
     });
   }
 
+  async duplicateAgent(id: string): Promise<Agent> {
+    return await this.request<Agent>(`/agents/${id}/duplicate`, {
+      method: 'POST',
+    });
+  }
+
   // Templates
   async getTemplates(params?: {
     search?: string;
@@ -969,13 +1033,24 @@ export class ApiService {
    */
   async healthCheck(): Promise<boolean> {
     try {
-      console.log('🏥 Testando conectividade da API...');
-      await this.request('/health', { skipAuth: true })
-      console.log('✅ API está acessível');
-      return true
+      console.log('🏥 Checking API health...');
+      console.log('🔍 Health check URL:', `${this.baseURL}/health`);
+      
+      const response = await this.request<{ status: string; message?: string }>('/health', { 
+        skipAuth: true,
+        method: 'GET'
+      });
+      
+      console.log('✅ Health check response:', response);
+      return response.status === 'ok' || response.status === 'healthy';
     } catch (error) {
-      console.error('❌ Health check failed:', error)
-      return false
+      console.error('❌ Health check failed:', {
+        message: error instanceof Error ? error.message : String(error),
+        status: (error as any)?.status || 'No status',
+        baseURL: this.baseURL,
+        fullUrl: `${this.baseURL}/health`
+      });
+      return false;
     }
   }
 
@@ -1062,10 +1137,11 @@ export class ApiService {
       hasRefreshToken: !!this.refreshToken
     });
 
-    // Inicializar dados do usuário após sincronização (uma única vez)
-    if (!this.hasInitializedUserData && !this.isInitializingUserData) {
-      this.initializeUserData();
-    }
+    // Temporariamente desabilitado para evitar erros na inicialização
+    // TODO: Reabilitar após correção dos endpoints de workspace
+    // if (!this.hasInitializedUserData && !this.isInitializingUserData) {
+    //   this.initializeUserData();
+    // }
   }
 
   /**
@@ -1120,70 +1196,109 @@ export class ApiService {
     return this.request<T>(endpoint, { method: 'DELETE', ...options })
   }
 
-  // Workspace Management
-  async getWorkspaces(): Promise<Workspace[]> {
+  // Workspace Management - Endpoints da API Oficial
+  async getWorkspaces(params?: WorkspaceSearchParams): Promise<Workspace[]> {
     try {
       console.log('🔍 DEBUG ApiService.getWorkspaces - Iniciando requisição...')
       console.log('🔍 DEBUG ApiService.getWorkspaces - Token disponível:', !!this.accessToken)
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Token value:', this.accessToken?.substring(0, 20) + '...')
       console.log('🔍 DEBUG ApiService.getWorkspaces - Base URL:', this.baseURL)
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Authenticated:', this.isAuthenticated())
       
-      const result = await this.get<Workspace[]>('/workspaces/');
+      // Verificar se o usuário está autenticado
+      if (!this.isAuthenticated()) {
+        console.log('🔍 DEBUG ApiService.getWorkspaces - Usuário não autenticado, retornando array vazio')
+        return [];
+      }
+      
+      const queryParams = new URLSearchParams();
+      
+      // Usar os parâmetros corretos conforme a API spec
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      
+      // Endpoint correto conforme OpenAPI spec
+      const endpoint = `/workspaces/${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      console.log('🔍 DEBUG ApiService.getWorkspaces - Endpoint final:', endpoint)
+      console.log('🔍 DEBUG ApiService.getWorkspaces - URL completa:', this.baseURL + endpoint)
+      
+      const result = await this.get<Workspace[]>(endpoint);
       
       console.log('🔍 DEBUG ApiService.getWorkspaces - Resultado:', {
         count: result?.length || 0,
         workspaces: result
       })
       
-      return result;
+      return result || [];
     } catch (error: any) {
-      console.error('❌ Error fetching workspaces:', error);
-      console.log('🔍 DEBUG ApiService.getWorkspaces - Erro detalhado:', {
-        message: error?.message,
-        status: error?.status,
-        data: error?.data
-      })
+      const workspaceErrorDetails = {
+        message: error?.message || 'Unknown error',
+        status: error?.status || 'No status',
+        data: error?.data || 'No data',
+        name: error?.name || 'Unknown error type',
+        stack: error?.stack || 'No stack trace'
+      };
+      console.warn('⚠️ Error fetching workspaces:', workspaceErrorDetails);
+      
+      // Verificar se é erro de conectividade
+      if (error?.message?.includes('Failed to fetch') || error?.message?.includes('conectar ao servidor')) {
+        console.warn('🌐 Connectivity issue detected - backend may be down');
+      }
+      
+      // Verificar se é erro de autenticação
+      if (error?.status === 401) {
+        console.warn('🔐 Authentication error - token may be invalid');
+      }
+      
       return [];
     }
   }
 
-  async createWorkspace(workspace: Omit<Workspace, 'id' | 'created_at' | 'updated_at' | 'owner_id' | 'owner_name' | 'slug' | 'member_count' | 'project_count' | 'activity_count' | 'storage_used_mb' | 'status' | 'last_activity_at'>): Promise<Workspace> {
-    return await this.post<Workspace>('/workspaces/', {
-      name: workspace.name,
-      description: workspace.description || null,
-      avatar_url: workspace.avatar_url || null,
-      color: workspace.color || '#3B82F6',
-      is_public: workspace.is_public || false,
-      allow_guest_access: workspace.allow_guest_access || false,
-      require_approval: workspace.require_approval !== false,
-      max_members: workspace.max_members || 10,
-      max_projects: workspace.max_projects || 50,
-      max_storage_mb: workspace.max_storage_mb || 1000,
-      enable_real_time_editing: workspace.enable_real_time_editing !== false,
-      enable_comments: workspace.enable_comments !== false,
-      enable_chat: workspace.enable_chat !== false,
-      enable_video_calls: workspace.enable_video_calls || false,
-      notification_settings: workspace.notification_settings || null
-    });
+  async searchWorkspaces(params: WorkspaceSearchParams): Promise<Workspace[]> {
+    return this.getWorkspaces(params);
   }
 
-  async updateWorkspace(id: string, updates: Partial<Workspace>): Promise<Workspace> {
-    return await this.put<Workspace>(`/workspaces/${id}`, {
-      name: updates.name || null,
-      description: updates.description || null,
-      avatar_url: updates.avatar_url || null,
-      color: updates.color || null,
-      is_public: updates.is_public !== undefined ? updates.is_public : null,
-      allow_guest_access: updates.allow_guest_access !== undefined ? updates.allow_guest_access : null,
-      require_approval: updates.require_approval !== undefined ? updates.require_approval : null,
-      max_members: updates.max_members || null,
-      max_projects: updates.max_projects || null,
-      max_storage_mb: updates.max_storage_mb || null,
-      enable_real_time_editing: updates.enable_real_time_editing !== undefined ? updates.enable_real_time_editing : null,
-      enable_comments: updates.enable_comments !== undefined ? updates.enable_comments : null,
-      enable_chat: updates.enable_chat !== undefined ? updates.enable_chat : null,
-      enable_video_calls: updates.enable_video_calls !== undefined ? updates.enable_video_calls : null,
-      notification_settings: updates.notification_settings || null
-    });
+  async getWorkspaceCreationRules(): Promise<WorkspaceCreationRules> {
+    try {
+      return await this.get<WorkspaceCreationRules>('/workspaces/creation-rules');
+    } catch (error) {
+      console.warn('⚠️ Erro ao buscar regras de criação de workspace:', error);
+      
+      // Return default rules if API fails
+      const defaultRules: WorkspaceCreationRules = {
+        can_create: true,
+        max_workspaces: null,
+        current_workspaces: 0,
+        max_members_per_workspace: null,
+        max_projects_per_workspace: null,
+        max_storage_per_workspace_mb: null,
+        features: {
+          public_workspaces: true,
+          guest_access: true,
+          real_time_editing: true,
+          video_calls: false,
+          integrations: true,
+          custom_branding: false,
+        },
+        plan_name: 'Free',
+        plan_type: 'free'
+      };
+      
+      // If it's a 404 error, it means the endpoint doesn't exist yet
+      if ((error as any)?.status === 404) {
+        console.warn('⚠️ Endpoint /workspaces/creation-rules não encontrado. Usando regras padrão.');
+      }
+      
+      return defaultRules;
+    }
+  }
+
+  async createWorkspace(workspace: WorkspaceCreate): Promise<Workspace> {
+    return await this.post<Workspace>('/workspaces/', workspace);
+  }
+
+  async updateWorkspace(id: string, updates: WorkspaceUpdate): Promise<Workspace> {
+    return await this.put<Workspace>(`/workspaces/${id}`, updates);
   }
 
   async deleteWorkspace(id: string): Promise<void> {
@@ -1192,26 +1307,36 @@ export class ApiService {
 
   async getWorkspaceMembers(workspaceId: string | number): Promise<WorkspaceMember[]> {
     try {
-      return await this.get<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`);
+      console.log('🔍 DEBUG getWorkspaceMembers - Buscando membros para workspace:', workspaceId);
+      const members = await this.get<WorkspaceMember[]>(`/workspaces/${workspaceId}/members`);
+      console.log('✅ DEBUG getWorkspaceMembers - Membros encontrados:', members?.length || 0);
+      return members || [];
     } catch (error) {
-      console.error('Error fetching workspace members:', error);
+      console.warn('⚠️ Error fetching workspace members:', error);
       return [];
     }
   }
 
-  async inviteWorkspaceMember(workspaceId: string | number, invitation: { email: string; role?: 'owner' | 'admin' | 'member' | 'guest'; message?: string }): Promise<void> {
-    await this.post(`/workspaces/${workspaceId}/invite`, {
-      email: invitation.email,
-      role: invitation.role || 'member',
-      message: invitation.message || null
-    });
+  async inviteWorkspaceMember(workspaceId: string | number, invitation: MemberInvite): Promise<void> {
+    await this.post(`/workspaces/${workspaceId}/members/invite`, invitation);
+  }
+
+  async updateWorkspaceMemberRole(workspaceId: string | number, memberId: number, role: string): Promise<void> {
+    await this.put(`/workspaces/${workspaceId}/members/${memberId}/role`, { role });
+  }
+
+  async removeWorkspaceMember(workspaceId: string | number, memberId: number): Promise<void> {
+    await this.delete(`/workspaces/${workspaceId}/members/${memberId}`);
   }
 
   async getWorkspaceStats(workspaceId: string | number): Promise<WorkspaceStats> {
     try {
-      return await this.get<WorkspaceStats>(`/workspaces/${workspaceId}/stats`);
+      console.log('🔍 DEBUG getWorkspaceStats - Buscando estatísticas para workspace:', workspaceId);
+      const stats = await this.get<WorkspaceStats>(`/workspaces/${workspaceId}/stats`);
+      console.log('✅ DEBUG getWorkspaceStats - Estatísticas encontradas:', stats);
+      return stats;
     } catch (error) {
-      console.error('Error fetching workspace stats:', error);
+      console.warn('⚠️ Error fetching workspace stats:', error);
       return {
         member_count: 0,
         project_count: 0,
@@ -1222,6 +1347,148 @@ export class ApiService {
         recent_activity_count: 0,
         active_projects: 0
       };
+    }
+  }
+
+  async getWorkspaceActivities(workspaceId: string | number, params?: { limit?: number; offset?: number }): Promise<ActivityResponse[]> {
+    try {
+      const queryParams = new URLSearchParams();
+      if (params?.limit) queryParams.append('limit', params.limit.toString());
+      if (params?.offset) queryParams.append('offset', params.offset.toString());
+      
+      const endpoint = `/workspaces/${workspaceId}/activities${queryParams.toString() ? '?' + queryParams.toString() : ''}`;
+      return await this.get<ActivityResponse[]>(endpoint);
+    } catch (error) {
+      console.warn('⚠️ Error fetching workspace activities:', error);
+      return [];
+    }
+  }
+
+  async getWorkspaceIntegrations(workspaceId: string | number): Promise<IntegrationResponse[]> {
+    try {
+      return await this.get<IntegrationResponse[]>(`/workspaces/${workspaceId}/integrations`);
+    } catch (error) {
+      console.warn('⚠️ Error fetching workspace integrations:', error);
+      return [];
+    }
+  }
+
+  async bulkOperationMembers(workspaceId: string | number, operation: BulkMemberOperation): Promise<BulkOperationResponse> {
+    return await this.post<BulkOperationResponse>(`/workspaces/${workspaceId}/members/bulk`, operation);
+  }
+
+  async bulkOperationProjects(workspaceId: string | number, operation: BulkProjectOperation): Promise<BulkOperationResponse> {
+    return await this.post<BulkOperationResponse>(`/workspaces/${workspaceId}/projects/bulk`, operation);
+  }
+
+  /**
+   * Busca estatísticas agregadas de todos os workspaces do usuário
+   */
+  async getTeamStats(): Promise<{ 
+    total_workspaces: number; 
+    total_members: number; 
+    total_storage_mb: number; 
+    active_workspaces: number 
+  }> {
+    try {
+      console.log('🔍 DEBUG getTeamStats - Buscando estatísticas da equipe...');
+      
+      const workspaces = await this.getWorkspaces();
+      console.log('🔍 DEBUG getTeamStats - Workspaces encontrados:', workspaces.length);
+      
+      let totalMembers = 0;
+      let totalStorageMb = 0;
+      let activeWorkspaces = 0;
+      
+      // Buscar estatísticas de cada workspace
+      for (const workspace of workspaces) {
+        try {
+          const stats = await this.getWorkspaceStats(workspace.id);
+          totalMembers += stats.member_count;
+          totalStorageMb += stats.storage_used_mb;
+          if (workspace.status === 'active') activeWorkspaces++;
+        } catch (error) {
+          console.warn(`⚠️ Erro ao buscar stats do workspace ${workspace.id}:`, error);
+        }
+      }
+      
+      const teamStats = {
+        total_workspaces: workspaces.length,
+        total_members: totalMembers,
+        total_storage_mb: totalStorageMb,
+        active_workspaces: activeWorkspaces
+      };
+      
+      console.log('✅ DEBUG getTeamStats - Estatísticas agregadas:', teamStats);
+      return teamStats;
+    } catch (error) {
+      console.warn('⚠️ Error fetching team stats:', error);
+      throw error; // NÃO retornar dados fake, deixar o erro subir
+    }
+  }
+
+  /**
+   * Busca estatísticas de execução do usuário (API oficial)
+   */
+  async getExecutionStats(): Promise<any> {
+    try {
+      console.log('🔍 DEBUG getExecutionStats - Buscando estatísticas de execução...');
+      const stats = await this.get('/executions/stats');
+      console.log('✅ DEBUG getExecutionStats - Estatísticas encontradas:', stats);
+      return stats;
+    } catch (error) {
+      console.warn('⚠️ Error fetching execution stats:', error);
+      throw error; // NÃO retornar dados fake
+    }
+  }
+
+  /**
+   * Busca estatísticas de variáveis do usuário (API oficial)
+   */
+  async getUserVariableStats(): Promise<any> {
+    try {
+      console.log('🔍 DEBUG getUserVariableStats - Buscando estatísticas de variáveis...');
+      const stats = await this.get('/user-variables/stats/summary');
+      console.log('✅ DEBUG getUserVariableStats - Estatísticas encontradas:', stats);
+      return stats;
+    } catch (error) {
+      console.warn('⚠️ Error fetching user variable stats:', error);
+      throw error; // NÃO retornar dados fake
+    }
+  }
+
+  /**
+   * Busca visão geral de analytics (API oficial)
+   */
+  async getAnalyticsOverview(): Promise<any> {
+    try {
+      console.log('🔍 DEBUG getAnalyticsOverview - Buscando visão geral de analytics...');
+      const overview = await this.get('/analytics/overview');
+      console.log('✅ DEBUG getAnalyticsOverview - Visão geral encontrada:', overview);
+      return overview;
+    } catch (error) {
+      console.warn('⚠️ Error fetching analytics overview:', error);
+      throw error; // NÃO retornar dados fake
+    }
+  }
+
+  /**
+   * Busca métricas de comportamento do usuário (API oficial)
+   */
+  async getUserBehaviorMetrics(startDate: string, endDate: string, granularity: string = 'day'): Promise<any> {
+    try {
+      console.log('🔍 DEBUG getUserBehaviorMetrics - Buscando métricas de comportamento...');
+      const params = new URLSearchParams({
+        start_date: startDate,
+        end_date: endDate,
+        granularity: granularity
+      });
+      const metrics = await this.get(`/analytics/metrics/user-behavior?${params}`);
+      console.log('✅ DEBUG getUserBehaviorMetrics - Métricas encontradas:', metrics);
+      return metrics;
+    } catch (error) {
+      console.warn('⚠️ Error fetching user behavior metrics:', error);
+      throw error; // NÃO retornar dados fake
     }
   }
 
@@ -1255,10 +1522,115 @@ export class ApiService {
       }
     })
   }
+
+  /**
+   * Método de debug para testar conectividade e configurações da API
+   * Pode ser chamado no console do browser: apiService.debugApi()
+   */
+  async debugApi(): Promise<void> {
+    console.log('🔧 === API DEBUG INFORMATION ===');
+    console.log('🔍 Base URL:', this.baseURL);
+    console.log('🔍 Environment:', process.env.NEXT_PUBLIC_APP_ENV);
+    console.log('🔍 API URL from env:', process.env.NEXT_PUBLIC_API_URL);
+    console.log('🔍 WS URL from env:', process.env.NEXT_PUBLIC_WS_URL);
+    console.log('🔍 Has access token:', !!this.accessToken);
+    console.log('🔍 Is authenticated:', this.isAuthenticated());
+    
+    if (this.accessToken) {
+      console.log('🔍 Token preview:', this.accessToken.substring(0, 20) + '...');
+    }
+    
+    // Test health endpoint
+    console.log('\n🏥 Testing health endpoint...');
+    const healthStatus = await this.healthCheck();
+    console.log('🏥 Health status:', healthStatus ? '✅ OK' : '❌ FAILED');
+    
+    // Test authentication endpoint if token exists
+    if (this.isAuthenticated()) {
+      console.log('\n👤 Testing authentication...');
+      try {
+        const user = await this.getCurrentUser();
+        console.log('👤 Current user:', user);
+      } catch (error) {
+        console.error('👤 Auth test failed:', error);
+      }
+    }
+    
+    // Test workspaces endpoint if authenticated
+    if (this.isAuthenticated()) {
+      console.log('\n🏢 Testing workspaces endpoint...');
+      try {
+        const workspaces = await this.getWorkspaces();
+        console.log('🏢 Workspaces:', workspaces);
+      } catch (error) {
+        console.error('🏢 Workspaces test failed:', error);
+      }
+    }
+    
+    console.log('🔧 === END DEBUG INFORMATION ===');
+  }
+
+  /**
+   * Método de teste para debug de serialização de erro
+   * Para testar: apiService.testErrorHandling()
+   */
+  async testErrorHandling(): Promise<void> {
+    console.log('🧪 Testing error handling...');
+    
+    try {
+      // Teste 1: Criar um erro simples
+      const simpleError = new Error('Test error message');
+      console.log('🧪 Simple error:', simpleError);
+      console.log('🧪 Simple error message:', simpleError.message);
+      console.log('🧪 Simple error name:', simpleError.name);
+      
+      // Teste 2: Criar um erro com propriedades extras
+      const enhancedError = new Error('Enhanced test error') as any;
+      enhancedError.status = 500;
+      enhancedError.data = { test: 'data' };
+      console.log('🧪 Enhanced error:', enhancedError);
+      console.log('🧪 Enhanced error message:', enhancedError.message);
+      console.log('🧪 Enhanced error status:', enhancedError.status);
+      console.log('🧪 Enhanced error data:', enhancedError.data);
+      
+      // Teste 3: Simular erro de fetch
+      console.log('🧪 Testing fetch to invalid URL...');
+      await fetch('http://invalid-url-that-should-fail.local');
+      
+    } catch (error) {
+      // Log do erro capturado
+      console.log('🧪 Caught error type:', typeof error);
+      console.log('🧪 Caught error instanceof Error:', error instanceof Error);
+      console.log('🧪 Caught error:', error);
+      
+      if (error instanceof Error) {
+        console.log('🧪 Error message:', error.message);
+        console.log('🧪 Error name:', error.name);
+        console.log('🧪 Error stack:', error.stack);
+      }
+      
+      // Teste de serialização manual
+      const errorInfo = {
+        name: error instanceof Error ? error.name : 'Unknown',
+        message: error instanceof Error ? error.message : String(error),
+        stack: error instanceof Error ? error.stack : undefined,
+        status: (error as any)?.status,
+        data: (error as any)?.data
+      };
+      console.log('🧪 Manual error serialization:', errorInfo);
+    }
+  }
 }
 
 // Instância global do serviço
 export const apiService = new ApiService();
+
+// Adicionar ao objeto global para debug no console do browser
+if (typeof window !== 'undefined') {
+  (window as any).apiService = apiService;
+  console.log('🔧 ApiService disponível no console como: window.apiService');
+  console.log('🔧 Para debug, use: apiService.debugApi()');
+}
 
 // WebSocket Service
 export class WebSocketService {

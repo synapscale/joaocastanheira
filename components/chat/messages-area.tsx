@@ -6,6 +6,7 @@ import ChatMessage from "./chat-message"
 import type { Message } from "@/types/chat"
 import { Loader } from "lucide-react"
 import { cn } from "@/lib/utils"
+import { TypingIndicator } from "./typing-indicator"
 
 interface MessagesAreaProps {
   messages: Message[]
@@ -16,6 +17,7 @@ interface MessagesAreaProps {
   theme: string
   chatBackground?: string | React.ReactNode
   messagesEndRef: RefObject<HTMLDivElement>
+  showTypingIndicator?: boolean
 }
 
 export function MessagesArea({
@@ -27,6 +29,7 @@ export function MessagesArea({
   theme,
   chatBackground,
   messagesEndRef,
+  showTypingIndicator = false,
 }: MessagesAreaProps) {
   return (
     <div 
@@ -38,14 +41,14 @@ export function MessagesArea({
         backgroundImage: typeof chatBackground === "string" ? chatBackground : undefined,
       }}
     >
-      {/* Messages container with improved spacing and transitions */}
-      <div className="space-y-6 pb-2">
+      {/* Messages container with refined spacing */}
+      <div className="space-y-4 pb-2">
         {messages.map((message, index) => (
           <div 
             key={message.id} 
             className={cn(
-              "transition-all duration-200 ease-in-out",
-              index === messages.length - 1 ? "animate-fade-in" : ""
+              "transition-opacity duration-150 ease-out",
+              index === messages.length - 1 ? "animate-message-slide-up" : ""
             )}
           >
             <ChatMessage
@@ -59,23 +62,8 @@ export function MessagesArea({
         ))}
       </div>
 
-      {/* Enhanced loading indicator */}
-      {isLoading && (
-        <div className="flex items-center mt-4 mb-2">
-          <div className={cn(
-            "bg-background rounded-lg p-3 shadow-sm border border-border",
-            "transition-all duration-300 ease-in-out animate-fade-in"
-          )}>
-            <div className="flex items-center space-x-3">
-              <div className="relative flex items-center justify-center">
-                <div className="h-5 w-5 rounded-full border-2 border-orange-500/30 dark:border-orange-400/30 animate-ping absolute" />
-                <div className="h-5 w-5 rounded-full border-2 border-t-transparent border-orange-500 dark:border-orange-400 animate-spin" />
-              </div>
-              <span className="text-sm text-foreground/80 font-medium">Gerando resposta...</span>
-            </div>
-          </div>
-        </div>
-      )}
+      {/* Indicador de digitação moderno */}
+      <TypingIndicator isVisible={showTypingIndicator} />
 
       {/* Anchor for auto-scrolling */}
       <div ref={messagesEndRef} className="h-0.5" />

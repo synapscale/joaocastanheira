@@ -84,10 +84,13 @@ function isAuthenticated(request: NextRequest): boolean {
   if (tokenFromCookie) {
     try {
       // Verificar se o token não está expirado
-      const payload = JSON.parse(atob(tokenFromCookie.split('.')[1]))
+      const base64Payload = tokenFromCookie.split('.')[1]
+      if (!base64Payload) throw new Error('Invalid token format')
+      
+      const payload = JSON.parse(atob(base64Payload))
       const currentTime = Math.floor(Date.now() / 1000)
       
-      const isValid = payload.exp > currentTime
+      const isValid = payload?.exp && payload.exp > currentTime
       
       if (appConfig.isDevelopment) {
         console.log('Middleware - Token do cookie:', { 
@@ -113,10 +116,13 @@ function isAuthenticated(request: NextRequest): boolean {
   if (authHeader?.startsWith('Bearer ')) {
     const tokenFromHeader = authHeader.substring(7)
     try {
-      const payload = JSON.parse(atob(tokenFromHeader.split('.')[1]))
+      const base64Payload = tokenFromHeader.split('.')[1]
+      if (!base64Payload) throw new Error('Invalid token format')
+      
+      const payload = JSON.parse(atob(base64Payload))
       const currentTime = Math.floor(Date.now() / 1000)
       
-      const isValid = payload.exp > currentTime
+      const isValid = payload?.exp && payload.exp > currentTime
       
       if (appConfig.isDevelopment) {
         console.log('Middleware - Token do header:', { 

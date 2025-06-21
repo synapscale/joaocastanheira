@@ -391,14 +391,15 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       // Opcional: mostrar notificação de sucesso em vez de alert
       alert(`Workflow "${workflowName}" salvo com sucesso!`)
     } catch (error) {
-      console.error("Erro ao salvar workflow:", error)
+              console.warn("⚠️ Erro ao salvar workflow:", error)
       alert(`Erro ao salvar workflow: ${error instanceof Error ? error.message : String(error)}`)
     }
   }, [nodes, connections, workflowName])
 
-  // Memoize the context value to prevent unnecessary re-renders
+  // Memoize only the most frequently changing values to reduce unnecessary re-renders
   const value = useMemo(
     () => ({
+      // State values
       nodes,
       connections,
       selectedNode,
@@ -410,6 +411,10 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       canvasContextMenuInfo,
       connectionContextMenuInfo,
       connectionPreview,
+      workflowName,
+      isActive,
+      
+      // Functions (these are stable with useCallback)
       addNode,
       updateNode,
       updateNodePosition,
@@ -435,13 +440,12 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       setCanvasContextMenuInfo,
       setConnectionContextMenuInfo,
       setConnectionPreview,
-      workflowName,
       setWorkflowName,
-      isActive,
       setIsActive,
       saveWorkflow,
     }),
     [
+      // Only include state values that actually change
       nodes,
       connections,
       selectedNode,
@@ -453,36 +457,9 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
       canvasContextMenuInfo,
       connectionContextMenuInfo,
       connectionPreview,
-      addNode,
-      updateNode,
-      updateNodePosition,
-      removeNode,
-      duplicateNode,
-      lockNode,
-      unlockNode,
-      toggleNodeDisabled,
-      executeNode,
-      alignNodes,
-      addConnection,
-      removeConnection,
-      updateConnectionType,
-      updateConnectionLabel,
-      addNodeBetweenConnections,
-      updateConnection,
-      setSelectedNode,
-      setSelectedNodes,
-      setZoom,
-      setPanOffset,
-      setShowGrid,
-      setContextMenuInfo,
-      setCanvasContextMenuInfo,
-      setConnectionContextMenuInfo,
-      setConnectionPreview,
       workflowName,
-      setWorkflowName,
       isActive,
-      setIsActive,
-      saveWorkflow,
+      // Functions are stable with useCallback, no need to include them in deps
     ],
   )
 

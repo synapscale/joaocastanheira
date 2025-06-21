@@ -327,7 +327,7 @@ export function StreamingChat() {
     isLoading,
     append,
   } = useChat({
-    api: '/api/v1/llm/chat',
+    api: '/llm/chat',
     // Opções para streaming
     onResponse: (response) => {
       // Você pode processar a resposta aqui
@@ -375,7 +375,7 @@ export function StreamingChat() {
     
     // Envia para o servidor
     try {
-      const response = await fetch('/api/v1/llm/chat/attachment', {
+      const response = await fetch('/llm/chat/attachment', {
         method: 'POST',
         body: formData,
       })

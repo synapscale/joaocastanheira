@@ -69,6 +69,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const [status, setStatus] = useState<Status>("idle")
   const [uploadedFiles, setUploadedFiles] = useState<File[]>([])
   const [showConfig, setShowConfig] = useState(showConfigByDefault)
+  const [processingStatus, setProcessingStatus] = useState<'idle' | 'sending' | 'processing' | 'completed' | 'error'>('idle')
   const [isHistorySidebarOpen, setIsHistorySidebarOpen] = useState(false)
   const [isChatSettingsOpen, setIsChatSettingsOpen] = useState(false)
   const [showTutorial, setShowTutorial] = useState(false)
@@ -94,19 +95,17 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
   const {
     conversations = [],
     currentConversationId,
+    currentConversation,
+    messages: conversationMessages = [],
     isLoading: conversationsLoading = false,
     createConversation,
     updateConversation,
     addMessageToConversation,
     deleteConversation,
     setCurrentConversation,
+    sendMessage: sendConversationMessage,
     getMessages,
   } = conversationsHook || {}
-
-  // Obter conversa atual
-  const currentConversation = useMemo(() => {
-    return conversations.find(conv => conv.id === currentConversationId)
-  }, [conversations, currentConversationId])
 
   const messagesEndRef = useRef<HTMLDivElement>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
@@ -118,44 +117,22 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     [disabled, isLoading],
   )
 
+  // Mensagens da conversa atual ou mensagens locais como fallback
   const safeMessages = useMemo(() => {
-    if (currentConversationId && currentConversation) {
-      return currentConversation.messages || []
+    // Priorizar mensagens do hook de conversas
+    if (conversationMessages.length > 0) {
+      return conversationMessages
     }
-    if (currentConversationId && getMessages) {
-      return getMessages(currentConversationId) || []
+    // Fallback para conversa atual se disponível
+    if (currentConversation?.messages) {
+      return currentConversation.messages
     }
+    // Último fallback para mensagens locais
     return localMessages
-  }, [currentConversation?.messages, currentConversationId, getMessages, localMessages])
+  }, [conversationMessages, currentConversation?.messages, localMessages])
 
-  useEffect(() => {
-    // Desabilitar sincronização com API para conversas
-    if (conversationsHook?.setSyncWithAPI) {
-      conversationsHook.setSyncWithAPI(false)
-    }
-    
-    if (!conversationsLoading && !currentConversationId && conversations.length === 0 && createConversation && selectedModel) {
-      const newConversation = createConversation({
-        title: "Nova Conversa",
-        settings: {
-          model: selectedModel.id,
-          tool: selectedTool || "tools",
-          personality: selectedPersonality || "natural",
-        }
-      })
-      onConversationCreated?.(newConversation)
-    }
-  }, [
-    conversationsLoading,
-    currentConversationId,
-    conversations.length,
-    createConversation,
-    selectedModel,
-    selectedTool,
-    selectedPersonality,
-    onConversationCreated,
-    conversationsHook,
-  ])
+  // Removido useEffect que criava conversas automaticamente
+  // Conversas agora são criadas apenas quando o usuário envia uma mensagem
 
   useEffect(() => {
     if (enableAutoScroll && messagesEndRef.current) {
@@ -184,129 +161,135 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       )
         return
 
-      // Se não há conversa ativa, criar uma nova
-      if (!currentConversationId && createConversation) {
-        const newConversation = createConversation({
-          title: "Nova Conversa",
-          settings: {
-            model: selectedModel.id,
-            tool: selectedTool || "tools",
-            personality: selectedPersonality || "natural",
-          }
-        })
-        onConversationCreated?.(newConversation)
-      }
-
-      const userMessage: Message = {
-        id: `msg_${Date.now()}`,
-        role: "user",
-        content: message,
-        timestamp: Date.now(),
-        status: "sent",
-      }
-
-      // Adicionar mensagem se a função existir, senão usar estado local
-      if (addMessageToConversation) {
-        addMessageToConversation(userMessage)
-      } else {
-        setLocalMessages(prev => [...prev, userMessage])
-      }
-      
-      setStatus("loading")
-      setIsLoading(true)
-      onMessageSent?.(userMessage)
-
-      // Feedback visual para envio de mensagem
-      toast({
-        title: "Mensagem enviada",
-        description: "Sua mensagem foi enviada e está sendo processada.",
-      })
+              setStatus("loading")
+        setIsLoading(true)
 
       try {
-        // Preparar configurações para a API
-        const settings = {
-          model: selectedModel.id,
-          personality: selectedPersonality || "natural",
-          tool: selectedTool || "tools",
-          temperature: 0.7,
-          maxTokens: 2048,
-        }
-
-        // Preparar mensagens para o chat (formato correto da API)
-        const currentMessages = currentConversation?.messages || localMessages
-        const messages = [
-          ...currentMessages.map(msg => ({
-            role: msg.role,
-            content: msg.content
-          })),
-          { role: "user", content: message }
-        ];
-
-        console.log('🔍 Enviando mensagens para o chat:', {
-          messages,
-          model: selectedModel.id,
-          provider: selectedModel.provider || "openai",
-          hasFiles: uploadedFiles.length > 0
-        });
-
-        // Usar a função sendChatMessage do ai-utils
-        const data = await sendChatMessage(messages, undefined, {
-          model: selectedModel.id,
-          provider: selectedModel.provider || "openai",
-          temperature: 0.7,
-          max_tokens: 2048,
-          files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
-        });
-
-        // Criar mensagem de resposta
-        const assistantMessage: Message = {
-          id: `msg_${Date.now()}_assistant`,
-          role: "assistant",
-          content: data.content || "Desculpe, ocorreu um erro ao processar sua mensagem.",
+        // Adicionar mensagem do usuário IMEDIATAMENTE (sem temporária)
+        const userMessage: Message = {
+          id: `user_${Date.now()}`,
+          role: "user",
+          content: message,
           timestamp: Date.now(),
           status: "sent",
-          model: data.model || selectedModel.id,
-          metadata: {
-            provider: data.provider,
-            usage: data.usage,
-            finish_reason: data.finish_reason,
-            metadata: data.metadata,
-          },
         }
 
-        // Adicionar resposta se a função existir, senão usar estado local
-        if (addMessageToConversation) {
-          addMessageToConversation(assistantMessage)
+        // A mensagem do usuário será adicionada automaticamente pelo hook sendMessage
+        // Não precisamos adicionar manualmente para evitar duplicação
+        
+        // Mostrar indicador de digitação do LLM (lado esquerdo)
+        setProcessingStatus('processing')
+
+        // Usar o novo sistema de conversas integrado
+        if (conversationsHook?.sendMessage) {
+          // Se há conversa ativa, usar sendMessage do hook
+          if (currentConversationId) {
+            const result = await conversationsHook.sendMessage(message, uploadedFiles)
+            
+            // O hook sendMessage já adiciona as mensagens automaticamente
+            // Não precisamos adicionar manualmente para evitar duplicação
+            
+            onMessageSent?.(userMessage)
+            onMessageReceived?.(result.assistantMessage)
+          } else {
+            // Criar nova conversa APENAS quando o usuário enviar uma mensagem
+            // O título é baseado na primeira mensagem do usuário
+            const conversationTitle = message.length > 50 ? message.substring(0, 50) + '...' : message
+            
+            const newConversation = await conversationsHook.createConversation({
+              title: conversationTitle,
+              settings: {
+                model: selectedModel.id,
+                tool: selectedTool || "tools",
+                personality: selectedPersonality || "natural",
+                provider: selectedModel.provider || "openai",
+              }
+            })
+            
+            // Notificar sobre a nova conversa criada
+            if (onConversationCreated) {
+              onConversationCreated(newConversation)
+            }
+            
+            // Enviar a mensagem na conversa recém-criada
+            const result = await conversationsHook.sendMessage(message, uploadedFiles)
+            
+            // O hook sendMessage já adiciona as mensagens automaticamente
+            // Não precisamos adicionar manualmente para evitar duplicação
+            
+            onMessageSent?.(userMessage)
+            onMessageReceived?.(result.assistantMessage)
+          }
         } else {
+          // Fallback para o sistema anterior se o hook não estiver disponível
+          onMessageSent?.(userMessage)
+
+          // Usar a função sendChatMessage do ai-utils como fallback
+          const currentMessages = localMessages
+          const messages = [
+            ...currentMessages.map(msg => ({
+              role: msg.role,
+              content: msg.content
+            })),
+            { role: "user", content: message }
+          ];
+
+          const data = await sendChatMessage(messages, undefined, {
+            model: selectedModel.id,
+            provider: selectedModel.provider || "openai",
+            temperature: 0.7,
+            max_tokens: 2048,
+            files: uploadedFiles.length > 0 ? uploadedFiles : undefined,
+          });
+
+          const assistantMessage: Message = {
+            id: `msg_${Date.now()}_assistant`,
+            role: "assistant",
+            content: data.content || "Desculpe, ocorreu um erro ao processar sua mensagem.",
+            timestamp: Date.now(),
+            status: "sent",
+            model: data.model || selectedModel.id,
+            metadata: {
+              provider: data.provider,
+              usage: data.usage,
+              finish_reason: data.finish_reason,
+              metadata: data.metadata,
+            },
+          }
+
           setLocalMessages(prev => [...prev, assistantMessage])
+          onMessageReceived?.(assistantMessage)
         }
-        onMessageReceived?.(assistantMessage)
 
         // Limpar arquivos enviados
         setUploadedFiles([])
         setStatus("idle")
+        setProcessingStatus('completed')
         
-        // Feedback visual para resposta recebida
-        toast({
-          title: "Resposta recebida",
-          description: "A IA processou sua mensagem com sucesso.",
-        })
+        // Limpar status de forma mais natural
+        setTimeout(() => setProcessingStatus('idle'), 1000)
       } catch (error) {
         console.error("Error sending message:", error)
         setStatus("error")
+        setProcessingStatus('error')
+        
+        // Em caso de erro, a mensagem do usuário já foi enviada e deve permanecer
+        
+        // Limpar status de erro de forma mais rápida
+        setTimeout(() => setProcessingStatus('idle'), 3000)
 
         const errorMessage: Message = {
           id: `msg_${Date.now() + 1}`,
           role: "assistant",
           content: "Desculpe, ocorreu um erro ao processar sua mensagem. Por favor, tente novamente.",
-          model: selectedModel.name,
+          model: selectedModel?.name || "unknown",
           isError: true,
           timestamp: Date.now(),
         }
 
-        // Adicionar mensagem de erro se a função existir, senão usar estado local
-        if (addMessageToConversation) {
-          addMessageToConversation(errorMessage)
+        // Adicionar mensagem de erro
+        if (conversationsHook?.addMessageToConversation) {
+          conversationsHook.addMessageToConversation(errorMessage)
         } else {
           setLocalMessages(prev => [...prev, errorMessage])
         }
@@ -329,9 +312,11 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
       selectedPersonality,
       selectedTool,
       uploadedFiles,
-      addMessageToConversation,
+      conversationsHook,
       onMessageSent,
       onMessageReceived,
+      onConversationCreated,
+      localMessages,
       toast,
     ],
   )
@@ -350,13 +335,9 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
 
     setIsSidebarOpen?.(false)
     setIsHistorySidebarOpen(false)
-    onConversationCreated?.(newConversation)
+    // onConversationCreated será chamado após a criação bem-sucedida
     
-    // Feedback visual
-    toast({
-      title: "Nova conversa criada",
-      description: "Uma nova conversa foi iniciada com sucesso.",
-    })
+    // Nova conversa criada silenciosamente
   }, [createConversation, selectedModel, selectedTool, selectedPersonality, setIsSidebarOpen, onConversationCreated, toast])
 
   const handleUpdateConversationTitle = useCallback(
@@ -423,11 +404,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
     if (setCurrentConversation) {
       setCurrentConversation(id)
       
-      // Feedback visual
-      toast({
-        title: "Conversa selecionada",
-        description: "Você mudou para outra conversa.",
-      })
+      // Conversa selecionada silenciosamente
     }
   }, [setCurrentConversation, toast])
 
@@ -574,6 +551,7 @@ export const ChatInterface: React.FC<ChatInterfaceProps> = ({
             theme={theme || "light"}
             chatBackground={chatBackground}
             messagesEndRef={messagesEndRef}
+            showTypingIndicator={processingStatus === 'processing'}
           />
         </div>
       </div>

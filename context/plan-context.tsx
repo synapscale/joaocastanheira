@@ -1,6 +1,6 @@
 /**
  * Context para planos e permissões
- * Versão funcional usando apenas APIs existentes + dados mockados organizados
+ * Versão funcional usando APENAS APIs oficiais do backend
  */
 
 'use client'
@@ -198,7 +198,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
       })
 
     } catch (err) {
-      console.error('Erro ao carregar estatísticas:', err)
+      console.warn('⚠️ Erro ao carregar estatísticas:', err)
       setError('Erro ao carregar dados de uso')
       // Fallback para dados vazios em caso de erro
       setUsage({
@@ -308,7 +308,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
       }
       
     } catch (err) {
-      console.error('Erro no upgrade:', err)
+      console.warn('⚠️ Erro no upgrade:', err)
       setError('Erro ao fazer upgrade do plano')
       throw err
     } finally {

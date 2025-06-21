@@ -10,18 +10,17 @@ import React, { createContext, useContext, useState, useCallback, useEffect } fr
 import { toast } from "sonner"
 import { useAuth } from "./auth-context"
 
-// Types para variáveis do usuário
+// Types para variáveis do usuário (compatível com API)
 export interface UserVariable {
-  id: number
+  id: string
   key: string
-  value: string
-  description?: string
-  category: string
+  value?: string | null
+  description?: string | null
+  category?: string | null
   is_encrypted: boolean
   is_active: boolean
-  is_sensitive: boolean
-  created_at: string
-  updated_at: string
+  created_at?: string | null
+  updated_at?: string | null
 }
 
 export interface UserVariableCreate {
@@ -45,7 +44,7 @@ export interface UserVariableStats {
   inactive_variables: number
   sensitive_variables: number
   categories_count: Record<string, number>
-  last_updated?: string
+  last_updated?: string | null
 }
 
 export interface UserVariableValidation {
@@ -66,15 +65,15 @@ interface UserVariableContextType {
 
   // Operações CRUD
   createVariable: (data: UserVariableCreate) => Promise<UserVariable | null>
-  updateVariable: (id: number, data: UserVariableUpdate) => Promise<UserVariable | null>
-  deleteVariable: (id: number) => Promise<boolean>
+  updateVariable: (id: string, data: UserVariableUpdate) => Promise<UserVariable | null>
+  deleteVariable: (id: string) => Promise<boolean>
   
   // Operações em lote
   bulkCreateVariables: (variables: UserVariableCreate[]) => Promise<UserVariable[]>
-  bulkDeleteVariables: (ids: number[]) => Promise<number>
+  bulkDeleteVariables: (ids: string[]) => Promise<number>
   
   // Busca e filtros
-  getVariableById: (id: number) => UserVariable | undefined
+  getVariableById: (id: string) => UserVariable | undefined
   getVariableByKey: (key: string) => UserVariable | undefined
   getVariablesByCategory: (category: string) => UserVariable[]
   searchVariables: (query: string) => UserVariable[]
@@ -107,16 +106,21 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   const [error, setError] = useState<string | null>(null)
 
   // URL base da API
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || (() => {
-  throw new Error('NEXT_PUBLIC_API_URL não está definida no arquivo .env')
-})()
+  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
   const API_VARIABLES = `${API_BASE}/api/v1/user-variables`
 
   // Headers para requisições autenticadas
-  const getHeaders = useCallback(() => ({
-    "Content-Type": "application/json",
-    "Authorization": `Bearer ${token}`
-  }), [token])
+  const getHeaders = useCallback((): HeadersInit => {
+    const headers: Record<string, string> = {
+      "Content-Type": "application/json"
+    }
+    
+    if (token) {
+      headers["Authorization"] = `Bearer ${token}`
+    }
+    
+    return headers
+  }, [token])
 
   // Função para fazer requisições à API
   const apiRequest = useCallback(async (
@@ -127,40 +131,90 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       throw new Error("Usuário não autenticado")
     }
 
-    const response = await fetch(`${API_VARIABLES}${endpoint}`, {
-      ...options,
-      headers: {
-        ...getHeaders(),
-        ...options.headers
-      }
-    })
-
-    if (!response.ok) {
-      const errorData = await response.json().catch(() => ({}))
-      throw new Error(errorData.detail || `Erro ${response.status}: ${response.statusText}`)
+    const url = `${API_VARIABLES}${endpoint}`
+    if (process.env.NODE_ENV === 'development') {
+      console.log('🔍 UserVariableContext - Making request to:', url)
     }
 
-    return response.json()
+    try {
+      const response = await fetch(url, {
+        ...options,
+        headers: {
+          ...getHeaders(),
+          ...options.headers
+        }
+      })
+
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📡 UserVariableContext - Response status:', response.status)
+      }
+
+      if (!response.ok) {
+        let errorMessage = `Erro ${response.status}: ${response.statusText}`
+        
+        try {
+          const errorData = await response.json()
+          errorMessage = errorData.detail || errorMessage
+        } catch (parseError) {
+          if (process.env.NODE_ENV === 'development') {
+            console.warn('Could not parse error response as JSON')
+          }
+        }
+        
+        throw new Error(errorMessage)
+      }
+
+      const data = await response.json()
+      if (process.env.NODE_ENV === 'development') {
+        console.log('✅ UserVariableContext - Response data:', data)
+      }
+      return data
+    } catch (error) {
+      console.warn('⚠️ UserVariableContext - Request failed:', error)
+      throw error
+    }
   }, [API_VARIABLES, token, getHeaders])
 
   // Carregar variáveis do usuário
   const loadVariables = useCallback(async () => {
-    if (!user || !token) return
+    if (!user || !token) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('👤 UserVariableContext - No user or token, skipping load')
+      }
+      return
+    }
 
     try {
       setLoading(true)
       setError(null)
-
+      
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 UserVariableContext - Loading variables...')
+      }
       const data = await apiRequest("/")
-      setVariables(data.variables || [])
-      setCategories(data.categories || [])
+      
+      // Verificar se a resposta tem a estrutura esperada
+      if (data && typeof data === 'object') {
+        setVariables(data.variables || [])
+        setCategories(data.categories || [])
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ UserVariableContext - Variables loaded:', data.variables?.length || 0)
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ UserVariableContext - Unexpected response structure:', data)
+        }
+        setVariables([])
+        setCategories([])
+      }
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao carregar variáveis"
       setError(errorMessage)
-      console.error("UserVariableProvider - Error loading variables:", err)
+      console.warn("⚠️ UserVariableContext - Error loading variables:", err)
       
-      // Não mostrar toast de erro para evitar spam
-      // toast.error(errorMessage)
+      // Reset para estado limpo em caso de erro
+      setVariables([])
+      setCategories([])
     } finally {
       setLoading(false)
     }
@@ -168,28 +222,58 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
 
   // Carregar estatísticas
   const loadStats = useCallback(async () => {
-    if (!user || !token) return
+    if (!user || !token) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('👤 UserVariableContext - No user or token, skipping stats')
+      }
+      return
+    }
 
     try {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('📊 UserVariableContext - Loading stats...')
+      }
       const data = await apiRequest("/stats/summary")
-      setStats(data)
+      
+      // Verificar se a resposta tem a estrutura esperada
+      if (data && typeof data === 'object') {
+        setStats(data)
+        if (process.env.NODE_ENV === 'development') {
+          console.log('✅ UserVariableContext - Stats loaded:', data)
+        }
+      } else {
+        if (process.env.NODE_ENV === 'development') {
+          console.warn('⚠️ UserVariableContext - Unexpected stats response:', data)
+        }
+        setStats(null)
+      }
     } catch (err) {
-      console.error("UserVariableProvider - Error loading stats:", err)
+      console.warn("⚠️ UserVariableContext - Error loading stats:", err)
       // Não definir como erro crítico, apenas log
+      setStats(null)
     }
   }, [user, token, apiRequest])
 
   // Carregar dados iniciais quando usuário faz login
   useEffect(() => {
     if (isAuthenticated && user && token) {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🚀 UserVariableContext - User authenticated, loading data...')
+      }
+      
       // Aguardar um pouco para garantir que tudo está inicializado
       const timer = setTimeout(() => {
-        loadVariables()
-        loadStats()
-      }, 2000) // Aumentei para 2 segundos
+        loadVariables().then(() => {
+          // Carregar stats apenas após as variáveis serem carregadas
+          loadStats()
+        })
+      }, 1000)
       
       return () => clearTimeout(timer)
     } else {
+      if (process.env.NODE_ENV === 'development') {
+        console.log('🔄 UserVariableContext - User not authenticated, clearing data')
+      }
       // Limpar dados quando usuário faz logout
       setVariables([])
       setCategories([])
@@ -225,7 +309,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   }, [apiRequest, loadStats])
 
   // Atualizar variável
-  const updateVariable = useCallback(async (id: number, data: UserVariableUpdate): Promise<UserVariable | null> => {
+  const updateVariable = useCallback(async (id: string, data: UserVariableUpdate): Promise<UserVariable | null> => {
     try {
       setLoading(true)
       const updatedVariable = await apiRequest(`/${id}`, {
@@ -248,7 +332,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   }, [apiRequest])
 
   // Deletar variável
-  const deleteVariable = useCallback(async (id: number): Promise<boolean> => {
+  const deleteVariable = useCallback(async (id: string): Promise<boolean> => {
     try {
       setLoading(true)
       await apiRequest(`/${id}`, {
@@ -299,7 +383,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   }, [apiRequest, loadStats])
 
   // Deletar múltiplas variáveis
-  const bulkDeleteVariables = useCallback(async (ids: number[]): Promise<number> => {
+  const bulkDeleteVariables = useCallback(async (ids: string[]): Promise<number> => {
     try {
       setLoading(true)
       const result = await apiRequest("/bulk", {
@@ -439,7 +523,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   }, [apiRequest])
 
   // Buscar variável por ID
-  const getVariableById = useCallback((id: number): UserVariable | undefined => {
+  const getVariableById = useCallback((id: string): UserVariable | undefined => {
     return variables.find(v => v.id === id)
   }, [variables])
 
@@ -459,7 +543,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     return variables.filter(v => 
       v.key.toLowerCase().includes(searchTerm) ||
       v.description?.toLowerCase().includes(searchTerm) ||
-      v.category.toLowerCase().includes(searchTerm)
+      v.category?.toLowerCase().includes(searchTerm)
     )
   }, [variables])
 
@@ -468,7 +552,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     try {
       return await apiRequest("/env/dict")
     } catch (err) {
-      console.error("Erro ao obter dicionário de variáveis:", err)
+      console.warn("⚠️ Erro ao obter dicionário de variáveis:", err)
       return {}
     }
   }, [apiRequest])
@@ -479,7 +563,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       const result = await apiRequest("/env/string")
       return result.env_content
     } catch (err) {
-      console.error("Erro ao obter string .env:", err)
+      console.warn("⚠️ Erro ao obter string .env:", err)
       return ""
     }
   }, [apiRequest])

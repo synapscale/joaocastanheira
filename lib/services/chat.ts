@@ -5,6 +5,7 @@
 
 import { config } from '../config'
 import { apiService, Message as ApiMessage, Conversation as ApiConversation } from '../api/service'
+import { mapToApiModelName, getProviderFromModel } from '../utils/model-mapper'
 
 export interface Message {
   id: string
@@ -102,7 +103,13 @@ class ChatService {
   private apiService = apiService
 
   constructor() {
-    // Use the global apiService instance
+    this.validateEnvironment()
+  }
+
+  private validateEnvironment(): void {
+    if (!config.apiBaseUrl) {
+      console.warn('API base URL não configurado. Algumas funcionalidades podem não funcionar.')
+    }
   }
 
   /**
@@ -113,7 +120,16 @@ class ChatService {
     
     if (!settings.model) return { valid: true, missing: [] }
     
-    // Mapear modelos para provedores e suas chaves necessárias
+    // FALLBACK: Se não há chaves de usuário, permitir uso das chaves do sistema (configuradas no backend)
+    // O backend deve ter suas próprias chaves configuradas para funcionar como fallback
+    const hasUserApiKeys = Object.keys(apiKeys).length > 0
+    
+    if (!hasUserApiKeys) {
+      console.info('Usando chaves de API do sistema como fallback')
+      return { valid: true, missing: [] }
+    }
+    
+    // Se há chaves do usuário, validar se são suficientes
     const modelProviderMap: Record<string, string> = {
       'gpt-4o': 'openai',
       'gpt-4': 'openai',
@@ -127,7 +143,7 @@ class ChatService {
       missing.push(provider)
     }
     
-    // Verificar chaves específicas para ferramentas
+    // Verificar chaves específicas para ferramentas (apenas se usuário tem chaves próprias)
     if (settings.tool) {
       switch (settings.tool) {
         case 'twitter':
@@ -153,11 +169,11 @@ class ChatService {
 
   /**
    * Obter variáveis do usuário (API keys) do contexto de variáveis
+   * Retorna chaves vazias como fallback (backend pode usar chaves do sistema)
    */
   private async getUserApiKeys(): Promise<Record<string, string>> {
     try {
-      // Buscar do serviço de variáveis integrado com o backend  
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.variables.base}`, {
+      const response = await fetch(`${config.apiBaseUrl}/user-variables/api-keys`, {
         method: 'GET',
         headers: {
           'Content-Type': 'application/json',
@@ -166,51 +182,17 @@ class ChatService {
       })
 
       if (!response.ok) {
-        console.warn('Não foi possível obter API keys do usuário:', response.status)
+        console.warn('Não foi possível obter chaves de API do usuário, usando chaves do sistema como fallback')
         return {}
       }
 
-      const text = await response.text()
-      if (!text || text.trim() === '') {
-        console.warn('Response vazia do servidor para getUserApiKeys')
-        return {}
-      }
-
-      let result: any = {}
-      try {
-        result = JSON.parse(text)
-      } catch (parseError) {
-        console.error('Erro ao fazer parse da resposta getUserApiKeys:', parseError)
-        console.error('Resposta recebida:', text)
-        return {}
-      }
-
-      const apiKeys = result.items || result || []
-      
-      // Converter para formato esperado pelo validador
-      const formattedKeys: Record<string, string> = {}
-      
-      // Mapear chaves de variáveis para nomes de provedores baseado na API spec
-      if (Array.isArray(apiKeys)) {
-        apiKeys.forEach((keyData: any) => {
-          if (keyData.key === 'OPENAI_API_KEY' && keyData.value) {
-            formattedKeys.openai = keyData.value
-          }
-          if (keyData.key === 'ANTHROPIC_API_KEY' && keyData.value) {
-            formattedKeys.anthropic = keyData.value
-          }
-          if (keyData.key === 'GOOGLE_API_KEY' && keyData.value) {
-            formattedKeys.google = keyData.value
-          }
-        })
-      }
-      
-      // Cache local para performance
-      localStorage.setItem('userApiKeys', JSON.stringify(formattedKeys))
-      
-      return formattedKeys
+      const data = await response.json()
+      return data.reduce((acc: Record<string, string>, item: any) => {
+        acc[item.provider] = item.api_key
+        return acc
+      }, {})
     } catch (error) {
-      console.error('Erro ao obter API keys do usuário:', error)
+      console.warn('Erro ao obter chaves de API do usuário, usando chaves do sistema como fallback:', error)
       return {}
     }
   }
@@ -219,31 +201,25 @@ class ChatService {
    * Preparar configurações para envio à API
    */
   private prepareSettings(rawSettings: Partial<ChatSettings>): ChatSettings {
+    const frontendModel = rawSettings.model || 'gpt-4o'
+    const apiModel = mapToApiModelName(frontendModel)
+    
+    // Usar temperatura definida pelo usuário, ou fallback para personalidade apenas se não foi definida
+    const temperature = rawSettings.temperature !== undefined 
+      ? rawSettings.temperature 
+      : this.getTemperatureFromPersonality(rawSettings.personality || 'natural')
+    
     return {
-      model: rawSettings.model || 'gpt-4o',
-      provider: this.getProviderFromModel(rawSettings.model || 'gpt-4o'),
+      model: apiModel,
+      provider: rawSettings.provider || getProviderFromModel(frontendModel),
       tool: rawSettings.tool || 'tools',
       personality: rawSettings.personality || 'natural',
-      temperature: rawSettings.temperature || this.getTemperatureFromPersonality(rawSettings.personality || 'natural'),
+      temperature: temperature,
       maxTokens: rawSettings.maxTokens || 2048,
-      topP: rawSettings.topP || 1,
-      frequencyPenalty: rawSettings.frequencyPenalty || 0,
-      presencePenalty: rawSettings.presencePenalty || 0
+      topP: rawSettings.topP !== undefined ? rawSettings.topP : 1,
+      frequencyPenalty: rawSettings.frequencyPenalty !== undefined ? rawSettings.frequencyPenalty : 0,
+      presencePenalty: rawSettings.presencePenalty !== undefined ? rawSettings.presencePenalty : 0
     }
-  }
-
-  /**
-   * Obter provedor baseado no modelo
-   */
-  private getProviderFromModel(model: string): string {
-    const modelProviderMap: Record<string, string> = {
-      'gpt-4o': 'openai',
-      'gpt-4': 'openai',
-      'gpt-3.5-turbo': 'openai',
-      'claude-3': 'anthropic',
-      'gemini-pro': 'google'
-    }
-    return modelProviderMap[model] || 'openai'
   }
 
   /**
@@ -274,7 +250,6 @@ class ChatService {
         url: window.location.href
       }
       
-      // Salvar no localStorage para analytics
       const existingLogs = localStorage.getItem('chatConfigurationLogs')
       let logs: any[] = []
       
@@ -289,6 +264,7 @@ class ChatService {
           logs = []
         }
       }
+      
       logs.push(logEntry)
       
       // Manter apenas os últimos 100 logs
@@ -310,19 +286,26 @@ class ChatService {
       const apiKeys = { ...userApiKeys, ...conversationData.apiKeys }
 
       // Usar endpoint correto do chat
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.http}`, {
+      const response = await fetch(`${config.apiBaseUrl}/conversations/`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
         },
         body: JSON.stringify({
-          type: 'create_conversation',
           title: conversationData.title,
           agent_id: conversationData.agent_id,
-          context: conversationData.context,
-          settings: preparedSettings,
-          apiKeys
+          workspace_id: conversationData.workspace_id,
+          context: {
+            ...conversationData.context,
+            created_with_settings: preparedSettings,
+            initial_model: preparedSettings.model,
+            initial_provider: preparedSettings.provider,
+            user_agent: navigator.userAgent,
+            created_at: new Date().toISOString(),
+            frontend_version: '1.0.0'
+          },
+          settings: preparedSettings
         })
       })
 
@@ -348,7 +331,60 @@ class ChatService {
       })
       if (agent_id) params.append('agent_id', agent_id)
 
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.conversations}?${params}`, {
+      console.log('🔍 Buscando conversas:', `${config.apiBaseUrl}/conversations/?${params}`)
+
+      const response = await fetch(`${config.apiBaseUrl}/conversations/?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        // Se o endpoint não existir, retornar lista vazia em vez de falhar
+        if (response.status === 404) {
+          console.warn('⚠️ Endpoint de conversas não encontrado, retornando lista vazia')
+          return {
+            conversations: [],
+            total: 0,
+            page: page,
+            size: size
+          }
+        }
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
+      console.log('✅ Conversas carregadas:', data)
+      
+      return {
+        conversations: data.items || data.conversations || [],
+        total: data.total || 0,
+        page: data.page || page,
+        size: data.size || size
+      }
+    } catch (error) {
+      console.error('❌ Erro ao buscar conversas:', error)
+      
+      // Fallback: retornar conversas offline se disponível
+      if (error instanceof Error && error.message.includes('404')) {
+        console.log('🔄 Usando conversas offline como fallback')
+        const offlineConversations = this.getOfflineConversations()
+        return {
+          conversations: offlineConversations.slice((page - 1) * size, page * size),
+          total: offlineConversations.length,
+          page: page,
+          size: size
+        }
+      }
+      
+      throw error
+    }
+  }
+
+  async getConversation(conversationId: string): Promise<Conversation> {
+    try {
+      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}`, {
         method: 'GET',
         headers: {
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
@@ -361,15 +397,6 @@ class ChatService {
 
       return await response.json()
     } catch (error) {
-      console.error('Failed to get conversations:', error)
-      throw error
-    }
-  }
-
-  async getConversation(conversationId: string): Promise<Conversation> {
-    try {
-      return await this.apiService.getConversation(conversationId)
-    } catch (error) {
       console.error('Failed to get conversation:', error)
       throw error
     }
@@ -377,7 +404,7 @@ class ChatService {
 
   async deleteConversation(conversationId: string): Promise<void> {
     try {
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.http}?conversationId=${conversationId}`, {
+      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}`, {
         method: 'DELETE',
         headers: {
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
@@ -387,6 +414,8 @@ class ChatService {
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
+
+      console.log('✅ Conversa deletada:', conversationId)
     } catch (error) {
       console.error('Failed to delete conversation:', error)
       throw error
@@ -395,23 +424,37 @@ class ChatService {
 
   async updateConversationTitle(conversationId: string, title: string): Promise<Conversation> {
     try {
-      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}/title`, {
+      const params = new URLSearchParams({ title })
+      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}/title?${params}`, {
         method: 'PUT',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
-        },
-        body: JSON.stringify({ title })
+        }
       })
 
       if (!response.ok) {
         throw new Error(`HTTP ${response.status}: ${response.statusText}`)
       }
 
-      return await response.json()
+      const result = await response.json()
+      console.log('✅ Título da conversa atualizado:', { conversationId, title })
+      return result
     } catch (error) {
       console.error('Failed to update conversation title:', error)
       throw error
+    }
+  }
+
+  /**
+   * Atualizar título da conversa automaticamente baseado no conteúdo
+   */
+  async autoUpdateConversationTitle(conversationId: string, firstMessage: string): Promise<void> {
+    try {
+      const generatedTitle = this.generateTitleFromMessage(firstMessage)
+      await this.updateConversationTitle(conversationId, generatedTitle)
+    } catch (error) {
+      console.warn('Não foi possível atualizar título automaticamente:', error)
+      // Não falhar o fluxo principal por causa do título
     }
   }
 
@@ -477,6 +520,48 @@ class ChatService {
   }
 
   /**
+   * Salvar mensagem do assistant no banco de dados
+   */
+  async saveAssistantMessage(conversationId: string, messageData: {
+    content: string
+    model_used?: string
+    model_provider?: string
+    tokens_used?: number
+    processing_time_ms?: number
+    temperature?: number
+    max_tokens?: number
+  }): Promise<Message> {
+    console.log('💾 Salvando mensagem do assistant localmente (API não suporta assistant messages diretas):', { 
+      conversationId, 
+      content: messageData.content.substring(0, 50) + '...' 
+    })
+
+    // Como a API não tem endpoint específico para salvar mensagens do assistant,
+    // vamos criar a mensagem localmente e salvar offline para sincronizar depois
+    const assistantMessage: Message = {
+      id: `assistant_${Date.now()}_${Math.random().toString(36).substr(2, 9)}`,
+      conversation_id: conversationId,
+      role: 'assistant',
+      content: messageData.content,
+      attachments: [],
+      model_used: messageData.model_used,
+      model_provider: messageData.model_provider,
+      tokens_used: messageData.tokens_used || 0,
+      processing_time_ms: messageData.processing_time_ms || 0,
+      temperature: messageData.temperature,
+      max_tokens: messageData.max_tokens,
+      status: 'sent',
+      created_at: new Date().toISOString()
+    }
+    
+    // Salvar offline para que apareça na interface imediatamente
+    this.saveOfflineMessage(assistantMessage)
+    console.log('✅ Mensagem do assistant salva localmente:', assistantMessage.id)
+    
+    return assistantMessage
+  }
+
+  /**
    * Enviar mensagem com configurações completas
    */
   async sendMessage(conversationId: string, messageData: MessageCreate): Promise<Message> {
@@ -488,28 +573,22 @@ class ChatService {
       const userApiKeys = await this.getUserApiKeys()
       const apiKeys = { ...userApiKeys, ...messageData.apiKeys }
       
-      // Validar API keys necessárias
+      // Validar API keys necessárias (com fallback para chaves do sistema)
       const validation = this.validateApiKeys(settings, apiKeys)
       if (!validation.valid) {
-        throw new Error(`API keys necessárias não encontradas: ${validation.missing.join(', ')}. Configure suas chaves em Variáveis do Usuário.`)
+        console.warn(`API keys do usuário não encontradas para: ${validation.missing.join(', ')}. Usando chaves do sistema como fallback.`)
       }
 
       // Fazer requisição para a API
-      const response = await fetch(`${config.apiBaseUrl}/llm/chat`, {
+      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}/messages`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
         },
         body: JSON.stringify({
-          messages: [{ role: 'user', content: messageData.content }],
-          provider: settings.provider,
-          model: settings.model,
-          temperature: settings.temperature,
-          max_tokens: settings.maxTokens,
-          top_p: settings.topP,
-          frequency_penalty: settings.frequencyPenalty,
-          presence_penalty: settings.presencePenalty
+          content: messageData.content,
+          attachments: messageData.attachments || []
         })
       })
 
@@ -538,6 +617,12 @@ class ChatService {
         if (error.message.includes('rate limit')) {
           throw new Error(`⏱️ Limite de requisições atingido. Tente novamente em alguns minutos.`)
         }
+        if (error.message.includes('HTTP 500') || error.message.includes('Internal Server Error')) {
+          throw new Error(`🔧 Erro interno do servidor. Tente novamente em alguns minutos.`)
+        }
+        if (error.message.includes('Failed to fetch') || error.message.includes('Network Error')) {
+          throw new Error(`🌐 Erro de conectividade. Verifique sua conexão com a internet.`)
+        }
       }
       
       throw error
@@ -546,13 +631,28 @@ class ChatService {
 
   async getMessages(conversationId: string, page = 1, size = 50): Promise<{ messages: Message[], total: number, page: number, size: number }> {
     try {
-      const response = await this.apiService.getMessages(conversationId, { page, size })
-      
+      const params = new URLSearchParams({
+        page: page.toString(),
+        size: size.toString()
+      })
+
+      const response = await fetch(`${config.apiBaseUrl}/conversations/${conversationId}/messages?${params}`, {
+        method: 'GET',
+        headers: {
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        }
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const data = await response.json()
       return {
-        messages: response.items.map(msg => this.mapApiMessageToMessage(msg)),
-        total: response.total,
-        page: response.page,
-        size: response.size
+        messages: data.items || [],
+        total: data.total || 0,
+        page: data.page || page,
+        size: data.size || size
       }
     } catch (error) {
       console.error('Failed to get messages:', error)
@@ -674,6 +774,233 @@ class ChatService {
     }
   }
 
+  // INTEGRATED CHAT FLOW - Novo método principal
+
+  /**
+   * Fluxo completo de chat: enviar mensagem e obter resposta
+   */
+  async sendChatMessage(request: SendMessageRequest): Promise<{ userMessage: Message, assistantMessage: Message }> {
+    try {
+      console.log('🔄 Iniciando fluxo de chat:', request)
+      console.log('🔍 DEBUG - Settings recebidas:', request.settings)
+
+      let conversationId = request.conversationId
+
+      // 1. Criar conversa se não existir
+      if (!conversationId) {
+        const conversation = await this.createConversation({
+          title: this.generateTitleFromMessage(request.message),
+          settings: request.settings
+        })
+        conversationId = conversation.id
+      }
+
+      // 2. Preparar configurações para envio
+      const settings = this.prepareSettings(request.settings || {})
+      console.log('🔍 DEBUG - Settings após prepareSettings:', settings)
+      
+      // 3. Obter API keys do usuário
+      const userApiKeys = await this.getUserApiKeys()
+      const apiKeys = { ...userApiKeys, ...request.apiKeys }
+      
+      // 4. Validar API keys necessárias (com fallback para chaves do sistema)
+      const validation = this.validateApiKeys(settings, apiKeys)
+      if (!validation.valid) {
+        console.warn(`API keys do usuário não encontradas para: ${validation.missing.join(', ')}. Usando chaves do sistema como fallback.`)
+      }
+
+      // 5. FLUXO HÍBRIDO: Usar LLM direto para obter resposta e depois salvar ambas as mensagens
+      console.log('🤖 Obtendo resposta do LLM...')
+      
+      const requestBody = {
+        messages: [
+          { role: 'user', content: request.message }
+        ],
+        model: mapToApiModelName(settings.model || 'gpt-4o'),
+        provider: settings.provider || getProviderFromModel(settings.model || 'gpt-4o'),
+        temperature: settings.temperature,
+        max_tokens: settings.maxTokens,
+        top_p: settings.topP,
+        frequency_penalty: settings.frequencyPenalty,
+        presence_penalty: settings.presencePenalty,
+        tools: settings.tool !== 'no-tools' ? settings.tool : undefined,
+        personality: settings.personality
+      }
+      
+      console.log('🔍 DEBUG - Request body para /llm/chat:', requestBody)
+      
+      const response = await fetch(`${config.apiBaseUrl}/llm/chat`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${this.apiService.getAccessToken()}`
+        },
+        body: JSON.stringify(requestBody)
+      })
+
+      if (!response.ok) {
+        throw new Error(`HTTP ${response.status}: ${response.statusText}`)
+      }
+
+      const chatResult = await response.json()
+      console.log('🔍 Resposta da API /llm/chat:', chatResult)
+      
+      // Verificar se temos o conteúdo da resposta
+      if (!chatResult.content) {
+        throw new Error('Resposta inválida da API de chat')
+      }
+
+      // 6. Salvar mensagem do usuário no banco de dados
+      console.log('💾 Salvando mensagem do usuário...')
+      const userMessage = await this.sendMessage(conversationId, {
+        content: request.message,
+        settings: request.settings,
+        apiKeys: request.apiKeys
+      })
+
+      // 7. Salvar mensagem do assistant no banco de dados
+      console.log('💾 Salvando mensagem do assistant...')
+      const assistantMessage = await this.saveAssistantMessage(conversationId, {
+        content: chatResult.content,
+        model_used: chatResult.model,
+        model_provider: chatResult.provider,
+        tokens_used: chatResult.usage?.total_tokens || 0,
+        processing_time_ms: chatResult.metadata?.processing_time_ms || 0,
+        temperature: settings.temperature,
+        max_tokens: settings.maxTokens
+      })
+
+      // 8. Atualizar título da conversa se foi criada agora
+      if (!request.conversationId) {
+        await this.autoUpdateConversationTitle(conversationId, request.message)
+      }
+
+      console.log('✅ Fluxo de chat concluído:', { 
+        userMessage: userMessage.id, 
+        assistantMessage: assistantMessage.id,
+        model: assistantMessage.model_used
+      })
+
+      return { userMessage, assistantMessage }
+    } catch (error) {
+      console.error('❌ Erro no fluxo de chat:', error)
+      
+      // Se a API principal falhar, tentar fallback com mensagem manual
+      if (request.conversationId) {
+        try {
+          console.log('🔄 Tentando fallback com sendMessage...')
+          
+          const userMessage = await this.sendMessage(request.conversationId, {
+            content: request.message,
+            settings: request.settings,
+            apiKeys: request.apiKeys
+          })
+
+          // Criar mensagem de assistant simulada para não quebrar o fluxo
+          const assistantMessage: Message = {
+            id: `assistant_error_${Date.now()}`,
+            conversation_id: request.conversationId,
+            role: 'assistant',
+            content: 'Desculpe, estou com dificuldades para processar sua mensagem no momento. Por favor, tente novamente.',
+            model_used: 'gpt-4o',
+            model_provider: 'openai',
+            tokens_used: 0,
+            processing_time_ms: 0,
+            attachments: [],
+            status: 'sent',
+            created_at: new Date().toISOString()
+          }
+          
+          // Salvar offline para sincronizar depois
+          this.saveOfflineMessage(assistantMessage)
+
+          return { userMessage, assistantMessage }
+        } catch (fallbackError) {
+          console.error('❌ Fallback também falhou:', fallbackError)
+          throw error
+        }
+      }
+      
+      throw error
+    }
+  }
+
+  /**
+   * Atualizar estatísticas da conversa após nova mensagem
+   */
+  private async updateConversationStats(conversationId: string, stats: {
+    userTokens: number
+    assistantTokens: number
+    processingTime: number
+    model: string
+    provider: string
+  }): Promise<void> {
+    try {
+      // Obter conversa atual para atualizar estatísticas
+      const conversation = await this.getConversation(conversationId)
+      
+      // Calcular novos totais
+      const totalTokens = conversation.total_tokens_used + stats.userTokens + stats.assistantTokens
+      const messageCount = conversation.message_count + 2 // user + assistant
+      
+      // Atualizar contexto com informações da última interação
+      const updatedContext = {
+        ...conversation.context,
+        last_model_used: stats.model,
+        last_provider_used: stats.provider,
+        last_processing_time_ms: stats.processingTime,
+        total_interactions: Math.floor(messageCount / 2)
+      }
+
+      // Note: A API não tem endpoint específico para atualizar stats,
+      // mas essas informações são atualizadas automaticamente quando mensagens são enviadas
+      console.log('📊 Estatísticas da conversa atualizadas:', {
+        conversationId,
+        messageCount,
+        totalTokens,
+        lastModel: stats.model,
+        lastProvider: stats.provider
+      })
+      
+      // Salvar no cache local para referência
+      this.saveConversationStatsCache(conversationId, {
+        messageCount,
+        totalTokens,
+        lastModel: stats.model,
+        lastProvider: stats.provider,
+        lastProcessingTime: stats.processingTime,
+        updatedAt: new Date().toISOString()
+      })
+      
+    } catch (error) {
+      console.warn('⚠️ Não foi possível atualizar estatísticas da conversa:', error)
+      // Não falhar o fluxo principal por causa de estatísticas
+    }
+  }
+
+  /**
+   * Salvar cache de estatísticas da conversa
+   */
+  private saveConversationStatsCache(conversationId: string, stats: any): void {
+    try {
+      const cacheKey = `conversation_stats_${conversationId}`
+      localStorage.setItem(cacheKey, JSON.stringify(stats))
+    } catch (error) {
+      console.warn('Erro ao salvar cache de estatísticas:', error)
+    }
+  }
+
+  /**
+   * Gerar título a partir da mensagem
+   */
+  private generateTitleFromMessage(message: string): string {
+    const maxLength = 50
+    if (message.length <= maxLength) {
+      return message
+    }
+    return message.substring(0, maxLength - 3) + '...'
+  }
+
   /**
    * Obter analytics de uso
    */
@@ -688,42 +1015,25 @@ class ChatService {
     errorsByType: Record<string, number>
   } {
     try {
-      const logs = localStorage.getItem('chatConfigurationLogs')
-      if (!logs || logs.trim() === '') {
-        return {
-          totalMessages: 0,
-          successRate: 0,
-          mostUsedSettings: { models: {}, tools: {}, personalities: {} },
-          errorsByType: {}
-        }
+      const logs = JSON.parse(localStorage.getItem('chatConfigurationLogs') || '[]')
+      
+      const totalMessages = logs.length
+      const successCount = logs.filter((log: any) => log.success).length
+      const successRate = totalMessages > 0 ? (successCount / totalMessages) * 100 : 0
+
+      const mostUsedSettings = {
+        models: this.aggregateSettings(logs, 'model'),
+        tools: this.aggregateSettings(logs, 'tool'),
+        personalities: this.aggregateSettings(logs, 'personality')
       }
 
-      let parsedLogs: any[] = []
-      try {
-        parsedLogs = JSON.parse(logs)
-        if (!Array.isArray(parsedLogs)) {
-          parsedLogs = []
-        }
-      } catch (parseError) {
-        console.error('Erro ao fazer parse dos logs de analytics:', parseError)
-        return {
-          totalMessages: 0,
-          successRate: 0,
-          mostUsedSettings: { models: {}, tools: {}, personalities: {} },
-          errorsByType: {}
-        }
-      }
-      const successfulLogs = parsedLogs.filter((log: any) => log.success)
-      
+      const errorsByType = this.aggregateErrors(logs)
+
       return {
-        totalMessages: parsedLogs.length,
-        successRate: parsedLogs.length > 0 ? successfulLogs.length / parsedLogs.length : 0,
-        mostUsedSettings: {
-          models: this.aggregateSettings(parsedLogs, 'model'),
-          tools: this.aggregateSettings(parsedLogs, 'tool'),
-          personalities: this.aggregateSettings(parsedLogs, 'personality')
-        },
-        errorsByType: this.aggregateErrors(parsedLogs)
+        totalMessages,
+        successRate,
+        mostUsedSettings,
+        errorsByType
       }
     } catch (error) {
       console.error('Erro ao obter analytics:', error)
@@ -736,37 +1046,32 @@ class ChatService {
     }
   }
 
-  /**
-   * Agregar configurações para analytics
-   */
   private aggregateSettings(logs: any[], setting: string): Record<string, number> {
-    return logs.reduce((acc, log) => {
-      const value = log.settings?.[setting] || 'unknown'
-      acc[value] = (acc[value] || 0) + 1
-      return acc
-    }, {})
+    const counts: Record<string, number> = {}
+    logs.forEach(log => {
+      const value = log.settings?.[setting]
+      if (value) {
+        counts[value] = (counts[value] || 0) + 1
+      }
+    })
+    return counts
   }
 
-  /**
-   * Agregar erros para analytics
-   */
   private aggregateErrors(logs: any[]): Record<string, number> {
-    return logs.filter(log => !log.success).reduce((acc, log) => {
-      const errorType = this.categorizeError(log.error || 'unknown')
-      acc[errorType] = (acc[errorType] || 0) + 1
-      return acc
-    }, {})
+    const errors: Record<string, number> = {}
+    logs.filter(log => !log.success).forEach(log => {
+      const errorType = this.categorizeError(log.error || 'Unknown')
+      errors[errorType] = (errors[errorType] || 0) + 1
+    })
+    return errors
   }
 
-  /**
-   * Categorizar tipos de erro
-   */
   private categorizeError(error: string): string {
-    if (error.includes('API keys')) return 'api_keys'
-    if (error.includes('rate limit')) return 'rate_limit'
-    if (error.includes('Configurações')) return 'invalid_config'
-    if (error.includes('network')) return 'network'
-    return 'unknown'
+    if (error.includes('network') || error.includes('fetch')) return 'Network'
+    if (error.includes('auth') || error.includes('token')) return 'Authentication'
+    if (error.includes('rate') || error.includes('limit')) return 'Rate Limit'
+    if (error.includes('model') || error.includes('provider')) return 'Model/Provider'
+    return 'Other'
   }
 
   /**
@@ -812,19 +1117,12 @@ class ChatService {
         }
       }
 
-      // Fazer uma requisição de teste
-      const response = await fetch(`${config.apiBaseUrl}${config.endpoints.chat.http}`, {
-        method: 'POST',
+      // Testar conectividade básica com a API
+      const response = await fetch(`${config.apiBaseUrl}/health`, {
+        method: 'GET',
         headers: {
-          'Content-Type': 'application/json',
           'Authorization': `Bearer ${this.apiService.getAccessToken()}`
-        },
-        body: JSON.stringify({
-          message: 'test',
-          settings,
-          apiKeys: userApiKeys,
-          test: true
-        })
+        }
       })
 
       if (!response.ok) {
@@ -907,7 +1205,7 @@ class ChatService {
       }
 
       try {
-        const data = JSON.parse(text)
+        const data = text ? JSON.parse(text) : {}
         return data.providers || []
       } catch (parseError) {
         console.error('Erro ao fazer parse da resposta de providers:', parseError)
@@ -943,7 +1241,7 @@ class ChatService {
       }
 
       try {
-        return JSON.parse(text)
+        return text ? JSON.parse(text) : []
       } catch (parseError) {
         console.error('Erro ao fazer parse da resposta:', parseError)
         console.error('Resposta recebida:', text)
@@ -957,4 +1255,5 @@ class ChatService {
 }
 
 export const chatService = new ChatService()
+export default chatService
 

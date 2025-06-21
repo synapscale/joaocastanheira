@@ -148,7 +148,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       console.log('✅ Workspace padrão criado:', workspace.name)
       return workspace
     } catch (error) {
-      console.error('❌ Erro ao criar workspace padrão:', error)
+      console.warn('⚠️ Erro ao criar workspace padrão:', error)
       throw error
     }
   }, [authContext.user])
@@ -189,7 +189,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         console.log('✅ Workspace atual definido:', currentWorkspace.name)
       }
     } catch (error) {
-      console.error('❌ Erro ao inicializar workspaces:', error)
+      console.warn('⚠️ Erro ao inicializar workspaces:', error)
       dispatch({ type: 'WORKSPACE_ERROR', payload: 'Erro ao carregar workspaces' })
     } finally {
       dispatch({ type: 'WORKSPACE_INITIALIZE' })
@@ -225,7 +225,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       const workspaces = await apiService.getWorkspaces()
       dispatch({ type: 'WORKSPACE_SUCCESS', payload: { workspaces } })
     } catch (error) {
-      console.error('Erro ao carregar workspaces:', error)
+      console.warn('⚠️ Erro ao carregar workspaces:', error)
       dispatch({ type: 'WORKSPACE_ERROR', payload: 'Erro ao carregar workspaces' })
     }
   }, [])
@@ -271,7 +271,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       await loadWorkspaces() // Recarregar lista
       return workspace
     } catch (error) {
-      console.error('Erro ao criar workspace:', error)
+      console.warn('⚠️ Erro ao criar workspace:', error)
       throw error
     }
   }, [loadWorkspaces])
@@ -285,7 +285,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
       await loadWorkspaces() // Recarregar lista
       return workspace
     } catch (error) {
-      console.error('Erro ao atualizar workspace:', error)
+      console.warn('⚠️ Erro ao atualizar workspace:', error)
       throw error
     }
   }, [loadWorkspaces])
@@ -306,7 +306,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
         }
       }
     } catch (error) {
-      console.error('Erro ao deletar workspace:', error)
+      console.warn('⚠️ Erro ao deletar workspace:', error)
       throw error
     }
   }, [state.currentWorkspace, state.workspaces, loadWorkspaces, setCurrentWorkspace])

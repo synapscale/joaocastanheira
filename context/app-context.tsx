@@ -4,6 +4,7 @@ import type React from "react"
 import { createContext, useContext, useState, useEffect, useMemo, useCallback } from "react"
 import type { AIModel, UserPreferences } from "@/types/chat"
 import type { Component } from "@/types/component-selector"
+import { AVAILABLE_MODELS } from "@/constants/models"
 
 /**
  * Default model configuration
@@ -11,7 +12,7 @@ import type { Component } from "@/types/component-selector"
  * Defines the default AI model with its capabilities and metadata
  */
 const DEFAULT_MODEL: AIModel = {
-  id: "chatgpt-4o",
+  id: "gpt-4o",
   name: "ChatGPT 4o",
   provider: "openai",
   description: "Modelo mais avançado da OpenAI com capacidades multimodais",
@@ -49,6 +50,14 @@ const INITIAL_USER_PREFERENCES: UserPreferences = {
     sound: true,
     desktop: false,
   },
+  // Configurações de LLM
+  llmSettings: {
+    temperature: 0.7,
+    maxTokens: 2048,
+    topP: 1.0,
+    frequencyPenalty: 0,
+    presencePenalty: 0,
+  },
 }
 
 type Theme = "light" | "dark" | "system"
@@ -69,6 +78,14 @@ export type AppContextType = {
   // User preferences
   userPreferences: UserPreferences
   updateUserPreferences: (preferences: Partial<UserPreferences>) => void
+
+  // LLM Settings
+  updateLLMSettings: (settings: Partial<UserPreferences['llmSettings']>) => void
+  updateTemperature: (temperature: number) => void
+  updateMaxTokens: (maxTokens: number) => void
+  updateTopP: (topP: number) => void
+  updateFrequencyPenalty: (frequencyPenalty: number) => void
+  updatePresencePenalty: (presencePenalty: number) => void
 
   // Selected model
   selectedModel: AIModel
@@ -234,45 +251,78 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
   }, [])
 
   /**
+   * Update LLM settings
+   * @param settings Partial LLM settings to update
+   */
+  const updateLLMSettings = useCallback((settings: Partial<UserPreferences['llmSettings']>) => {
+    setUserPreferences((prev) => ({
+      ...prev,
+      llmSettings: {
+        ...prev.llmSettings,
+        ...settings,
+      },
+    }))
+  }, [])
+
+  /**
+   * Update temperature setting
+   * @param temperature Temperature value (0-2)
+   */
+  const updateTemperature = useCallback((temperature: number) => {
+    updateLLMSettings({ temperature })
+  }, [updateLLMSettings])
+
+  /**
+   * Update max tokens setting
+   * @param maxTokens Maximum tokens value
+   */
+  const updateMaxTokens = useCallback((maxTokens: number) => {
+    updateLLMSettings({ maxTokens })
+  }, [updateLLMSettings])
+
+  /**
+   * Update top P setting
+   * @param topP Top P value (0-1)
+   */
+  const updateTopP = useCallback((topP: number) => {
+    updateLLMSettings({ topP })
+  }, [updateLLMSettings])
+
+  /**
+   * Update frequency penalty setting
+   * @param frequencyPenalty Frequency penalty value (-2 to 2)
+   */
+  const updateFrequencyPenalty = useCallback((frequencyPenalty: number) => {
+    updateLLMSettings({ frequencyPenalty })
+  }, [updateLLMSettings])
+
+  /**
+   * Update presence penalty setting
+   * @param presencePenalty Presence penalty value (-2 to 2)
+   */
+  const updatePresencePenalty = useCallback((presencePenalty: number) => {
+    updateLLMSettings({ presencePenalty })
+  }, [updateLLMSettings])
+
+  /**
    * Apply preset configuration
    * @param preset The preset configuration to apply
    */
-  const applyPreset = useCallback(
-    (presetConfig: { model: string; tool: string; personality: string }) => {
-      // Encontrar o modelo pelo ID - usando type assertion
-      const modelObj: AIModel = {
-        id: presetConfig.model,
-        name: presetConfig.model,
-        provider: "openai",
-        description: "",
-        category: "text" as any,
-        capabilities: {
-          imageAnalysis: false,
-          toolCalling: true,
-          longContext: true,
-          maxContextLength: 128000,
-        }
-      }
-      
-      setSelectedModel(modelObj)
-      setSelectedTool(presetConfig.tool)
-      setToolsEnabled(presetConfig.tool === "enabled")
-      setSelectedPersonality(presetConfig.personality)
-      
-      // Salvar no localStorage
-      if (typeof window !== 'undefined') {
-        try {
-          localStorage.setItem('selectedModel', JSON.stringify(modelObj))
-          localStorage.setItem('selectedTool', presetConfig.tool)
-          localStorage.setItem('toolsEnabled', String(presetConfig.tool === "enabled"))
-          localStorage.setItem('selectedPersonality', presetConfig.personality)
-        } catch (error) {
-          console.error('Erro ao salvar configurações de preset:', error)
-        }
-      }
-    },
-    [],
-  )
+  const applyPreset = useCallback((preset: { model: string; tool: string; personality: string }) => {
+    // Find the model object from the preset model ID
+    const modelToSet = AVAILABLE_MODELS.find(model => model.id === preset.model) || DEFAULT_MODEL
+    
+    setSelectedModel(modelToSet)
+    setSelectedTool(preset.tool)
+    setSelectedPersonality(preset.personality)
+    
+    // Add to recent models
+    updateUserPreferences({
+      recentModels: [modelToSet, ...userPreferences.recentModels.filter(m => m.id !== modelToSet.id)].slice(0, 5)
+    })
+    
+    setLastAction(`Preset aplicado: ${modelToSet.name}, ${preset.tool}, ${preset.personality}`)
+  }, [userPreferences, updateUserPreferences])
 
   // Carregar preferências do localStorage ao iniciar
   useEffect(() => {
@@ -325,30 +375,85 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
     }
   }, [])
 
-  const contextValue = useMemo(
+  const contextValue: AppContextType = useMemo(
     () => ({
+      // Theme
       theme: themeState,
-      setTheme,
+      setTheme: setThemeState,
+
+      // Sidebar
       isSidebarOpen,
       setIsSidebarOpen,
+
+      // Focus mode
       focusMode,
       setFocusMode,
+
+      // User preferences
       userPreferences,
       updateUserPreferences,
+
+      // LLM Settings
+      updateLLMSettings,
+      updateTemperature,
+      updateMaxTokens,
+      updateTopP,
+      updateFrequencyPenalty,
+      updatePresencePenalty,
+
+      // Selected model
       selectedModel,
-      setSelectedModel,
+      setSelectedModel: (model: AIModel) => {
+        setSelectedModel(model)
+        // Add to recent models
+        updateUserPreferences({
+          recentModels: [model, ...userPreferences.recentModels.filter(m => m.id !== model.id)].slice(0, 5)
+        })
+      },
+
+      // Selected tool
       selectedTool,
-      setSelectedTool,
+      setSelectedTool: (tool: string) => {
+        setSelectedTool(tool)
+        // Add to recent tools
+        updateUserPreferences({
+          recentTools: [tool, ...userPreferences.recentTools.filter(t => t !== tool)].slice(0, 5)
+        })
+      },
+
+      // Tools enabled/disabled
       toolsEnabled,
       setToolsEnabled,
+
+      // Selected personality
       selectedPersonality,
-      setPersonality,
-      setSelectedPersonality,
+      setPersonality: setSelectedPersonality,
+      setSelectedPersonality: (personality: string) => {
+        setSelectedPersonality(personality)
+        // Add to recent personalities
+        updateUserPreferences({
+          recentPersonalities: [personality, ...userPreferences.recentPersonalities.filter(p => p !== personality)].slice(0, 5)
+        })
+      },
+
+      // Selected preset
       preset,
       setPreset,
+
+      // Apply preset
       applyPreset,
+
+      // Settings - enabled models and tools
+      enabledModels,
+      setEnabledModels,
+      enabledTools,
+      setEnabledTools,
+
+      // Last action
       lastAction,
       setLastAction,
+
+      // Component selector
       isComponentSelectorActive,
       setComponentSelectorActive,
       selectedComponent,
@@ -357,33 +462,33 @@ export const AppProvider: React.FC<{ children: React.ReactNode }> = ({ children 
       setHoveredComponent,
       dragState,
       setDragState,
-      enabledModels,
-      setEnabledModels,
-      enabledTools,
-      setEnabledTools,
     }),
     [
       themeState,
-      setTheme,
       isSidebarOpen,
       focusMode,
       userPreferences,
       updateUserPreferences,
+      updateLLMSettings,
+      updateTemperature,
+      updateMaxTokens,
+      updateTopP,
+      updateFrequencyPenalty,
+      updatePresencePenalty,
       selectedModel,
       selectedTool,
       toolsEnabled,
       selectedPersonality,
-      setPersonality,
       preset,
       applyPreset,
+      enabledModels,
+      enabledTools,
       lastAction,
       isComponentSelectorActive,
       selectedComponent,
       hoveredComponent,
       dragState,
-      enabledModels,
-      enabledTools,
-    ],
+    ]
   )
 
   return <AppContext.Provider value={contextValue}>{children}</AppContext.Provider>

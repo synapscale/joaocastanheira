@@ -147,7 +147,10 @@ export function AuthProvider({ children }: AuthProviderProps) {
           
           // Sincronizar tokens com o ApiService
           const { apiService } = await import('../lib/api/service')
+          console.log('🔍 DEBUG AuthContext - Sincronizando tokens com ApiService');
+          console.log('🔍 DEBUG AuthContext - Token:', storedToken?.substring(0, 20) + '...');
           apiService.syncTokensWithAuthService(storedToken, storedRefreshToken)
+          console.log('🔍 DEBUG AuthContext - ApiService autenticado após sync:', apiService.isAuthenticated());
           
           dispatch({
             type: 'AUTH_SUCCESS',
@@ -166,7 +169,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         }
       }
     } catch (error) {
-      console.error('AuthContext - Erro ao inicializar autenticação:', error)
+      console.warn('⚠️ AuthContext - Erro ao inicializar autenticação:', error)
       authService.clearAuthData()
     } finally {
       dispatch({ type: 'AUTH_INITIALIZE' })
@@ -181,6 +184,12 @@ export function AuthProvider({ children }: AuthProviderProps) {
     
     try {
       const response = await authService.login(data)
+      
+      // Sincronizar tokens com o ApiService após login
+      const { apiService } = await import('../lib/api/service')
+      console.log('🔍 DEBUG AuthContext - Sincronizando tokens após login');
+      apiService.syncTokensWithAuthService(response.tokens.accessToken, response.tokens.refreshToken)
+      console.log('🔍 DEBUG AuthContext - ApiService autenticado após login:', apiService.isAuthenticated());
       
       dispatch({
         type: 'AUTH_SUCCESS',
@@ -238,7 +247,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       await authService.logout()
     } catch (error) {
-      console.error('Erro ao fazer logout:', error)
+      console.warn('⚠️ Erro ao fazer logout:', error)
     } finally {
       dispatch({ type: 'AUTH_LOGOUT' })
     }
@@ -257,7 +266,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
       
       return newToken
     } catch (error) {
-      console.error('Erro ao atualizar token:', error)
+      console.warn('⚠️ Erro ao atualizar token:', error)
       dispatch({ type: 'AUTH_LOGOUT' })
       return null
     }
@@ -363,7 +372,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
     try {
       return await authService.checkAuthStatus()
     } catch (error) {
-      console.error('Erro ao verificar status de autenticação:', error)
+      console.warn('⚠️ Erro ao verificar status de autenticação:', error)
       return false
     }
   }, [])

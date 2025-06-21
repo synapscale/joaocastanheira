@@ -32,6 +32,7 @@ import {
 import { SETTINGS_MODELS } from '@/constants/models'
 import { AVAILABLE_SETTINGS_TOOLS } from '@/constants/tools'
 import { useApp } from '@/context/app-context'
+import { Slider } from "@/components/ui/slider"
 
 interface ChatSettingsSidebarProps {
   isOpen: boolean
@@ -53,10 +54,28 @@ interface ToolItem {
 
 export function ChatSettingsSidebar({ isOpen, onClose }: ChatSettingsSidebarProps) {
   const { toast } = useToast()
-  const { setEnabledModels, setEnabledTools } = useApp()
+  const { 
+    setEnabledModels, 
+    setEnabledTools,
+    userPreferences,
+    updateTemperature,
+    updateMaxTokens,
+    updateTopP,
+    updateFrequencyPenalty,
+    updatePresencePenalty
+  } = useApp()
   const [searchTerm, setSearchTerm] = useState("")
   const sidebarRef = useRef<HTMLDivElement>(null)
   
+  // Obter configurações LLM do contexto
+  const llmSettings = userPreferences?.llmSettings || {
+    temperature: 0.7,
+    maxTokens: 2048,
+    topP: 1.0,
+    frequencyPenalty: 0,
+    presencePenalty: 0,
+  }
+
   // Detectar cliques fora da sidebar para fechá-la
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -327,6 +346,100 @@ export function ChatSettingsSidebar({ isOpen, onClose }: ChatSettingsSidebarProp
                         />
                       </div>
                     ))}
+                  </div>
+                </div>
+
+                <Separator className="my-1" />
+
+                {/* Seção de Parâmetros LLM */}
+                <div className="space-y-3">
+                  <div className="flex items-center gap-2">
+                    <Sliders className="h-4 w-4 text-orange-500" />
+                    <h3 className="font-medium text-sm">Parâmetros LLM</h3>
+                  </div>
+                  
+                  <div className="space-y-4">
+                    {/* Temperatura */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-foreground/80">Temperatura</Label>
+                        <span className="text-xs text-muted-foreground font-mono">{llmSettings.temperature}</span>
+                      </div>
+                      <Slider
+                        value={[llmSettings.temperature]}
+                        onValueChange={(value) => updateTemperature(value[0])}
+                        max={2}
+                        min={0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Controla aleatoriedade (0 = determinístico, 2 = criativo)</p>
+                    </div>
+
+                    {/* Max Tokens */}
+                    <div className="space-y-2">
+                      <Label className="text-xs font-medium text-foreground/80">Máximo de Tokens</Label>
+                      <Input
+                        type="number"
+                        value={llmSettings.maxTokens}
+                        onChange={(e) => updateMaxTokens(parseInt(e.target.value) || 2048)}
+                        min={1}
+                        max={32000}
+                        className="h-8 text-sm"
+                      />
+                      <p className="text-xs text-muted-foreground">Limite de tokens na resposta</p>
+                    </div>
+
+                    {/* Top P */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-foreground/80">Top P</Label>
+                        <span className="text-xs text-muted-foreground font-mono">{llmSettings.topP}</span>
+                      </div>
+                      <Slider
+                        value={[llmSettings.topP]}
+                        onValueChange={(value) => updateTopP(value[0])}
+                        max={1}
+                        min={0}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Diversidade via nucleus sampling</p>
+                    </div>
+
+                    {/* Frequency Penalty */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-foreground/80">Penalidade Frequência</Label>
+                        <span className="text-xs text-muted-foreground font-mono">{llmSettings.frequencyPenalty}</span>
+                      </div>
+                      <Slider
+                        value={[llmSettings.frequencyPenalty]}
+                        onValueChange={(value) => updateFrequencyPenalty(value[0])}
+                        max={2}
+                        min={-2}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Reduz repetição de tokens</p>
+                    </div>
+
+                    {/* Presence Penalty */}
+                    <div className="space-y-2">
+                      <div className="flex items-center justify-between">
+                        <Label className="text-xs font-medium text-foreground/80">Penalidade Presença</Label>
+                        <span className="text-xs text-muted-foreground font-mono">{llmSettings.presencePenalty}</span>
+                      </div>
+                      <Slider
+                        value={[llmSettings.presencePenalty]}
+                        onValueChange={(value) => updatePresencePenalty(value[0])}
+                        max={2}
+                        min={-2}
+                        step={0.1}
+                        className="w-full"
+                      />
+                      <p className="text-xs text-muted-foreground">Encoraja novos tópicos</p>
+                    </div>
                   </div>
                 </div>
 

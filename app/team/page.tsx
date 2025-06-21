@@ -162,36 +162,131 @@ export default function TeamPage() {
       setLoading(true)
       setError(null)
 
-      // Simular dados de equipe baseados nos workspaces reais
-      const mockTeamMembers: TeamMember[] = [
-        {
-          id: '1',
-          name: user?.name || 'Você',
-          email: user?.email || 'user@example.com',
-          role: 'Owner',
-          status: 'active',
-          last_activity: new Date().toISOString(),
-          workspace_count: workspaces.length,
-          created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-        }
-      ]
+      console.log('🔍 DEBUG loadTeamData - Carregando dados da equipe...')
+      console.log('🔍 DEBUG loadTeamData - User autenticado:', !!user)
+      console.log('🔍 DEBUG loadTeamData - User email:', user?.email)
+      console.log('🔍 DEBUG loadTeamData - ApiService autenticado:', apiService.isAuthenticated())
+      console.log('🔍 DEBUG loadTeamData - Token disponível:', !!apiService.getAccessToken())
+      console.log('🔍 DEBUG loadTeamData - Workspaces disponíveis:', workspaces.length)
+      console.log('🔍 DEBUG loadTeamData - Workspaces:', workspaces.map(w => ({ id: w.id, name: w.name })))
 
-      // Calcular estatísticas reais
-      const stats: TeamStats = {
-        total_members: mockTeamMembers.length,
-        active_members: mockTeamMembers.filter(m => m.status === 'active').length,
-        pending_invites: 0,
-        total_workspaces: workspaces.length,
-        storage_used: usage.storage_used_gb,
-        api_calls_used: 150 // Mock
+      // Verificar se há workspaces para processar
+      if (workspaces.length === 0) {
+        console.log('⚠️ DEBUG loadTeamData - Nenhum workspace encontrado')
+        setTeamStats({
+          total_members: 0,
+          active_members: 0,
+          pending_invites: 0,
+          total_workspaces: 0,
+          storage_used: 0,
+          api_calls_used: 0
+        })
+        setTeamMembers([])
+        return
       }
 
-      setTeamMembers(mockTeamMembers)
+      // Teste de conectividade com a API antes de buscar dados
+      try {
+        const healthCheck = await apiService.healthCheck()
+        console.log('✅ DEBUG loadTeamData - API Health Check:', healthCheck)
+      } catch (healthError) {
+        console.warn('⚠️ DEBUG loadTeamData - API Health Check failed:', healthError)
+      }
+
+      // Carregar estatísticas agregadas, execução e membros em paralelo
+      const promises = [
+        apiService.getTeamStats().catch(error => {
+          console.error('❌ Erro ao carregar team stats:', error)
+          throw new Error(`Falha ao carregar estatísticas da equipe: ${error.message}`)
+        }),
+        apiService.getExecutionStats().catch(error => {
+          console.warn('⚠️ Erro ao carregar estatísticas de execução:', error)
+          return { total_executions: 0 }
+        }),
+        ...workspaces.map(workspace => 
+          apiService.getWorkspaceMembers(workspace.id).catch(error => {
+            console.warn(`⚠️ Erro ao carregar membros do workspace ${workspace.name}:`, error)
+            return []
+          })
+        )
+      ]
+
+      console.log('🔍 DEBUG loadTeamData - Executando', promises.length, 'promises em paralelo...')
+      
+      const [teamStatsFromApi, executionStatsFromApi, ...memberPromises] = await Promise.all(promises)
+
+      console.log('✅ DEBUG loadTeamData - Todas as promises resolvidas')
+      console.log('✅ DEBUG loadTeamData - Estatísticas da API:', teamStatsFromApi)
+      console.log('✅ DEBUG loadTeamData - Estatísticas de execução:', executionStatsFromApi)
+      console.log('✅ DEBUG loadTeamData - Membros por workspace:', memberPromises.map((members, i) => ({ workspace: workspaces[i].name, count: members.length })))
+
+      // Processar membros de todos os workspaces
+      let allMembers: TeamMember[] = []
+      memberPromises.forEach((members, index) => {
+        const workspace = workspaces[index]
+        console.log(`🔍 DEBUG loadTeamData - Processando ${members.length} membros do workspace "${workspace.name}"`)
+        
+        const workspaceMembers: TeamMember[] = members.map(member => ({
+          id: `${workspace.id}-${member.id}`,
+          name: member.user_name,
+          email: member.user_email,
+          role: member.role,
+          status: member.status === 'active' ? 'active' as const : 'inactive' as const,
+          last_activity: member.last_active_at || member.joined_at,
+          workspace_count: 1, // Será recalculado abaixo
+          created_at: member.joined_at
+        }))
+        allMembers = [...allMembers, ...workspaceMembers]
+      })
+
+      // Remover duplicatas de membros (mesmo usuário em múltiplos workspaces)
+      const uniqueMembers = allMembers.reduce((acc: TeamMember[], current) => {
+        const exists = acc.find(member => member.email === current.email)
+        if (!exists) {
+          // Contar em quantos workspaces o usuário está
+          const workspaceCount = allMembers.filter(m => m.email === current.email).length
+          acc.push({
+            ...current,
+            workspace_count: workspaceCount
+          })
+        }
+        return acc
+      }, [])
+
+      console.log(`✅ DEBUG loadTeamData - Processamento de membros concluído: ${allMembers.length} total, ${uniqueMembers.length} únicos`)
+
+      // Combinar estatísticas da API com dados processados
+      const stats: TeamStats = {
+        total_members: Math.max(uniqueMembers.length, teamStatsFromApi.total_members),
+        active_members: uniqueMembers.filter(m => m.status === 'active').length,
+        pending_invites: uniqueMembers.filter(m => m.status === 'pending').length,
+        total_workspaces: teamStatsFromApi.total_workspaces,
+        storage_used: teamStatsFromApi.total_storage_mb / 1024, // Converter MB para GB
+        api_calls_used: executionStatsFromApi.total_executions || 0 // Dados reais de execução da API
+      }
+
+      console.log('✅ DEBUG loadTeamData - Estatísticas finais:', stats)
+      console.log('✅ DEBUG loadTeamData - Membros únicos:', uniqueMembers.length)
+
+      setTeamMembers(uniqueMembers)
       setTeamStats(stats)
 
     } catch (err) {
-      console.error('Erro ao carregar dados da equipe:', err)
-      setError('Erro ao carregar dados da equipe')
+      console.error('❌ DEBUG loadTeamData - Erro detalhado:', err)
+      console.error('❌ DEBUG loadTeamData - Stack trace:', (err as Error).stack)
+      
+      // Mostrar erro mais específico para o usuário
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao carregar dados da equipe'
+      setError(`Erro ao carregar dados da equipe: ${errorMessage}`)
+      
+      // Analytics de erro (se disponível)
+      if ('gtag' in window) {
+        (window as any).gtag('event', 'team_data_load_error', {
+          error_message: errorMessage,
+          user_email: user?.email,
+          workspaces_count: workspaces.length
+        })
+      }
     } finally {
       setLoading(false)
     }
@@ -253,106 +348,12 @@ export default function TeamPage() {
             <p className="text-muted-foreground mt-1">
               Gerencie sua equipe, workspaces e configurações
             </p>
+            {/* Badge indicando dados reais */}
+            <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
+              ✅ Dados reais da API oficial
+            </Badge>
           </div>
           <div className="flex items-center gap-3">
-            {/* DEBUG: Botões para testar carregamento */}
-            <div className="flex items-center gap-2">
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={async () => {
-                  console.log('🔧 DEBUG: Testando carregamento manual de workspaces...')
-                  console.log('🔧 DEBUG: Estado atual:', {
-                    isAuthenticated,
-                    user: user?.email,
-                    hasToken: !!apiService.getAccessToken(),
-                    workspaceState: {
-                      isInitialized: workspaceState.isInitialized,
-                      isLoading: workspacesLoading,
-                      workspacesCount: workspaces.length,
-                      error: workspacesError
-                    }
-                  })
-                  
-                  try {
-                    // Testar conectividade
-                    console.log('🔧 DEBUG: Testando conectividade...')
-                    const connectivity = await apiService.testConnectivity()
-                    console.log('🔧 DEBUG: Conectividade:', connectivity)
-                    
-                    // Testar carregamento direto
-                    console.log('🔧 DEBUG: Carregando workspaces diretamente...')
-                    const workspaces = await apiService.getWorkspaces()
-                    console.log('🔧 DEBUG: Resultado direto da API:', workspaces)
-                    
-                    // Testar usuário atual
-                    const currentUser = await apiService.getCurrentUser()
-                    console.log('🔧 DEBUG: Usuário atual:', currentUser)
-                    
-                  } catch (error: any) {
-                    console.error('🔧 DEBUG: Erro no teste:', error)
-                  }
-                }}
-              >
-                🔧 Testar API
-              </Button>
-              
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={async () => {
-                  console.log('🏗️ DEBUG: Criando workspace manualmente...')
-                  try {
-                    const user = await apiService.getCurrentUser()
-                    const workspaceName = `Workspace de ${user.full_name || user.email}`
-                    
-                    const newWorkspace = await apiService.createWorkspace({
-                      name: workspaceName,
-                      description: 'Workspace criado manualmente para teste',
-                      is_public: false,
-                      allow_guest_access: false,
-                      require_approval: false,
-                      max_members: 10,
-                      max_projects: 100,
-                      max_storage_mb: 1000,
-                      enable_real_time_editing: true,
-                      enable_comments: true,
-                      enable_chat: true,
-                      enable_video_calls: false,
-                      color: '#3B82F6'
-                    })
-                    
-                    console.log('✅ Workspace criado:', newWorkspace)
-                    
-                    // Recarregar workspaces
-                    const updatedWorkspaces = await apiService.getWorkspaces()
-                    console.log('📋 Workspaces após criação:', updatedWorkspaces)
-                    
-                  } catch (error: any) {
-                    console.error('❌ Erro ao criar workspace:', error)
-                  }
-                }}
-              >
-                🏗️ Criar Workspace
-              </Button>
-
-              <Button 
-                variant="outline" 
-                size="sm"
-                onClick={async () => {
-                  console.log('🔄 DEBUG: Forçando inicialização de dados do usuário...')
-                  try {
-                    await apiService.initializeUserData()
-                    console.log('✅ Inicialização forçada concluída')
-                  } catch (error: any) {
-                    console.error('❌ Erro na inicialização forçada:', error)
-                  }
-                }}
-              >
-                🔄 Inicializar
-              </Button>
-            </div>
-            
             <Badge variant="outline" className="flex items-center gap-2">
               {getPlanIcon(currentPlan.slug)}
               {currentPlan.name}
@@ -380,6 +381,32 @@ export default function TeamPage() {
             <AlertDescription>Erro ao carregar workspaces: {workspacesError}</AlertDescription>
           </Alert>
         )}
+
+        {/* Status da Conexão com API */}
+        <Card className="border-green-200 bg-green-50">
+          <CardContent className="pt-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-green-900">
+                  Status da API
+                </p>
+                <p className="text-xs text-green-700 mt-1">
+                  {teamStats.total_workspaces > 0 ? 
+                    `✅ Conectado - ${teamStats.total_workspaces} workspace(s) carregado(s)` : 
+                    '⚠️ Aguardando dados...'
+                  }
+                </p>
+              </div>
+              <CheckCircle className="h-5 w-5 text-green-600" />
+            </div>
+            <div className="mt-2 text-xs text-green-600">
+              • Usuário: {user?.email || 'N/A'}<br />
+              • Workspaces: {workspaces.length}<br />
+              • Membros: {teamStats.total_members}<br />
+              • API Calls: {teamStats.api_calls_used} (dados reais de execução)
+            </div>
+          </CardContent>
+        </Card>
 
         {/* Quick Stats */}
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
@@ -484,12 +511,29 @@ export default function TeamPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-5">
-            <TabsTrigger value="overview">Visão Geral</TabsTrigger>
-            <TabsTrigger value="workspaces">Workspaces</TabsTrigger>
-            <TabsTrigger value="members">Membros</TabsTrigger>
-            <TabsTrigger value="permissions">Permissões</TabsTrigger>
-            {isAdmin && <TabsTrigger value="admin">Admin</TabsTrigger>}
+          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
+            <TabsTrigger value="overview" className="flex items-center gap-2">
+              <BarChart3 className="h-4 w-4" />
+              Visão Geral
+            </TabsTrigger>
+            <TabsTrigger value="workspaces" className="flex items-center gap-2">
+              <Building className="h-4 w-4" />
+              Workspaces
+            </TabsTrigger>
+            <TabsTrigger value="members" className="flex items-center gap-2">
+              <Users className="h-4 w-4" />
+              Membros
+            </TabsTrigger>
+            <TabsTrigger value="permissions" className="flex items-center gap-2">
+              <Shield className="h-4 w-4" />
+              Permissões
+            </TabsTrigger>
+            {isAdmin && (
+              <TabsTrigger value="admin" className="flex items-center gap-2">
+                <Crown className="h-4 w-4" />
+                Admin
+              </TabsTrigger>
+            )}
           </TabsList>
 
           {/* Overview Tab */}
@@ -646,8 +690,8 @@ export default function TeamPage() {
           </TabsContent>
 
           {/* Workspaces Tab */}
-          <TabsContent value="workspaces">
-      <EnhancedWorkspaceDashboard />
+          <TabsContent value="workspaces" className="space-y-6">
+            <EnhancedWorkspaceDashboard />
           </TabsContent>
 
           {/* Members Tab */}

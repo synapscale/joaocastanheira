@@ -218,7 +218,9 @@ export function ChatInput({
             onKeyDown={handleKeyDown}
             placeholder="Digite sua mensagem aqui..."
             disabled={disabled || isLoading}
-            className="w-full min-h-[56px] max-h-32 resize-none bg-transparent border-0 outline-none px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm leading-relaxed focus:ring-0"
+            className={`w-full min-h-[56px] max-h-32 resize-none bg-transparent border-0 outline-none px-4 py-3 text-gray-900 dark:text-gray-100 placeholder-gray-500 dark:placeholder-gray-400 text-sm leading-relaxed focus:ring-0 transition-opacity duration-200 ${
+              isLoading ? 'opacity-60' : 'opacity-100'
+            }`}
             rows={1}
           />
           
@@ -278,15 +280,18 @@ export function ChatInput({
               <button
                 type="submit"
                 disabled={!value.trim() || disabled || isLoading}
-                className="h-8 w-8 p-0 rounded-full text-white shadow-sm hover:shadow-md transition-all duration-200 group flex items-center justify-center"
-                style={{
-                  backgroundColor: '#F97316',
-                  border: 'none',
-                  cursor: 'pointer'
-                }}
+                className={`h-8 w-8 p-0 rounded-full text-white shadow-sm transition-all duration-200 group flex items-center justify-center ${
+                  !value.trim() || disabled || isLoading
+                    ? 'bg-muted-foreground/30 cursor-not-allowed'
+                    : 'bg-primary hover:bg-primary/90 hover:shadow-md cursor-pointer'
+                }`}
                 title="Enviar mensagem"
               >
-                <ArrowRight className="h-4 w-4 group-hover:translate-x-0.5 group-hover:scale-110 transition-transform duration-200" />
+                <ArrowRight className={`h-4 w-4 transition-transform duration-200 ${
+                  !value.trim() || disabled || isLoading
+                    ? ''
+                    : 'group-hover:translate-x-0.5'
+                }`} />
               </button>
             </div>
           </div>

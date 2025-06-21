@@ -1,123 +1,146 @@
 /**
- * Validação das variáveis de ambiente
- * Garante que todas as configurações necessárias estão presentes
+ * Validação completa das variáveis de ambiente
+ * Verifica se todas as configurações necessárias estão presentes e válidas
  */
 
 interface EnvValidationResult {
   isValid: boolean;
   errors: string[];
   warnings: string[];
+  config: Record<string, any>;
 }
 
-/**
- * Lista de variáveis obrigatórias
- */
-const REQUIRED_ENV_VARS = [
-  'NEXT_PUBLIC_API_URL',
-  'NEXT_PUBLIC_WS_URL',
-] as const;
-
-/**
- * Lista de variáveis opcionais (com valores padrão)
- */
-const OPTIONAL_ENV_VARS = [
-  'NEXT_PUBLIC_APP_ENV',
-  'NEXT_PUBLIC_APP_NAME',
-  'NEXT_PUBLIC_JWT_STORAGE_KEY',
-  'NEXT_PUBLIC_REFRESH_TOKEN_KEY',
-] as const;
-
-/**
- * Valida se todas as variáveis de ambiente necessárias estão definidas
- */
-export function validateEnvironment(): EnvValidationResult {
+export function validateAndPrint(): EnvValidationResult {
   const errors: string[] = [];
   const warnings: string[] = [];
+  const config: Record<string, any> = {};
 
-  // Validar variáveis obrigatórias
-  for (const envVar of REQUIRED_ENV_VARS) {
-    const value = process.env[envVar];
-    
-    if (!value || value.trim() === '') {
-      errors.push(`${envVar} é obrigatória e não está definida no arquivo .env`);
+  // Variáveis obrigatórias
+  const requiredVars = [
+    'NEXT_PUBLIC_API_URL',
+    'NEXT_PUBLIC_WS_URL'
+  ];
+
+  // Variáveis opcionais com valores padrão
+  const optionalVars = [
+    'NEXT_PUBLIC_APP_ENV',
+    'NEXT_PUBLIC_JWT_STORAGE_KEY',
+    'NEXT_PUBLIC_REFRESH_TOKEN_KEY',
+    'NEXT_PUBLIC_APP_NAME',
+    'NEXT_PUBLIC_COMPANY_NAME'
+  ];
+
+  console.log('\n🔍 === VALIDAÇÃO DE AMBIENTE ===');
+
+  // Verificar variáveis obrigatórias
+  for (const varName of requiredVars) {
+    const value = process.env[varName];
+    config[varName] = value;
+
+    if (!value) {
+      errors.push(`❌ ${varName} é obrigatório mas não foi encontrado`);
     } else {
-      // Validar formato da URL
-      if (envVar.includes('URL')) {
+      console.log(`✅ ${varName}: ${value}`);
+      
+      // Validações específicas
+      if (varName.includes('URL')) {
         try {
           new URL(value);
         } catch {
-          errors.push(`${envVar} deve ser uma URL válida (atualmente: "${value}")`);
+          errors.push(`❌ ${varName} não é uma URL válida: ${value}`);
         }
       }
     }
   }
 
-  // Verificar variáveis opcionais e dar avisos se não estiverem definidas
-  for (const envVar of OPTIONAL_ENV_VARS) {
-    const value = process.env[envVar];
-    
-    if (!value || value.trim() === '') {
-      warnings.push(`${envVar} não está definida, usando valor padrão`);
+  // Verificar variáveis opcionais
+  for (const varName of optionalVars) {
+    const value = process.env[varName];
+    config[varName] = value;
+
+    if (value) {
+      console.log(`✅ ${varName}: ${value}`);
+    } else {
+      warnings.push(`⚠️ ${varName} não definido (usando padrão)`);
     }
   }
 
-  // Validações específicas
+  // Validações específicas de URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (apiUrl) {
-    if (apiUrl.includes('0.0.0.0')) {
-      errors.push('NEXT_PUBLIC_API_URL não deve usar 0.0.0.0, use localhost ou 127.0.0.1');
-    }
-    
-    if (!apiUrl.startsWith('http://') && !apiUrl.startsWith('https://')) {
-      errors.push('NEXT_PUBLIC_API_URL deve começar com http:// ou https://');
+    if (apiUrl.includes('/api/v1/api/v1')) {
+      errors.push(`❌ NEXT_PUBLIC_API_URL contém /api/v1 duplicado: ${apiUrl}`);
+      console.log('💡 Sugestão: Use apenas a URL base (ex: http://localhost:8000)');
     }
   }
 
+  // Verificar consistência entre URLs
   const wsUrl = process.env.NEXT_PUBLIC_WS_URL;
-  if (wsUrl) {
-    if (wsUrl.includes('0.0.0.0')) {
-      errors.push('NEXT_PUBLIC_WS_URL não deve usar 0.0.0.0, use localhost ou 127.0.0.1');
-    }
-    
-    if (!wsUrl.startsWith('ws://') && !wsUrl.startsWith('wss://')) {
-      errors.push('NEXT_PUBLIC_WS_URL deve começar com ws:// ou wss://');
+  if (apiUrl && wsUrl) {
+    try {
+      const apiHost = new URL(apiUrl).host;
+      const wsHost = new URL(wsUrl).host;
+      
+      if (apiHost !== wsHost) {
+        warnings.push(`⚠️ API e WebSocket usam hosts diferentes: ${apiHost} vs ${wsHost}`);
+      }
+    } catch {
+      // URLs inválidas já foram reportadas acima
     }
   }
+
+  // Verificar ambiente
+  const env = process.env.NEXT_PUBLIC_APP_ENV;
+  if (env && !['development', 'staging', 'production'].includes(env)) {
+    warnings.push(`⚠️ NEXT_PUBLIC_APP_ENV tem valor não padrão: ${env}`);
+  }
+
+  // Mostrar resumo
+  console.log('\n📊 === RESUMO DA VALIDAÇÃO ===');
+  console.log(`✅ Configurações válidas: ${requiredVars.length - errors.length}/${requiredVars.length}`);
+  console.log(`⚠️ Avisos: ${warnings.length}`);
+  console.log(`❌ Erros: ${errors.length}`);
+
+  if (errors.length > 0) {
+    console.log('\n❌ === ERROS ENCONTRADOS ===');
+    errors.forEach(error => console.log(error));
+    console.log('\n💡 Crie um arquivo .env baseado no .env.example');
+  }
+
+  if (warnings.length > 0) {
+    console.log('\n⚠️ === AVISOS ===');
+    warnings.forEach(warning => console.log(warning));
+  }
+
+  console.log('\n🔍 === FIM DA VALIDAÇÃO ===\n');
 
   return {
     isValid: errors.length === 0,
     errors,
-    warnings
+    warnings,
+    config
   };
 }
 
 /**
- * Imprime o resultado da validação no console
+ * Validação rápida para uso em runtime
  */
-export function printValidationResult(result: EnvValidationResult): void {
-  if (result.isValid) {
-    console.log('✅ Todas as variáveis de ambiente estão configuradas corretamente!');
-    
-    if (result.warnings.length > 0) {
-      console.log('\n⚠️  Avisos:');
-      result.warnings.forEach(warning => console.log(`   - ${warning}`));
-    }
-  } else {
-    console.error('❌ Problemas nas variáveis de ambiente encontrados:');
-    result.errors.forEach(error => console.error(`   - ${error}`));
-    
-    console.error('\n📝 Para corrigir:');
-    console.error('   1. Verifique o arquivo .env na raiz do projeto');
-    console.error('   2. Configure todas as variáveis obrigatórias');
-    console.error('   3. Reinicie o servidor de desenvolvimento');
-  }
+export function quickValidate(): boolean {
+  const required = ['NEXT_PUBLIC_API_URL', 'NEXT_PUBLIC_WS_URL'];
+  return required.every(varName => !!process.env[varName]);
 }
 
 /**
- * Valida e imprime o resultado automaticamente
+ * Obter informações de debug do ambiente
  */
-export function validateAndPrint(): boolean {
-  const result = validateEnvironment();
-  printValidationResult(result);
-  return result.isValid;
+export function getDebugInfo(): Record<string, any> {
+  return {
+    nodeEnv: process.env.NODE_ENV,
+    appEnv: process.env.NEXT_PUBLIC_APP_ENV,
+    apiUrl: process.env.NEXT_PUBLIC_API_URL,
+    wsUrl: process.env.NEXT_PUBLIC_WS_URL,
+    timestamp: new Date().toISOString(),
+    userAgent: typeof window !== 'undefined' ? window.navigator.userAgent : 'Server',
+    isClient: typeof window !== 'undefined'
+  };
 } 

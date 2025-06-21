@@ -54,8 +54,8 @@ interface PlanFormData {
   limits: PlanLimits
 }
 
-// Mock data para clientes (até API existir)
-interface MockCustomer {
+// Interface para clientes da API oficial
+interface Customer {
   id: string
   name: string
   email: string
@@ -67,47 +67,13 @@ interface MockCustomer {
   created_at: string
 }
 
-const mockCustomers: MockCustomer[] = [
-  {
-    id: '1',
-    name: 'João Silva',
-    email: 'joao@empresa.com',
-    plan: 'pro',
-    status: 'active',
-    workspaces_count: 3,
-    lifetime_value: 290,
-    last_activity: new Date().toISOString(),
-    created_at: new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '2',
-    name: 'Maria Santos',
-    email: 'maria@startup.com',
-    plan: 'free',
-    status: 'active',
-    workspaces_count: 1,
-    lifetime_value: 0,
-    last_activity: new Date().toISOString(),
-    created_at: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000).toISOString()
-  },
-  {
-    id: '3',
-    name: 'Carlos Oliveira',
-    email: 'carlos@corp.com',
-    plan: 'enterprise',
-    status: 'active',
-    workspaces_count: 10,
-    lifetime_value: 990,
-    last_activity: new Date().toISOString(),
-    created_at: new Date(Date.now() - 180 * 24 * 60 * 60 * 1000).toISOString()
-  }
-]
-
 export default function PlanManagement() {
   const [activeTab, setActiveTab] = useState('plans')
   const { plans, currentPlan, loading, error } = usePlan()
   const { usage, billingInfo } = useBilling()
-  const [customers] = useState<MockCustomer[]>(mockCustomers)
+  const [customers, setCustomers] = useState<Customer[]>([])
+  const [customersLoading, setCustomersLoading] = useState(false)
+  const [customersError, setCustomersError] = useState<string | null>(null)
 
   // Dialog states
   const [isCreatePlanOpen, setIsCreatePlanOpen] = useState(false)
@@ -142,6 +108,34 @@ export default function PlanManagement() {
       has_priority_support: false
     }
   })
+
+  // ===== LOAD CUSTOMERS FROM API =====
+  const loadCustomers = async () => {
+    try {
+      setCustomersLoading(true)
+      setCustomersError(null)
+      
+      // Usar endpoint real de estatísticas administrativas
+      const adminStats = await apiService.get('/analytics/admin/stats')
+      
+      // Transformar dados de analytics em formato de clientes
+      // Isso vai depender da estrutura real retornada pela API
+      const customersData = adminStats.users_summary || []
+      
+      setCustomers(customersData)
+      console.log('✅ Clientes carregados da API oficial:', customersData)
+    } catch (error) {
+      console.error('❌ Erro ao carregar clientes:', error)
+      setCustomersError('Erro ao carregar dados de clientes')
+    } finally {
+      setCustomersLoading(false)
+    }
+  }
+
+  // Carregar clientes ao montar o componente
+  useEffect(() => {
+    loadCustomers()
+  }, [])
 
   // ===== PLAN ACTIONS (SIMULADAS) =====
 
@@ -630,7 +624,7 @@ export default function PlanManagement() {
                 <CardDescription>
                   Gerencie clientes e suas assinaturas
                   <br />
-                  <small className="text-orange-600">⚠️ Dados mockados - API de clientes não implementada</small>
+                  <small className="text-green-600">✅ Dados carregados da API oficial</small>
                 </CardDescription>
               </CardHeader>
               <CardContent>

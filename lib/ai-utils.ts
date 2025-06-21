@@ -115,6 +115,8 @@ export function isDocumentFile(file: File): boolean {
   return documentTypes.includes(file.type);
 }
 
+import { mapToApiModelName } from '@/lib/utils/model-mapper'
+
 /**
  * Integração com a API de chat usando o endpoint /api/v1/llm/chat
  * 
@@ -169,7 +171,7 @@ export async function sendChatMessage(
 
     // Adicionar opções se fornecidas
     if (options?.provider) requestData.provider = options.provider;
-    if (options?.model) requestData.model = options.model;
+    if (options?.model) requestData.model = mapToApiModelName(options.model);
     if (options?.temperature !== undefined) requestData.temperature = options.temperature;
     if (options?.max_tokens) requestData.max_tokens = options.max_tokens;
     if (options?.top_p !== undefined) requestData.top_p = options.top_p;
@@ -177,10 +179,10 @@ export async function sendChatMessage(
     if (options?.presence_penalty !== undefined) requestData.presence_penalty = options.presence_penalty;
     if (options?.stream !== undefined) requestData.stream = options.stream;
 
-    console.log('🔍 Enviando para LLM Chat:', {
-      url: `${apiUrl}/api/v1/llm/chat`,
-      requestData
-    });
+          console.log('🔍 Enviando para LLM Chat:', {
+        url: `${apiUrl}/llm/chat`,
+        requestData
+      });
 
     // Se houver arquivos, usar FormData
     if (options?.files && options.files.length > 0) {
@@ -189,7 +191,7 @@ export async function sendChatMessage(
       
       // Adicionar opções ao FormData
       if (options.provider) formData.append('provider', options.provider);
-      if (options.model) formData.append('model', options.model);
+      if (options.model) formData.append('model', mapToApiModelName(options.model));
       if (options.temperature !== undefined) formData.append('temperature', options.temperature.toString());
       if (options.max_tokens) formData.append('max_tokens', options.max_tokens.toString());
       
@@ -198,7 +200,7 @@ export async function sendChatMessage(
         formData.append(`file_${index}`, file);
       });
 
-      const response = await fetch(`${apiUrl}/api/v1/llm/chat`, {
+      const response = await fetch(`${apiUrl}/llm/chat`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${token}`,
@@ -214,7 +216,7 @@ export async function sendChatMessage(
       return await response.json();
     } else {
       // Enviar requisição JSON
-      const response = await fetch(`${apiUrl}/api/v1/llm/chat`, {
+      const response = await fetch(`${apiUrl}/llm/chat`, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
