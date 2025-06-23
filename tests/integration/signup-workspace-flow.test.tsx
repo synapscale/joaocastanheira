@@ -14,7 +14,7 @@ import { AuthProvider } from '@/context/auth-context'
 import { WorkspaceProvider } from '@/context/workspace-context'
 import { PlanProvider } from '@/context/plan-context'
 import { RegisterForm } from '@/components/auth/register-form'
-import { WorkspaceSelector } from '@/components/workspace/workspace-selector'
+import { WorkspaceSelector } from '@/components/workspaces/workspace-selector'
 import { apiService } from '@/lib/api/service'
 
 // Mock do backend

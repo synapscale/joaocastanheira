@@ -1,5 +1,5 @@
-import { NodeTemplate } from '@/contexts/node-creator/types';
-import { WorkflowNodeDefinition } from '@/contexts/node-creator/shared-nodes-types';
+import { NodeTemplate } from '@/context/node-creator/types';
+import { WorkflowNodeDefinition } from '@/context/node-creator/shared-nodes-types';
 
 /**
  * Converte um NodeTemplate do formato do Canvas de Criação para o formato do Canvas de Workflow

@@ -7,6 +7,9 @@ export * from "./node-definition-context"
 export * from "./node-template-context"
 export * from "./workflow-context"
 
+// Contextos de criação de nós (movidos de contexts/node-creator)
+export * from "./node-creator"
+
 // Contextos de gerenciamento de variáveis e código
 export { useVariables, VariableProvider } from './variable-context'
 export * from "./code-template-context"

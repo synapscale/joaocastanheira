@@ -230,6 +230,10 @@ export function PlanProvider({ children }: PlanProviderProps) {
     if (!currentPlan) return false
 
     switch (permission) {
+      case 'admin.access':
+        // Por enquanto, simular que planos Pro e Enterprise têm acesso admin
+        return currentPlan.slug === 'pro' || currentPlan.slug === 'enterprise'
+      
       case 'workspace.create':
         return currentPlan.limits.max_workspaces === -1 || usage.workspaces_count < currentPlan.limits.max_workspaces
       

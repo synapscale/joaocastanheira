@@ -1,8 +1,8 @@
 "use client";
 
 import React from 'react';
-import { useNodeCreator } from '@/contexts/node-creator/node-creator-context';
-import { useSharedNodes } from '@/contexts/node-creator/shared-nodes-context';
+import { useNodeCreator } from '@/context/node-creator/node-creator-context';
+import { useSharedNodes } from '@/context/node-creator/shared-nodes-context';
 
 /**
  * Componente para criar um node de exemplo para testes de integração

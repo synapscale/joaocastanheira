@@ -49,7 +49,7 @@ import { useAuth } from '@/context/auth-context'
 
 // Components
 import EnhancedWorkspaceDashboard from '@/components/workspaces/enhanced-workspace-dashboard'
-import PlanManagement from '@/components/admin/plan-management'
+import EnhancedMembersTab from '@/components/team/enhanced-members-tab'
 
 // API Service
 import { apiService } from '@/lib/api/service'
@@ -511,7 +511,7 @@ export default function TeamPage() {
 
         {/* Main Content */}
         <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className={`grid w-full ${isAdmin ? 'grid-cols-5' : 'grid-cols-4'}`}>
+          <TabsList className="grid w-full grid-cols-4">
             <TabsTrigger value="overview" className="flex items-center gap-2">
               <BarChart3 className="h-4 w-4" />
               Visão Geral
@@ -528,12 +528,6 @@ export default function TeamPage() {
               <Shield className="h-4 w-4" />
               Permissões
             </TabsTrigger>
-            {isAdmin && (
-              <TabsTrigger value="admin" className="flex items-center gap-2">
-                <Crown className="h-4 w-4" />
-                Admin
-              </TabsTrigger>
-            )}
           </TabsList>
 
           {/* Overview Tab */}
@@ -696,47 +690,12 @@ export default function TeamPage() {
 
           {/* Members Tab */}
           <TabsContent value="members" className="space-y-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <h3 className="text-lg font-semibold">Membros da Equipe</h3>
-                <p className="text-sm text-muted-foreground">
-                  Gerencie os membros de todos os seus workspaces
-                </p>
-              </div>
-              <Button disabled={!hasPermission('members.invite')}>
-                <UserPlus className="h-4 w-4 mr-2" />
-                Convidar Membro
-              </Button>
-            </div>
-
-            <Card>
-              <CardContent className="p-6">
-                <div className="space-y-4">
-                  {teamMembers.map((member) => (
-                    <div key={member.id} className="flex items-center justify-between p-4 border rounded-lg">
-                      <div className="flex items-center gap-4">
-                        <div className="w-10 h-10 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Users className="h-5 w-5 text-primary" />
-                        </div>
-                        <div>
-                          <p className="font-medium">{member.name}</p>
-                          <p className="text-sm text-muted-foreground">{member.email}</p>
-                        </div>
-                      </div>
-                      <div className="flex items-center gap-3">
-                        <Badge variant="outline">{member.role}</Badge>
-                        <Badge className={member.status === 'active' ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}>
-                          {member.status === 'active' ? 'Ativo' : 'Pendente'}
-                        </Badge>
-                        <Button variant="outline" size="sm">
-                          <Settings className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
-                </div>
-              </CardContent>
-            </Card>
+            <EnhancedMembersTab 
+              teamMembers={teamMembers}
+              workspaces={workspaces}
+              loading={loading}
+              onDataRefresh={loadTeamData}
+            />
           </TabsContent>
 
           {/* Permissions Tab */}
@@ -813,12 +772,6 @@ export default function TeamPage() {
             </Card>
           </TabsContent>
 
-          {/* Admin Tab */}
-          {isAdmin && (
-            <TabsContent value="admin">
-              <PlanManagement />
-            </TabsContent>
-          )}
         </Tabs>
       </div>
     </div>

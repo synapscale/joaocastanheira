@@ -19,7 +19,7 @@ export const ServerComponentExample = `
 // Este é um Server Component (não precisa do "use client")
 import { Suspense } from 'react'
 import { DashboardHeader } from '@/components/dashboard/header'
-import { DashboardSidebar } from '@/components/dashboard/sidebar'
+import { Sidebar } from '@/components/sidebar'
 import { RecentProjects } from '@/components/dashboard/recent-projects'
 import { ProjectStats } from '@/components/dashboard/project-stats'
 import { LoadingSpinner } from '@/components/ui/loading-spinner'
@@ -45,7 +45,7 @@ export default async function DashboardPage() {
   
   return (
     <div className="flex min-h-screen">
-      <DashboardSidebar />
+      <Sidebar />
       <div className="flex-1">
         <DashboardHeader />
         <main className="container py-6">

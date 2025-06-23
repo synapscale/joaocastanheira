@@ -1,8 +1,8 @@
 "use client";
 
 import { useEffect, useCallback } from 'react';
-import { useSharedNodes } from '@/contexts/node-creator/shared-nodes-context';
-import { useNodeCreator } from '@/contexts/node-creator/node-creator-context';
+import { useSharedNodes } from '@/context/node-creator/shared-nodes-context';
+import { useNodeCreator } from '@/context/node-creator/node-creator-context';
 
 /**
  * Hook aprimorado para integrar os nodes personalizados ao contexto de definição de nodes

@@ -18,7 +18,7 @@ import type {
   BulkMemberOperation,
   BulkProjectOperation,
   BulkOperationResponse
-} from '@/types/workspace-types'
+} from '../../types/workspace-types'
 
 // Configuração base da API
 const API_BASE_URL = config.apiBaseUrl;

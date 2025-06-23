@@ -1,5 +1,5 @@
 import React from 'react';
-import { NodeCreationProviders } from '@/contexts/node-creator';
+import { NodeCreationProviders } from '@/context/node-creator';
 import { AppProps } from 'next/app';
 
 /**

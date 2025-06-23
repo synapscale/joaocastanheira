@@ -32,7 +32,7 @@ import { useSidebar } from "@/context/sidebar-context"
 import navItems, { renderIcon } from "@/config/navigation"
 
 export function Sidebar() {
-  const pathname = usePathname()
+  const pathname = usePathname()!
   const [isMobile, setIsMobile] = useState(false)
   const [isClient, setIsClient] = useState(false)
   const { isCollapsed, isOpen, toggle, toggleCollapse } = useSidebar()
@@ -76,10 +76,10 @@ export function Sidebar() {
     const newExpandedItems = { ...expandedItems }
     
     navItems.forEach(item => {
-      if (item.children && item.children.some(child => 
+      if ((item as any).children && (item as any).children.some((child: any) => 
         pathname === child.href || pathname.startsWith(`${child.href}/`)
       )) {
-        newExpandedItems[item.href] = true
+        if (item.href) newExpandedItems[item.href] = true
       }
     })
     
@@ -94,7 +94,8 @@ export function Sidebar() {
     }
   }
 
-  const toggleExpanded = (href: string) => {
+  const toggleExpanded = (href: string | undefined) => {
+    if (!href) return
     setExpandedItems(prev => ({
       ...prev,
       [href]: !prev[href]
@@ -105,6 +106,17 @@ export function Sidebar() {
   if (!isClient) {
     return null
   }
+
+  // ===== helpers =====
+  const getIconElement = (navItem: any) => {
+    if (navItem.icon) {
+      const IconComp = navItem.icon
+      return <IconComp className="h-5 w-5" />
+    }
+    return renderIcon(navItem.iconName)
+  }
+
+  const getLabel = (navItem: any) => navItem.title ?? navItem.name ?? "Item sem título"
 
   // Para mobile, usar overlay e posição fixa
   if (isMobile) {
@@ -155,14 +167,14 @@ export function Sidebar() {
             <ul className="space-y-1 px-2">
               {navItems.map((item) => {
                 const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-                const hasChildren = item.children && item.children.length > 0
-                const isExpanded = expandedItems[item.href]
+                const hasChildren = (item as any).children && (item as any).children.length > 0
+                const isExpanded = item.href ? (expandedItems[item.href] || false) : false
                 
                 return (
                   <li key={item.href} className="flex flex-col">
                     <div className="flex items-center">
-                      <Link
-                        href={hasChildren ? "#" : item.href}
+                                        <Link
+                    href={hasChildren ? "#" : (item.href || "/")}
                         onClick={(e) => {
                           if (hasChildren) {
                             e.preventDefault()
@@ -180,11 +192,11 @@ export function Sidebar() {
                           whileTap={{ scale: 0.95 }}
                           className={isActive ? "text-primary" : "text-muted-foreground"}
                         >
-                          {renderIcon(item.iconName)}
+                          {getIconElement(item)}
                         </motion.div>
                         
                         <span className="flex-1 whitespace-nowrap">
-                          {item.name || "Item sem título"}
+                          {getLabel(item)}
                         </span>
                         
                         {hasChildren && (
@@ -198,7 +210,7 @@ export function Sidebar() {
                     {/* Subitens */}
                     {hasChildren && isExpanded && (
                       <ul className="mt-1 ml-9 space-y-1 border-l border-border pl-2">
-                        {item.children.map((child) => {
+                        {(item as any).children.map((child: any) => {
                           const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
                           
                           return (
@@ -211,7 +223,7 @@ export function Sidebar() {
                                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
                                 }`}
                               >
-                                <span>{child.name}</span>
+                                <span>{child.title ?? child.name}</span>
                               </Link>
                             </li>
                           )
@@ -319,14 +331,14 @@ export function Sidebar() {
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
             const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
-            const hasChildren = item.children && item.children.length > 0
-            const isExpanded = expandedItems[item.href]
+            const hasChildren = (item as any).children && (item as any).children.length > 0
+            const isExpanded = item.href ? (expandedItems[item.href] || false) : false
             
             return (
               <li key={item.href} className="flex flex-col">
                 <div className="flex items-center">
                   <Link
-                    href={hasChildren ? "#" : item.href}
+                    href={hasChildren ? "#" : (item.href || "/")}
                     onClick={(e) => {
                       if (hasChildren) {
                         e.preventDefault()
@@ -340,14 +352,14 @@ export function Sidebar() {
                         ? "bg-gradient-to-r from-primary/20 to-primary/5 text-primary font-medium shadow-sm" 
                         : "text-muted-foreground hover:bg-muted hover:text-foreground"
                     }`}
-                    title={isCollapsed ? item.name : undefined}
+                    title={isCollapsed ? (item.title ?? item.name) : undefined}
                   >
                     <motion.div
                       whileHover={{ scale: 1.1 }}
                       whileTap={{ scale: 0.95 }}
                       className={`flex-shrink-0 ${isActive ? "text-primary" : "text-muted-foreground"}`}
                     >
-                      {renderIcon(item.iconName)}
+                      {getIconElement(item)}
                     </motion.div>
                     
                     {!isCollapsed && (
@@ -358,7 +370,7 @@ export function Sidebar() {
                         transition={{ duration: 0.2 }}
                         className="flex-1 whitespace-nowrap overflow-hidden"
                       >
-                        {item.name || "Item sem título"}
+                        {getLabel(item)}
                       </motion.span>
                     )}
                     
@@ -386,7 +398,7 @@ export function Sidebar() {
                     transition={{ duration: 0.2 }}
                     className="mt-1 ml-9 space-y-1 border-l border-border pl-2 overflow-hidden"
                   >
-                    {item.children.map((child) => {
+                    {(item as any).children.map((child: any) => {
                       const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
                       
                       return (
@@ -399,7 +411,7 @@ export function Sidebar() {
                                 : "text-muted-foreground hover:bg-muted hover:text-foreground"
                             }`}
                           >
-                            <span>{child.name}</span>
+                            <span>{child.title ?? child.name}</span>
                           </Link>
                         </li>
                       )

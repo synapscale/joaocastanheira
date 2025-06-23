@@ -1,7 +1,7 @@
 "use client"
 
-import { NodeCreatorProvider } from '@/contexts/node-creator/node-creator-context';
-import { SharedNodesProvider } from '@/contexts/node-creator/shared-nodes-context';
+import { NodeCreatorProvider } from '@/context/node-creator/node-creator-context';
+import { SharedNodesProvider } from '@/context/node-creator/shared-nodes-context';
 import { WorkflowProvider } from '@/context/workflow-context';
 import { TemplateProvider } from '@/context/template-context';
 import { NodeDefinitionProvider } from '@/context/node-definition-context';
@@ -15,7 +15,7 @@ import { AppProvider } from '@/context/app-context';
 import { DevBanner } from '@/components/ui/dev-banner';
 import { VariableAutoSync } from '@/components/variables/auto-sync';
 import { ThemeProvider } from 'next-themes';
-import { Sidebar } from '@/components/sidebar';
+import { ClientLayout } from '@/components/client-layout';
 import { usePathname } from 'next/navigation';
 import '@/styles/globals.css';
 import { UserVariableProvider } from '@/context/user-variable-context';
@@ -34,16 +34,10 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
       {/* Sincronização automática de variáveis */}
       <VariableAutoSync />
       
-      {/* Layout flexbox horizontal */}
-      <div className="flex h-screen overflow-hidden">
-        {/* Sidebar */}
-        <Sidebar />
-        
-        {/* Conteúdo principal */}
-        <main className="flex-1 overflow-auto">
-          {children}
-        </main>
-      </div>
+      {/* Layout com sidebar integrada */}
+      <ClientLayout>
+        {children}
+      </ClientLayout>
 
       {/* Onboarding pós-signup */}
       <PostSignupOnboarding

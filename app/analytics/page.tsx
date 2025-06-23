@@ -1,9 +1,3 @@
-/**
- * Página de Analytics
- * Criado por José - O melhor Full Stack do mundo
- * Insights e métricas avançadas
- */
-
 import { AnalyticsComponent } from '@/components/analytics/analytics-component'
 import { Metadata } from 'next'
 
@@ -18,5 +12,4 @@ export default function AnalyticsPage() {
       <AnalyticsComponent />
     </div>
   )
-}
-
+} 

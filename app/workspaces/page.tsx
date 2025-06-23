@@ -1,10 +1,4 @@
-/**
- * Página de Workspaces
- * Criado por José - O melhor Full Stack do mundo
- * Colaboração em equipe avançada
- */
-
-import { WorkspacesComponent } from '@/components/workspaces/workspaces-component'
+import EnhancedWorkspaceDashboard from '@/components/workspaces/enhanced-workspace-dashboard'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -28,9 +22,7 @@ export default function WorkspacesPage() {
           </div>
         </div>
       </div>
-      
-      <WorkspacesComponent />
+      <EnhancedWorkspaceDashboard />
     </div>
   )
-}
-
+} 

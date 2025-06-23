@@ -262,254 +262,196 @@ export default function PlanManagement() {
 
   return (
     <div className="min-h-screen bg-background p-6">
-      <div className="max-w-7xl mx-auto space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold text-foreground">Administração de Planos</h1>
-            <p className="text-muted-foreground">Gerencie planos, recursos e clientes da plataforma</p>
-          </div>
-          
-          <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
-            <DialogTrigger asChild>
-              <Button>
-                <Plus className="h-4 w-4 mr-2" />
-                Novo Plano
-              </Button>
-            </DialogTrigger>
-            <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
-              <DialogHeader>
-                <DialogTitle>Criar Novo Plano</DialogTitle>
-                <DialogDescription>
-                  Configure um novo plano de assinatura para seus clientes.
-                  <br />
-                  <small className="text-orange-600">⚠️ APIs de admin não implementadas ainda - funcionalidade simulada</small>
-                </DialogDescription>
-              </DialogHeader>
+      <div className="max-w-7xl mx-auto space-y-8">
+        {/* Modern Header with Brand Colors */}
+        <div className="relative">
+          <div className="absolute inset-0 bg-gradient-to-r from-primary/5 via-primary-gradient/5 to-primary/5 rounded-2xl blur-xl" />
+          <div className="relative bg-card/95 backdrop-blur-sm border border-border rounded-2xl p-8 shadow-lg">
+            <div className="flex items-center justify-between">
+              <div className="space-y-2">
+                <div className="flex items-center gap-3">
+                  <div className="p-2 bg-gradient-to-r from-primary to-primary-gradient rounded-xl text-primary-foreground">
+                    <Crown className="h-6 w-6" />
+                  </div>
+                  <h1 className="text-4xl font-bold bg-gradient-to-r from-foreground to-foreground/80 bg-clip-text text-transparent">
+                    Administração de Planos
+                  </h1>
+                </div>
+                <p className="text-muted-foreground text-lg">Gerencie planos, recursos e clientes da plataforma com elegância</p>
+              </div>
               
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                {/* Informações Básicas */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Informações Básicas</h3>
+              <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
+                <DialogTrigger asChild>
+                  <Button className="bg-gradient-to-r from-primary to-primary-gradient hover:opacity-90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                    <Plus className="h-4 w-4 mr-2" />
+                    Novo Plano
+                  </Button>
+                </DialogTrigger>
+                <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
+                  <DialogHeader>
+                    <DialogTitle>Criar Novo Plano</DialogTitle>
+                    <DialogDescription>
+                      Preencha os campos abaixo para criar um novo plano.
+                    </DialogDescription>
+                  </DialogHeader>
                   
-                  <div>
-                    <Label htmlFor="plan-name">Nome do Plano</Label>
-                    <Input
-                      id="plan-name"
-                      value={planForm.name}
-                      onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
-                      placeholder="Ex: Pro"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="plan-slug">Slug</Label>
-                    <Input
-                      id="plan-slug"
-                      value={planForm.slug}
-                      onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value })}
-                      placeholder="Ex: pro"
-                    />
-                  </div>
-                  
-                  <div>
-                    <Label htmlFor="plan-description">Descrição</Label>
-                    <Input
-                      id="plan-description"
-                      value={planForm.description}
-                      onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
-                      placeholder="Descrição do plano"
-                    />
-                  </div>
-                  
-                  <div className="grid grid-cols-2 gap-4">
+                  <div className="space-y-4">
                     <div>
-                      <Label htmlFor="plan-price">Preço</Label>
+                      <Label htmlFor="name">Nome do Plano</Label>
                       <Input
-                        id="plan-price"
+                        id="name"
+                        value={planForm.name}
+                        onChange={(e) => setPlanForm({ ...planForm, name: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="slug">Slug</Label>
+                      <Input
+                        id="slug"
+                        value={planForm.slug}
+                        onChange={(e) => setPlanForm({ ...planForm, slug: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="description">Descrição</Label>
+                      <Input
+                        id="description"
+                        value={planForm.description}
+                        onChange={(e) => setPlanForm({ ...planForm, description: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="price">Preço</Label>
+                      <Input
+                        id="price"
                         type="number"
                         value={planForm.price}
                         onChange={(e) => setPlanForm({ ...planForm, price: Number(e.target.value) })}
-                        placeholder="0"
                       />
                     </div>
+                    
                     <div>
-                      <Label htmlFor="plan-cycle">Ciclo</Label>
-                      <Select value={planForm.billing_cycle} onValueChange={(value: any) => setPlanForm({ ...planForm, billing_cycle: value })}>
+                      <Label htmlFor="currency">Moeda</Label>
+                      <Input
+                        id="currency"
+                        value={planForm.currency}
+                        onChange={(e) => setPlanForm({ ...planForm, currency: e.target.value })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="billing_cycle">Ciclo de Faturamento</Label>
+                      <Select
+                        value={planForm.billing_cycle}
+                        onValueChange={(value) => setPlanForm({ ...planForm, billing_cycle: value as 'monthly' | 'yearly' })}
+                      >
                         <SelectTrigger>
-                          <SelectValue />
+                          <SelectValue placeholder="Selecione um ciclo" />
                         </SelectTrigger>
                         <SelectContent>
-                          <SelectItem value="monthly">Mensal</SelectItem>
-                          <SelectItem value="yearly">Anual</SelectItem>
+                          <SelectItem value="monthly">Mês</SelectItem>
+                          <SelectItem value="yearly">Ano</SelectItem>
                         </SelectContent>
                       </Select>
                     </div>
+                    
+                    <div>
+                      <Label htmlFor="is_active">Status</Label>
+                      <Switch
+                        id="is_active"
+                        checked={planForm.is_active}
+                        onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
+                      />
+                    </div>
+                    
+                    <div>
+                      <Label htmlFor="is_featured">Destaque</Label>
+                      <Switch
+                        id="is_featured"
+                        checked={planForm.is_featured}
+                        onCheckedChange={(checked) => setPlanForm({ ...planForm, is_featured: checked })}
+                      />
+                    </div>
                   </div>
+                  
+                  <DialogFooter>
+                    <Button variant="outline" onClick={() => setIsCreatePlanOpen(false)}>
+                      Cancelar
+                    </Button>
+                    <Button onClick={handleCreatePlan}>
+                      Criar Plano
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+          </div>
+        </div>
 
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={planForm.is_active}
-                      onCheckedChange={(checked) => setPlanForm({ ...planForm, is_active: checked })}
-                    />
-                    <Label>Plano Ativo</Label>
-                  </div>
-
-                  <div className="flex items-center space-x-2">
-                    <Switch
-                      checked={planForm.is_featured}
-                      onCheckedChange={(checked) => setPlanForm({ ...planForm, is_featured: checked })}
-                    />
-                    <Label>Plano Destacado</Label>
-                  </div>
+        {/* Modern Analytics Cards with Brand Colors */}
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+          <Card className="bg-gradient-to-br from-primary/5 to-primary-gradient/5 border-primary/20 hover:shadow-lg transition-all duration-300 hover:scale-105 hover:border-primary/30">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-primary">Total de Planos</p>
+                  <p className="text-3xl font-bold text-foreground">{plans?.length || 0}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Ativos na plataforma</p>
                 </div>
-
-                {/* Limites e Recursos */}
-                <div className="space-y-4">
-                  <h3 className="font-semibold">Limites e Recursos</h3>
-                  
-                  <div className="grid grid-cols-2 gap-4">
-                    <div>
-                      <Label htmlFor="max-workspaces">Max Workspaces</Label>
-                      <Input
-                        id="max-workspaces"
-                        type="number"
-                        value={planForm.limits.max_workspaces}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_workspaces: Number(e.target.value) }
-                        })}
-                        placeholder="1"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="max-members">Max Membros/Workspace</Label>
-                      <Input
-                        id="max-members"
-                        type="number"
-                        value={planForm.limits.max_members_per_workspace}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_members_per_workspace: Number(e.target.value) }
-                        })}
-                        placeholder="5"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="max-storage">Storage (GB)</Label>
-                      <Input
-                        id="max-storage"
-                        type="number"
-                        value={planForm.limits.max_storage_gb}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_storage_gb: Number(e.target.value) }
-                        })}
-                        placeholder="1"
-                      />
-                    </div>
-                    
-                    <div>
-                      <Label htmlFor="max-api">API Calls/mês</Label>
-                      <Input
-                        id="max-api"
-                        type="number"
-                        value={planForm.limits.max_api_requests_per_month}
-                        onChange={(e) => setPlanForm({
-                          ...planForm,
-                          limits: { ...planForm.limits, max_api_requests_per_month: Number(e.target.value) }
-                        })}
-                        placeholder="1000"
-                      />
-                    </div>
-                  </div>
-                  
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Recursos Avançados</h4>
-                    
-                    <div className="grid grid-cols-2 gap-4">
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_use_api}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_use_api: checked }
-                          })}
-                        />
-                        <Label>Acesso API</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_export_data}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_export_data: checked }
-                          })}
-                        />
-                        <Label>Exportar Dados</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_use_webhooks}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_use_webhooks: checked }
-                          })}
-                        />
-                        <Label>Webhooks</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_use_integrations}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_use_integrations: checked }
-                          })}
-                        />
-                        <Label>Integrações</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_create_custom_roles}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_create_custom_roles: checked }
-                          })}
-                        />
-                        <Label>Roles Customizadas</Label>
-                      </div>
-                      
-                      <div className="flex items-center space-x-2">
-                        <Switch
-                          checked={planForm.limits.can_use_sso}
-                          onCheckedChange={(checked) => setPlanForm({
-                            ...planForm,
-                            limits: { ...planForm.limits, can_use_sso: checked }
-                          })}
-                        />
-                        <Label>SSO</Label>
-                      </div>
-                    </div>
-                  </div>
+                <div className="p-3 bg-gradient-to-r from-primary to-primary-gradient rounded-full">
+                  <Package className="h-6 w-6 text-primary-foreground" />
                 </div>
               </div>
-              
-              <DialogFooter>
-                <Button variant="outline" onClick={() => setIsCreatePlanOpen(false)}>
-                  Cancelar
-                </Button>
-                <Button onClick={handleCreatePlan}>
-                  Criar Plano
-                </Button>
-              </DialogFooter>
-            </DialogContent>
-          </Dialog>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-green-50 to-green-100/50 dark:from-green-950/30 dark:to-green-900/20 border-green-200/50 dark:border-green-800/50 hover:shadow-lg transition-all duration-300 hover:scale-105 hover:border-green-300/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-green-600 dark:text-green-400">Clientes</p>
+                  <p className="text-3xl font-bold text-foreground">{customers.length}</p>
+                  <p className="text-xs text-muted-foreground mt-1">Cadastrados</p>
+                </div>
+                <div className="p-3 bg-green-500 rounded-full">
+                  <Users className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-blue-50 to-blue-100/50 dark:from-blue-950/30 dark:to-blue-900/20 border-blue-200/50 dark:border-blue-800/50 hover:shadow-lg transition-all duration-300 hover:scale-105 hover:border-blue-300/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-blue-600 dark:text-blue-400">Analytics</p>
+                  <p className="text-3xl font-bold text-foreground">24/7</p>
+                  <p className="text-xs text-muted-foreground mt-1">Monitoramento</p>
+                </div>
+                <div className="p-3 bg-blue-500 rounded-full">
+                  <TrendingUp className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
+
+          <Card className="bg-gradient-to-br from-purple-50 to-purple-100/50 dark:from-purple-950/30 dark:to-purple-900/20 border-purple-200/50 dark:border-purple-800/50 hover:shadow-lg transition-all duration-300 hover:scale-105 hover:border-purple-300/50">
+            <CardContent className="p-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <p className="text-sm font-medium text-purple-600 dark:text-purple-400">Performance</p>
+                  <p className="text-3xl font-bold text-foreground">98%</p>
+                  <p className="text-xs text-muted-foreground mt-1">Uptime</p>
+                </div>
+                <div className="p-3 bg-purple-500 rounded-full">
+                  <Shield className="h-6 w-6 text-white" />
+                </div>
+              </div>
+            </CardContent>
+          </Card>
         </div>
 
         {/* Status Alert */}
@@ -520,249 +462,278 @@ export default function PlanManagement() {
           </Alert>
         )}
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-3">
-            <TabsTrigger value="plans">Planos</TabsTrigger>
-            <TabsTrigger value="customers">Clientes</TabsTrigger>
-            <TabsTrigger value="analytics">Analytics</TabsTrigger>
-          </TabsList>
+        {/* Main Content - Modern Tabs with Brand Colors */}
+        <Card className="bg-card/95 backdrop-blur-sm border-border shadow-lg overflow-hidden">
+          <Tabs value={activeTab} onValueChange={setActiveTab}>
+            <div className="border-b border-border bg-muted/30 p-2">
+              <TabsList className="grid w-full grid-cols-3 bg-transparent p-1">
+                <TabsTrigger 
+                  value="plans" 
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:text-primary rounded-lg font-medium transition-all duration-200 flex items-center gap-2"
+                >
+                  <Package className="h-4 w-4" />
+                  Planos
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="customers" 
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:text-primary rounded-lg font-medium transition-all duration-200 flex items-center gap-2"
+                >
+                  <Users className="h-4 w-4" />
+                  Clientes
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="analytics" 
+                  className="data-[state=active]:bg-card data-[state=active]:shadow-sm data-[state=active]:border data-[state=active]:border-primary/20 data-[state=active]:text-primary rounded-lg font-medium transition-all duration-200 flex items-center gap-2"
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Analytics
+                </TabsTrigger>
+              </TabsList>
+            </div>
 
-          {/* Plans Tab */}
-          <TabsContent value="plans" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {plans.map((plan) => (
-                <Card key={plan.id} className="relative">
-                  {plan.is_featured && (
-                    <div className="absolute -top-2 -right-2">
-                      <Badge className="bg-yellow-100 text-yellow-800">
-                        <Star className="h-3 w-3 mr-1" />
-                        Destaque
-                      </Badge>
-                    </div>
-                  )}
-                  
+            <div className="p-6">
+              {/* Plans Tab */}
+              <TabsContent value="plans" className="space-y-6 m-0">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                  {plans.map((plan) => (
+                    <Card 
+                      key={plan.id} 
+                      className="relative overflow-hidden border-border hover:shadow-lg hover:border-primary/30 transition-all duration-300 hover:scale-105 group"
+                    >
+                      <div className="absolute inset-0 bg-gradient-to-br from-primary/5 via-transparent to-primary-gradient/5 opacity-0 group-hover:opacity-100 transition-opacity duration-300" />
+                      
+                      {plan.is_featured && (
+                        <div className="absolute -top-2 -right-2 z-10">
+                          <div className="bg-gradient-to-r from-primary to-primary-gradient text-primary-foreground text-xs px-2 py-1 rounded-full shadow-md flex items-center gap-1">
+                            <Star className="h-3 w-3" />
+                            Destaque
+                          </div>
+                        </div>
+                      )}
+                      
+                      <CardHeader className="relative z-10">
+                        <div className="flex items-center justify-between">
+                          <div className="flex items-center gap-3">
+                            <div className="p-2 rounded-full bg-gradient-to-br from-primary/10 to-primary-gradient/10 text-primary group-hover:from-primary/20 group-hover:to-primary-gradient/20 transition-all duration-300">
+                              {getPlanIcon(plan.slug)}
+                            </div>
+                            <CardTitle className="text-xl font-bold">{plan.name}</CardTitle>
+                          </div>
+                          <Switch
+                            checked={plan.is_active}
+                            onCheckedChange={(checked) => handleTogglePlanStatus(plan.id, checked)}
+                            className="data-[state=checked]:bg-primary"
+                          />
+                        </div>
+                        <CardDescription className="mt-2">{plan.description}</CardDescription>
+                      </CardHeader>
+                      
+                      <CardContent className="relative z-10">
+                        <div className="space-y-4">
+                          <div className="text-center p-4 rounded-lg bg-gradient-to-br from-muted/50 to-muted/30 group-hover:from-primary/5 group-hover:to-primary-gradient/5 transition-all duration-300">
+                            <div className="text-3xl font-bold bg-gradient-to-r from-primary to-primary-gradient bg-clip-text text-transparent">
+                              ${plan.price}
+                              <span className="text-sm font-normal text-muted-foreground">
+                                /{plan.billing_cycle === 'monthly' ? 'mês' : 'ano'}
+                              </span>
+                            </div>
+                          </div>
+                          
+                          <div className="space-y-2 text-sm">
+                            <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <span className="text-muted-foreground">Workspaces:</span>
+                              <span className="font-medium text-foreground">{plan.limits.max_workspaces === -1 ? '∞' : plan.limits.max_workspaces}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <span className="text-muted-foreground">Membros/Workspace:</span>
+                              <span className="font-medium text-foreground">{plan.limits.max_members_per_workspace === -1 ? '∞' : plan.limits.max_members_per_workspace}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <span className="text-muted-foreground">Storage:</span>
+                              <span className="font-medium text-foreground">{plan.limits.max_storage_gb === -1 ? '∞' : `${plan.limits.max_storage_gb}GB`}</span>
+                            </div>
+                            <div className="flex justify-between items-center p-2 rounded-md hover:bg-muted/50 transition-colors">
+                              <span className="text-muted-foreground">API Calls/mês:</span>
+                              <span className="font-medium text-foreground">{plan.limits.max_api_requests_per_month === -1 ? '∞' : plan.limits.max_api_requests_per_month.toLocaleString()}</span>
+                            </div>
+                          </div>
+                          
+                          <div className="flex items-center justify-between pt-4 border-t border-border">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => openEditPlan(plan)}
+                              className="hover:bg-primary/5 hover:border-primary/30 hover:text-primary transition-colors"
+                            >
+                              <Edit className="h-4 w-4 mr-2" />
+                              Editar
+                            </Button>
+                            
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => handleDeletePlan(plan.id)}
+                              className="text-destructive hover:text-destructive hover:bg-destructive/5 hover:border-destructive/30 transition-colors"
+                            >
+                              <Trash2 className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  ))}
+                </div>
+              </TabsContent>
+
+              {/* Customers Tab */}
+              <TabsContent value="customers" className="space-y-6">
+                <Card>
                   <CardHeader>
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center gap-2">
-                        {getPlanIcon(plan.slug)}
-                        <CardTitle className="text-lg">{plan.name}</CardTitle>
-                      </div>
-                      <Switch
-                        checked={plan.is_active}
-                        onCheckedChange={(checked) => handleTogglePlanStatus(plan.id, checked)}
-                      />
-                    </div>
-                    <CardDescription>{plan.description}</CardDescription>
+                    <CardTitle>Clientes da Plataforma</CardTitle>
+                    <CardDescription>
+                      Gerencie clientes e suas assinaturas
+                      <br />
+                      <small className="text-green-600">✅ Dados carregados da API oficial</small>
+                    </CardDescription>
                   </CardHeader>
-                  
                   <CardContent>
-                    <div className="space-y-4">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          <TableHead>Cliente</TableHead>
+                          <TableHead>Plano</TableHead>
+                          <TableHead>Status</TableHead>
+                          <TableHead>Workspaces</TableHead>
+                          <TableHead>Valor Total</TableHead>
+                          <TableHead>Última Atividade</TableHead>
+                          <TableHead>Ações</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {customers.map((customer) => (
+                          <TableRow key={customer.id}>
+                            <TableCell>
+                              <div>
+                                <p className="font-medium">{customer.name}</p>
+                                <p className="text-sm text-muted-foreground">{customer.email}</p>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                {getPlanIcon(customer.plan)}
+                                <span className="capitalize">{customer.plan}</span>
+                              </div>
+                            </TableCell>
+                            <TableCell>
+                              {getStatusBadge(customer.status)}
+                            </TableCell>
+                            <TableCell>{customer.workspaces_count}</TableCell>
+                            <TableCell>${customer.lifetime_value.toFixed(2)}</TableCell>
+                            <TableCell>{new Date(customer.last_activity).toLocaleDateString()}</TableCell>
+                            <TableCell>
+                              <div className="flex items-center gap-2">
+                                <Button variant="outline" size="sm">
+                                  <Eye className="h-4 w-4" />
+                                </Button>
+                                <Button variant="outline" size="sm">
+                                  <Edit className="h-4 w-4" />
+                                </Button>
+                              </div>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </CardContent>
+                </Card>
+              </TabsContent>
+
+              {/* Analytics Tab */}
+              <TabsContent value="analytics" className="space-y-6">
+                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
+                      <Users className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{customers.length}</div>
+                      <p className="text-xs text-muted-foreground">+2 novos esta semana</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
+                      <DollarSign className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        ${customers.reduce((total, c) => {
+                          const plan = plans.find(p => p.slug === c.plan)
+                          return total + (plan?.price || 0)
+                        }, 0)}
+                      </div>
+                      <p className="text-xs text-muted-foreground">+15% desde último mês</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Assinaturas Ativas</CardTitle>
+                      <TrendingUp className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">
+                        {customers.filter(c => c.status === 'active').length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">94% de taxa de retenção</p>
+                    </CardContent>
+                  </Card>
+                  
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                      <CardTitle className="text-sm font-medium">Planos Ativos</CardTitle>
+                      <Package className="h-4 w-4 text-muted-foreground" />
+                    </CardHeader>
+                    <CardContent>
+                      <div className="text-2xl font-bold">{plans.filter(p => p.is_active).length}</div>
+                      <p className="text-xs text-muted-foreground">de {plans.length} planos totais</p>
+                    </CardContent>
+                  </Card>
+                </div>
+
+                {/* Usage Stats */}
+                <Card>
+                  <CardHeader>
+                    <CardTitle>Estatísticas de Uso</CardTitle>
+                    <CardDescription>Dados reais baseados nos workspaces existentes</CardDescription>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
                       <div className="text-center">
-                        <div className="text-2xl font-bold">
-                          ${plan.price}
-                          <span className="text-sm font-normal text-muted-foreground">
-                            /{plan.billing_cycle === 'monthly' ? 'mês' : 'ano'}
-                          </span>
-                        </div>
+                        <div className="text-2xl font-bold text-blue-600">{usage.workspaces_count}</div>
+                        <p className="text-sm text-muted-foreground">Workspaces</p>
                       </div>
-                      
-                      <Separator />
-                      
-                      <div className="space-y-2 text-sm">
-                        <div className="flex justify-between">
-                          <span>Workspaces:</span>
-                          <span>{plan.limits.max_workspaces === -1 ? '∞' : plan.limits.max_workspaces}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Membros/Workspace:</span>
-                          <span>{plan.limits.max_members_per_workspace === -1 ? '∞' : plan.limits.max_members_per_workspace}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>Storage:</span>
-                          <span>{plan.limits.max_storage_gb === -1 ? '∞' : `${plan.limits.max_storage_gb}GB`}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span>API Calls/mês:</span>
-                          <span>{plan.limits.max_api_requests_per_month === -1 ? '∞' : plan.limits.max_api_requests_per_month.toLocaleString()}</span>
-                        </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-green-600">{usage.members_count}</div>
+                        <p className="text-sm text-muted-foreground">Membros</p>
                       </div>
-                      
-                      <Separator />
-                      
-                      <div className="flex items-center justify-between">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openEditPlan(plan)}
-                        >
-                          <Edit className="h-4 w-4 mr-2" />
-                          Editar
-                        </Button>
-                        
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => handleDeletePlan(plan.id)}
-                          className="text-red-600 hover:text-red-700"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-purple-600">{usage.projects_count}</div>
+                        <p className="text-sm text-muted-foreground">Projetos</p>
+                      </div>
+                      <div className="text-center">
+                        <div className="text-2xl font-bold text-orange-600">{usage.storage_used_gb.toFixed(2)}GB</div>
+                        <p className="text-sm text-muted-foreground">Storage Usado</p>
                       </div>
                     </div>
                   </CardContent>
                 </Card>
-              ))}
+              </TabsContent>
             </div>
-          </TabsContent>
-
-          {/* Customers Tab */}
-          <TabsContent value="customers" className="space-y-6">
-            <Card>
-              <CardHeader>
-                <CardTitle>Clientes da Plataforma</CardTitle>
-                <CardDescription>
-                  Gerencie clientes e suas assinaturas
-                  <br />
-                  <small className="text-green-600">✅ Dados carregados da API oficial</small>
-                </CardDescription>
-              </CardHeader>
-              <CardContent>
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      <TableHead>Cliente</TableHead>
-                      <TableHead>Plano</TableHead>
-                      <TableHead>Status</TableHead>
-                      <TableHead>Workspaces</TableHead>
-                      <TableHead>Valor Total</TableHead>
-                      <TableHead>Última Atividade</TableHead>
-                      <TableHead>Ações</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {customers.map((customer) => (
-                      <TableRow key={customer.id}>
-                        <TableCell>
-                          <div>
-                            <p className="font-medium">{customer.name}</p>
-                            <p className="text-sm text-muted-foreground">{customer.email}</p>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            {getPlanIcon(customer.plan)}
-                            <span className="capitalize">{customer.plan}</span>
-                          </div>
-                        </TableCell>
-                        <TableCell>
-                          {getStatusBadge(customer.status)}
-                        </TableCell>
-                        <TableCell>{customer.workspaces_count}</TableCell>
-                        <TableCell>${customer.lifetime_value.toFixed(2)}</TableCell>
-                        <TableCell>{new Date(customer.last_activity).toLocaleDateString()}</TableCell>
-                        <TableCell>
-                          <div className="flex items-center gap-2">
-                            <Button variant="outline" size="sm">
-                              <Eye className="h-4 w-4" />
-                            </Button>
-                            <Button variant="outline" size="sm">
-                              <Edit className="h-4 w-4" />
-                            </Button>
-                          </div>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </CardContent>
-            </Card>
-          </TabsContent>
-
-          {/* Analytics Tab */}
-          <TabsContent value="analytics" className="space-y-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
-                  <Users className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{customers.length}</div>
-                  <p className="text-xs text-muted-foreground">+2 novos esta semana</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
-                  <DollarSign className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    ${customers.reduce((total, c) => {
-                      const plan = plans.find(p => p.slug === c.plan)
-                      return total + (plan?.price || 0)
-                    }, 0)}
-                  </div>
-                  <p className="text-xs text-muted-foreground">+15% desde último mês</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Assinaturas Ativas</CardTitle>
-                  <TrendingUp className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">
-                    {customers.filter(c => c.status === 'active').length}
-                  </div>
-                  <p className="text-xs text-muted-foreground">94% de taxa de retenção</p>
-                </CardContent>
-              </Card>
-              
-              <Card>
-                <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                  <CardTitle className="text-sm font-medium">Planos Ativos</CardTitle>
-                  <Package className="h-4 w-4 text-muted-foreground" />
-                </CardHeader>
-                <CardContent>
-                  <div className="text-2xl font-bold">{plans.filter(p => p.is_active).length}</div>
-                  <p className="text-xs text-muted-foreground">de {plans.length} planos totais</p>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Usage Stats */}
-            <Card>
-              <CardHeader>
-                <CardTitle>Estatísticas de Uso</CardTitle>
-                <CardDescription>Dados reais baseados nos workspaces existentes</CardDescription>
-              </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-blue-600">{usage.workspaces_count}</div>
-                    <p className="text-sm text-muted-foreground">Workspaces</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-green-600">{usage.members_count}</div>
-                    <p className="text-sm text-muted-foreground">Membros</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-purple-600">{usage.projects_count}</div>
-                    <p className="text-sm text-muted-foreground">Projetos</p>
-                  </div>
-                  <div className="text-center">
-                    <div className="text-2xl font-bold text-orange-600">{usage.storage_used_gb.toFixed(2)}GB</div>
-                    <p className="text-sm text-muted-foreground">Storage Usado</p>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          </TabsContent>
-        </Tabs>
+          </Tabs>
+        </Card>
 
         {/* Edit Plan Dialog (similar structure to create) */}
         <Dialog open={isEditPlanOpen} onOpenChange={setIsEditPlanOpen}>

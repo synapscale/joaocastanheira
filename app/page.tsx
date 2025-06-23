@@ -1,9 +1,7 @@
 import Link from 'next/link';
-import { NodeCreationProviders } from '@/contexts/node-creator';
 
 export default function Home() {
   return (
-    <NodeCreationProviders>
       <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl w-full">
           <h1 className="text-3xl font-bold text-center mb-8">SynapScale - Integração de Canvas</h1>
@@ -62,6 +60,5 @@ export default function Home() {
           </div>
         </div>
       </main>
-    </NodeCreationProviders>
   );
 }
