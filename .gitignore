@@ -281,3 +281,14 @@ jest-html-reporters-attach/
 
 # Local environment
 .env.backup
+
+dev-debug.log
+# Environment variables
+# Editor directories and files
+.idea
+.vscode
+# OS specific
+
+# Task files
+# tasks.json
+# tasks/ 

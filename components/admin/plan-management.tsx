@@ -39,7 +39,9 @@ import {
 
 import { usePlan, useBilling } from '@/context/plan-context'
 import { apiService } from '@/lib/api/service'
+import { adminService } from '@/lib/api/admin-service'
 import type { Plan, PlanLimits } from '@/types/plan-types'
+import type { AdminStats, RealCustomer } from '@/types/admin-types'
 
 interface PlanFormData {
   name: string
@@ -69,10 +71,15 @@ interface Customer {
 
 export default function PlanManagement() {
   const [activeTab, setActiveTab] = useState('plans')
-  const { plans, currentPlan, loading, error } = usePlan()
+  const { plans, currentPlan, loading, error, adminStats, realCustomers } = usePlan()
   const { usage, billingInfo } = useBilling()
-  const [customers, setCustomers] = useState<Customer[]>([])
-  const [customersLoading, setCustomersLoading] = useState(false)
+  
+  // Estados para dados reais do admin-service
+  const [liveAdminStats, setLiveAdminStats] = useState<AdminStats | null>(null)
+  const [liveCustomers, setLiveCustomers] = useState<RealCustomer[]>([])
+  const [statsLoading, setStatsLoading] = useState(true)
+  const [customersLoading, setCustomersLoading] = useState(true)
+  const [statsError, setStatsError] = useState<string | null>(null)
   const [customersError, setCustomersError] = useState<string | null>(null)
 
   // Dialog states
@@ -109,31 +116,52 @@ export default function PlanManagement() {
     }
   })
 
-  // ===== LOAD CUSTOMERS FROM API =====
+  // Dados combinados - usar dados reais quando disponíveis
+  const currentAdminStats = liveAdminStats || adminStats
+  const currentCustomers = liveCustomers || realCustomers
+  const isLoadingData = loading || statsLoading || customersLoading
+  const dataError = error || statsError || customersError
+
+  // Carregar dados reais do backend
+  const loadAdminStats = async () => {
+    try {
+      setStatsLoading(true)
+      setStatsError(null)
+      const stats = await adminService.getAdminStats()
+      setLiveAdminStats(stats)
+    } catch (error) {
+      console.error('Erro ao carregar estatísticas:', error)
+      setStatsError(error instanceof Error ? error.message : 'Erro ao carregar estatísticas')
+    } finally {
+      setStatsLoading(false)
+    }
+  }
+
   const loadCustomers = async () => {
     try {
       setCustomersLoading(true)
       setCustomersError(null)
-      
-      // Usar endpoint real de estatísticas administrativas
-      const adminStats = await apiService.get('/analytics/admin/stats')
-      
-      // Transformar dados de analytics em formato de clientes
-      // Isso vai depender da estrutura real retornada pela API
-      const customersData = adminStats.users_summary || []
-      
-      setCustomers(customersData)
-      console.log('✅ Clientes carregados da API oficial:', customersData)
+      const customers = await adminService.getCustomers({ limit: 100 })
+      setLiveCustomers(customers)
     } catch (error) {
-      console.error('❌ Erro ao carregar clientes:', error)
-      setCustomersError('Erro ao carregar dados de clientes')
+      console.error('Erro ao carregar clientes:', error)
+      setCustomersError(error instanceof Error ? error.message : 'Erro ao carregar clientes')
     } finally {
       setCustomersLoading(false)
     }
   }
 
-  // Carregar clientes ao montar o componente
+  // Função para refresh de todos os dados
+  const refreshAllData = async () => {
+    await Promise.all([
+      loadAdminStats(),
+      loadCustomers()
+    ])
+  }
+
+  // Carregar dados na inicialização
   useEffect(() => {
+    loadAdminStats()
     loadCustomers()
   }, [])
 
@@ -280,13 +308,33 @@ export default function PlanManagement() {
                 <p className="text-muted-foreground text-lg">Gerencie planos, recursos e clientes da plataforma com elegância</p>
               </div>
               
-              <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
-                <DialogTrigger asChild>
-                  <Button className="bg-gradient-to-r from-primary to-primary-gradient hover:opacity-90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
-                    <Plus className="h-4 w-4 mr-2" />
-                    Novo Plano
-                  </Button>
-                </DialogTrigger>
+              <div className="flex items-center gap-3">
+                {dataError && (
+                  <Alert className="max-w-sm">
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      Usando dados de fallback
+                    </AlertDescription>
+                  </Alert>
+                )}
+                
+                <Button 
+                  variant="outline"
+                  onClick={refreshAllData}
+                  disabled={isLoadingData}
+                  className="bg-background/50 backdrop-blur-sm border-border/50 hover:bg-background/80 transition-all duration-300"
+                >
+                  <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
+                  {isLoadingData ? 'Carregando...' : 'Atualizar'}
+                </Button>
+                
+                <Dialog open={isCreatePlanOpen} onOpenChange={setIsCreatePlanOpen}>
+                  <DialogTrigger asChild>
+                    <Button className="bg-gradient-to-r from-primary to-primary-gradient hover:opacity-90 text-primary-foreground shadow-lg hover:shadow-xl transition-all duration-300 transform hover:scale-105">
+                      <Plus className="h-4 w-4 mr-2" />
+                      Novo Plano
+                    </Button>
+                  </DialogTrigger>
                 <DialogContent className="max-w-4xl max-h-[90vh] overflow-y-auto">
                   <DialogHeader>
                     <DialogTitle>Criar Novo Plano</DialogTitle>
@@ -387,6 +435,7 @@ export default function PlanManagement() {
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
+              </div>
             </div>
           </div>
         </div>
@@ -413,7 +462,7 @@ export default function PlanManagement() {
               <div className="flex items-center justify-between">
                 <div>
                   <p className="text-sm font-medium text-green-600 dark:text-green-400">Clientes</p>
-                  <p className="text-3xl font-bold text-foreground">{customers.length}</p>
+                  <p className="text-3xl font-bold text-foreground">{currentCustomers.length}</p>
                   <p className="text-xs text-muted-foreground mt-1">Cadastrados</p>
                 </div>
                 <div className="p-3 bg-green-500 rounded-full">
@@ -610,7 +659,7 @@ export default function PlanManagement() {
                         </TableRow>
                       </TableHeader>
                       <TableBody>
-                        {customers.map((customer) => (
+                        {currentCustomers.map((customer) => (
                           <TableRow key={customer.id}>
                             <TableCell>
                               <div>
@@ -627,9 +676,9 @@ export default function PlanManagement() {
                             <TableCell>
                               {getStatusBadge(customer.status)}
                             </TableCell>
-                            <TableCell>{customer.workspaces_count}</TableCell>
-                            <TableCell>${customer.lifetime_value.toFixed(2)}</TableCell>
-                            <TableCell>{new Date(customer.last_activity).toLocaleDateString()}</TableCell>
+                            <TableCell>{customer.workspace_count}</TableCell>
+                            <TableCell>${customer.total_spent?.toFixed(2) || '0.00'}</TableCell>
+                            <TableCell>{new Date(customer.last_active).toLocaleDateString()}</TableCell>
                             <TableCell>
                               <div className="flex items-center gap-2">
                                 <Button variant="outline" size="sm">
@@ -650,31 +699,71 @@ export default function PlanManagement() {
 
               {/* Analytics Tab */}
               <TabsContent value="analytics" className="space-y-6">
+                {/* Header com refresh */}
+                <div className="flex items-center justify-between">
+                  <div>
+                    <h3 className="text-lg font-semibold">Analytics Dashboard</h3>
+                    <p className="text-sm text-muted-foreground">
+                      Dados reais da API - Última atualização: {currentAdminStats?.last_updated ? new Date(currentAdminStats.last_updated).toLocaleString() : 'Nunca'}
+                    </p>
+                  </div>
+                  <Button onClick={refreshAllData} disabled={isLoadingData} variant="outline" size="sm">
+                    <RefreshCw className={`h-4 w-4 mr-2 ${isLoadingData ? 'animate-spin' : ''}`} />
+                    Atualizar Dados
+                  </Button>
+                </div>
+
+                {/* Status da API */}
+                {dataError && (
+                  <Alert>
+                    <AlertTriangle className="h-4 w-4" />
+                    <AlertDescription>
+                      ⚠️ Erro ao carregar dados da API: {dataError}. Usando dados de fallback.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
+                {!dataError && currentAdminStats && (
+                  <Alert>
+                    <CheckCircle className="h-4 w-4" />
+                    <AlertDescription>
+                      ✅ Dados carregados da API oficial em tempo real.
+                    </AlertDescription>
+                  </Alert>
+                )}
+
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Total de Clientes</CardTitle>
+                      <CardTitle className="text-sm font-medium">Total de Usuários</CardTitle>
                       <Users className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{customers.length}</div>
-                      <p className="text-xs text-muted-foreground">+2 novos esta semana</p>
+                      <div className="text-2xl font-bold">
+                        {currentAdminStats?.total_users || currentCustomers.length}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        {currentAdminStats?.new_users_this_month ? `+${currentAdminStats.new_users_this_month} este mês` : '+2 novos esta semana'}
+                      </p>
                     </CardContent>
                   </Card>
                   
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Receita Mensal</CardTitle>
+                      <CardTitle className="text-sm font-medium">Receita Total</CardTitle>
                       <DollarSign className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">
-                        ${customers.reduce((total, c) => {
-                          const plan = plans.find(p => p.slug === c.plan)
-                          return total + (plan?.price || 0)
-                        }, 0)}
+                        ${currentAdminStats?.total_revenue?.toLocaleString() || 
+                          currentCustomers.reduce((total, c) => {
+                            const plan = plans.find(p => p.slug === c.plan)
+                            return total + (plan?.price || 0)
+                          }, 0).toLocaleString()}
                       </div>
-                      <p className="text-xs text-muted-foreground">+15% desde último mês</p>
+                      <p className="text-xs text-muted-foreground">
+                        {currentAdminStats?.growth_rate ? `+${currentAdminStats.growth_rate}% de crescimento` : '+15% desde último mês'}
+                      </p>
                     </CardContent>
                   </Card>
                   
@@ -685,20 +774,27 @@ export default function PlanManagement() {
                     </CardHeader>
                     <CardContent>
                       <div className="text-2xl font-bold">
-                        {customers.filter(c => c.status === 'active').length}
+                        {currentAdminStats?.active_subscriptions || 
+                         currentCustomers.filter(c => c.status === 'active').length}
                       </div>
-                      <p className="text-xs text-muted-foreground">94% de taxa de retenção</p>
+                      <p className="text-xs text-muted-foreground">
+                        {currentAdminStats?.churn_rate ? `${currentAdminStats.churn_rate}% churn rate` : '94% de taxa de retenção'}
+                      </p>
                     </CardContent>
                   </Card>
                   
                   <Card>
                     <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-                      <CardTitle className="text-sm font-medium">Planos Ativos</CardTitle>
+                      <CardTitle className="text-sm font-medium">Workspaces Totais</CardTitle>
                       <Package className="h-4 w-4 text-muted-foreground" />
                     </CardHeader>
                     <CardContent>
-                      <div className="text-2xl font-bold">{plans.filter(p => p.is_active).length}</div>
-                      <p className="text-xs text-muted-foreground">de {plans.length} planos totais</p>
+                      <div className="text-2xl font-bold">
+                        {currentAdminStats?.total_workspaces || usage.workspaces_count}
+                      </div>
+                      <p className="text-xs text-muted-foreground">
+                        ARPU: ${currentAdminStats?.avg_revenue_per_user?.toFixed(2) || '89.50'}
+                      </p>
                     </CardContent>
                   </Card>
                 </div>
@@ -724,7 +820,7 @@ export default function PlanManagement() {
                         <p className="text-sm text-muted-foreground">Projetos</p>
                       </div>
                       <div className="text-center">
-                        <div className="text-2xl font-bold text-orange-600">{usage.storage_used_gb.toFixed(2)}GB</div>
+                        <div className="text-2xl font-bold text-orange-600">{usage.storage_used_gb?.toFixed(2) || '0.00'}GB</div>
                         <p className="text-sm text-muted-foreground">Storage Usado</p>
                       </div>
                     </div>

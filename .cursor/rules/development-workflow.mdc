@@ -1,0 +1,412 @@
+---
+description: 
+globs: 
+alwaysApply: true
+---
+# **🚀 Structured Development Workflow with Task Master**
+
+**🚨 CRITICAL RULE**: Before starting ANY new implementation flow, you **MUST** follow this structured approach to ensure comprehensive planning and execution.
+
+**🔗 ABSOLUTE REQUIREMENT**: For any frontend work involving APIs, you **MUST** first follow [api-integration.mdc](mdc:.cursor/rules/api-integration.mdc) to discover official API endpoints using `apidof-mcp-server`.
+
+> **Quick Start**: Copy `scripts/PRD-TEMPLATE.txt` to `scripts/PRD.txt`, fill it out, then run the 5-step workflow below.
+
+---
+
+## **📋 Mandatory Pre-Implementation Workflow**
+
+### **1️⃣ PRD Creation/Update (REQUIRED FIRST STEP)**
+- **🎯 Always start by creating or updating a Product Requirements Document**
+- **📍 File Location**: Save as `scripts/PRD.txt`
+- **📝 Template**: Use `scripts/PRD-TEMPLATE.txt` as starting point
+- **✅ Content Requirements**:
+  - Clear problem statement based on current request
+  - Detailed technical requirements with specifics
+  - Acceptance criteria with measurable outcomes
+  - Implementation constraints and dependencies
+  - Architecture decisions and rationale
+
+**Quick Start:**
+```bash
+# Copy template and edit
+cp scripts/PRD-TEMPLATE.txt scripts/PRD.txt
+# Edit PRD.txt with your specific requirements
+```
+
+**PRD Structure Template:**
+```markdown
+# Product Requirements Document
+
+## Problem Statement
+[Describe what needs to be solved from current request]
+
+## Technical Requirements
+- Frontend: [Specific UI/UX requirements]
+- Backend: [API, database, services requirements]
+- Integration: [Third-party services, APIs]
+- Performance: [Speed, scalability requirements]
+
+## Acceptance Criteria
+- [ ] [Specific, testable criteria]
+- [ ] [User-facing functionality works]
+- [ ] [Technical requirements met]
+
+## Implementation Constraints
+- Technology stack: [Specific technologies to use]
+- Dependencies: [What must be completed first]  
+- Timeline considerations: [If any]
+
+## Architecture Notes
+[Key architectural decisions and reasoning]
+```
+
+### **2️⃣ Task Generation (REQUIRED SECOND STEP)**
+- **🔄 Use Task Master to parse the PRD into structured tasks**
+- **🛠️ MCP Tool**: `parse_prd`
+- **💻 CLI Alternative**: `task-master parse-prd scripts/PRD.txt`
+- **⚙️ Parameters**:
+  - Input: `scripts/PRD.txt`
+  - Use `--research` flag for current best practices
+  - Use `--num-tasks=8-12` for optimal task count
+  - Specify `--tag=feature-name` if working on feature branch
+
+```bash
+# CLI Example - Standard Implementation
+task-master parse-prd scripts/PRD.txt --research --num-tasks=10
+
+# CLI Example - Feature Branch
+task-master parse-prd scripts/PRD.txt --research --num-tasks=8 --tag=feature-auth
+```
+
+### **3️⃣ Complexity Analysis (REQUIRED THIRD STEP)**
+- **📊 Analyze task complexity using research-backed analysis**
+- **🛠️ MCP Tool**: `analyze_project_complexity`
+- **💻 CLI Alternative**: `task-master analyze-complexity --research`
+- **🎯 Purpose**: Identify which tasks need detailed breakdown
+- **⚡ Performance**: Takes 30-60 seconds with research
+
+```bash
+# CLI Example - With optimal threshold
+task-master analyze-complexity --research --threshold=6
+
+# CLI Example - For specific tag
+task-master analyze-complexity --research --tag=feature-auth
+```
+
+### **4️⃣ Task Expansion (REQUIRED FOURTH STEP)**
+- **🎯 Expand all tasks based on complexity analysis**
+- **🛠️ MCP Tool**: `expand_all`
+- **💻 CLI Alternative**: `task-master expand --all --research --force`
+- **✨ Benefits**: Creates detailed subtasks for implementation
+- **⚡ Performance**: Takes 60-120 seconds with research
+
+```bash
+# CLI Example - Expand all with force replacement
+task-master expand --all --research --force
+
+# CLI Example - Expand specific tasks
+task-master expand --id=5,7,9 --research --force
+```
+
+### **5️⃣ Begin Implementation (START DEVELOPMENT)**
+- **⚡ Get next available task to work on**
+- **🛠️ MCP Tool**: `next_task`
+- **💻 CLI Alternative**: `task-master next`
+- **📋 Follow iterative subtask implementation pattern**
+
+```bash
+# Get next task
+task-master next
+
+# Show specific task details
+task-master show 5.2
+```
+
+---
+
+## **🔄 During Development - Continuous Actions**
+
+### **➕ Adding New Tasks**
+```bash
+# When new requirements emerge during development
+task-master add-task --prompt="Implement OAuth2 integration with Google" --research --priority=high
+
+# Add task with dependencies
+task-master add-task --prompt="Add password reset functionality" --dependencies=3,4 --research
+```
+
+### **📊 Status Management**
+```bash
+# Mark tasks/subtasks as complete (multiple at once)
+task-master set-status --id=5,5.1,5.2 --status=done
+
+# Mark as in-progress
+task-master set-status --id=6 --status=in-progress
+
+# Mark as blocked with reason
+task-master set-status --id=7 --status=blocked
+```
+
+### **🔄 Updating Tasks with New Learnings**
+```bash
+# Update all tasks from specific ID based on new context
+task-master update --from=10 --prompt="Changed to use Prisma instead of raw SQL for better type safety" --research
+
+# Update specific task with new requirements
+task-master update-task --id=5 --prompt="Added JWT authentication requirement based on security review" --research
+
+# Log subtask implementation progress (CRITICAL for learning)
+task-master update-subtask --id=5.2 --prompt="Successfully implemented with NextAuth.js - key findings: social login requires additional OAuth app setup"
+```
+
+### **🔍 Research Integration**
+```bash
+# Research current best practices before implementing
+task-master research "Next.js 14 authentication best practices with Prisma" --save-to=5.2
+
+# Research with project context
+task-master research "React Query vs SWR for data fetching in 2024" --files=src/api,src/hooks --save-file
+```
+
+---
+
+## **💡 Implementation Examples**
+
+### **✅ CORRECT: PRD-First Approach**
+```typescript
+// User requests: "Add user authentication system"
+
+// ✅ STEP 1: Create comprehensive PRD in scripts/PRD.txt
+// ✅ STEP 2: parse_prd scripts/PRD.txt --research --num-tasks=10
+// ✅ STEP 3: analyze_project_complexity --research --threshold=6
+// ✅ STEP 4: expand_all --research --force
+// ✅ STEP 5: next_task (start implementing)
+// ✅ STEP 6: Regular updates and status management
+```
+
+### **❌ INCORRECT: Direct Implementation**
+```typescript
+// ❌ DON'T start coding immediately without PRD and task planning
+// ❌ This leads to:
+//    - Incomplete requirements capture
+//    - Missed edge cases and security considerations
+//    - Poor task breakdown and dependency management
+//    - Lack of progress tracking
+//    - Technical debt and rework
+```
+
+---
+
+## **📚 Task Master Command Reference**
+
+### **🛠️ Essential MCP Tools**
+| Tool | Purpose | Usage |
+|------|---------|-------|
+| `parse_prd` | Convert PRD to structured tasks | Initial task generation |
+| `analyze_project_complexity` | Analyze task complexity | Before task expansion |
+| `expand_all` | Break down complex tasks | Create detailed subtasks |
+| `next_task` | Get next available task | Start development work |
+| `add_task` | Add new tasks during development | Handle emerging requirements |
+| `set_task_status` | Update task status | Track progress |
+| `update` | Update multiple tasks from ID | Handle context changes |
+| `update_task` | Update specific task | Refine requirements |
+| `update_subtask` | Log subtask progress | Implementation logging |
+| `research` | Get current best practices | Research-backed decisions |
+
+### **💻 Essential CLI Commands**
+```bash
+# 🚀 Core workflow commands
+task-master parse-prd scripts/PRD.txt --research --num-tasks=10
+task-master analyze-complexity --research --threshold=6
+task-master expand --all --research --force
+task-master next
+
+# 🔄 During development commands
+task-master add-task --prompt="New requirement" --research --priority=medium
+task-master set-status --id=5,5.1,5.2 --status=done
+task-master update --from=10 --prompt="Context change explanation" --research
+task-master research "Current best practice question" --save-to=5.2
+
+# 📊 Progress and analysis commands
+task-master list --status=pending --with-subtasks
+task-master show 5.2
+task-master complexity-report
+```
+
+---
+
+## **🎯 Workflow Benefits**
+
+### **✅ PRD-Driven Development Ensures**
+- **📋 Complete Requirements Capture**: Nothing is missed or assumed
+- **🏗️ Structured Task Breakdown**: Clear, logical implementation path
+- **📊 Complexity Analysis**: Right-sized tasks prevent over/under-engineering
+- **🔍 Research-Backed Planning**: Current best practices and technologies
+- **📈 Progress Tracking**: Clear completion criteria and milestones
+
+### **✅ Task Master Integration Provides**
+- **🤖 AI-Powered Task Generation**: Intelligent breakdown based on PRD
+- **📊 Complexity Analysis**: Optimal task sizing for efficient development
+- **🔗 Dependency Management**: Correct execution order prevents blockers
+- **📝 Progress Logging**: Complete implementation history and learning
+- **🔄 Context Updates**: Adaptive planning as requirements evolve
+
+---
+
+## **✅ Quality Assurance Checklist**
+
+### **📋 Before Starting Implementation**
+- [ ] **PRD created** in `scripts/PRD.txt` with complete requirements
+- [ ] **Tasks generated** with `parse_prd --research`
+- [ ] **Complexity analyzed** with `analyze_project_complexity --research`  
+- [ ] **Tasks expanded** with `expand_all --research --force`
+- [ ] **Next task identified** with `next_task`
+- [ ] **Dependencies validated** - no circular dependencies
+- [ ] **Research completed** for any unknown technologies
+
+### **🔄 During Implementation**
+- [ ] **Regular status updates** with `set_task_status`
+- [ ] **Progress logging** with `update_subtask` for each implementation step
+- [ ] **New tasks added** with `add_task --research` as requirements emerge
+- [ ] **Context updates** with `update --from=X` when direction changes
+- [ ] **Research queries** for any technical unknowns
+- [ ] **Code quality** maintained per existing project standards
+
+### **🚀 Before Completion**
+- [ ] **All subtasks completed** and marked as `done`
+- [ ] **Integration testing** performed if applicable
+- [ ] **Documentation updated** if needed
+- [ ] **Code reviewed** per team standards
+- [ ] **Performance verified** meets requirements
+
+---
+
+## **🚫 Anti-Patterns to Avoid**
+
+### **❌ Don't Skip PRD Creation**
+```bash
+# ❌ WRONG: Starting without PRD
+cursor: "Let's implement user auth"
+# Leads to: Missing requirements, scope creep, rework
+
+# ✅ CORRECT: PRD-first approach  
+1. Create scripts/PRD.txt with complete auth requirements
+2. Follow full workflow process
+```
+
+### **❌ Don't Skip Complexity Analysis**
+```bash
+# ❌ WRONG: Expanding without analysis
+task-master expand --all --force
+# Leads to: Poor task sizing, over/under-engineering
+
+# ✅ CORRECT: Analysis-based expansion
+task-master analyze-complexity --research
+task-master expand --all --research --force
+```
+
+### **❌ Don't Work Without Task Structure**
+```bash
+# ❌ WRONG: Direct implementation
+// Start coding without task breakdown
+# Leads to: Lost progress tracking, missed requirements
+
+# ✅ CORRECT: Structured approach
+task-master next  # Get specific task to work on
+task-master show 5.2  # Understand requirements
+# Implement according to task details
+```
+
+---
+
+## **🛠️ Troubleshooting**
+
+### **Common Issues & Solutions**
+
+#### **Issue: "Task Master not initialized"**
+```bash
+# Solution: Initialize Task Master in project
+task-master init --yes
+```
+
+#### **Issue: "PRD file not found"**
+```bash
+# Solution: Ensure PRD exists at correct location
+ls scripts/PRD.txt
+# If missing, copy template
+cp scripts/PRD-TEMPLATE.txt scripts/PRD.txt
+```
+
+#### **Issue: "No tasks generated"**
+```bash
+# Solution: Check PRD content quality
+# Ensure PRD has detailed requirements
+# Try with more explicit num-tasks
+task-master parse-prd scripts/PRD.txt --research --num-tasks=12
+```
+
+#### **Issue: "AI calls timing out"**
+```bash
+# Solution: Check API keys configuration
+# Ensure keys are set in .env or .cursor/mcp.json
+# Try without --research flag first
+task-master parse-prd scripts/PRD.txt --num-tasks=10
+```
+
+#### **Issue: "Tasks too complex/simple"**
+```bash
+# Solution: Adjust complexity threshold
+task-master analyze-complexity --research --threshold=4  # Lower = more tasks
+task-master analyze-complexity --research --threshold=8  # Higher = fewer tasks
+```
+
+---
+
+## **🔗 Integration with Existing Rules**
+
+- **📏 Follows**: [cursor_rules.mdc](mdc:.cursor/rules/cursor_rules.mdc) for rule structure
+- **📖 Uses**: [taskmaster.mdc](mdc:.cursor/rules/taskmaster/taskmaster.mdc) command reference
+- **🔄 Implements**: [dev_workflow.mdc](mdc:.cursor/rules/taskmaster/dev_workflow.mdc) patterns
+- **🏷️ Supports**: Tagged task contexts for feature branches
+- **🔍 Enables**: Research-backed development decisions
+
+---
+
+## **🎯 Advanced Usage Patterns**
+
+### **🌿 Feature Branch Development**
+```bash
+# Create feature branch and corresponding tag
+git checkout -b feature/user-auth
+task-master add-tag feature-user-auth --from-branch
+task-master use-tag feature-user-auth
+
+# Follow standard workflow in feature context
+task-master parse-prd scripts/PRD.txt --tag=feature-user-auth --research
+```
+
+### **🔄 Context Switching**
+```bash
+# Switch between different development contexts
+task-master list-tags  # See available contexts
+task-master use-tag master  # Switch to main development
+task-master use-tag feature-auth  # Switch to feature work
+```
+
+### **📊 Progress Monitoring**
+```bash
+# Monitor overall progress
+task-master list --status=done --with-subtasks
+task-master complexity-report
+task-master next  # Always know what to work on next
+```
+
+---
+
+**🎯 REMEMBER**: This workflow is **MANDATORY** for all new implementation flows. No exceptions.
+
+**📈 Success Formula**: PRD → Tasks → Complexity → Expansion → Implementation → Ship! 🚀
+
+---
+
+*This rule ensures consistent, high-quality development with complete requirements capture, intelligent task breakdown, and comprehensive progress tracking.*

@@ -1,0 +1,178 @@
+# Product Requirements Document - Admin Page Data Integration Fix
+
+## Problem Statement
+Após análise usando `apidof-mcp-server`, identifiquei problemas críticos na página admin:
+
+**🚨 PROBLEMAS CONFIRMADOS:**
+1. **Planos 100% Mockados**: Os 3 planos (Free, Pro, Enterprise) estão hardcoded no `context/plan-context.tsx`
+2. **Dados de Analytics Mockados**: Receita, clientes e métricas são simulados, não vêm de endpoints reais
+3. **Endpoints Admin Existem**: A API tem `/api/v1/analytics/admin/stats` e `/api/v1/marketplace/admin/reports/*` mas não estão sendo usados
+4. **Desconexão Frontend-Backend**: O frontend não está consumindo os dados reais da API oficial
+
+**IMPACTO:**
+- Administradores veem dados fictícios
+- Impossível tomar decisões baseadas em dados reais
+- Experiência inconsistente entre desenvolvimento e produção
+
+## Technical Requirements
+
+### API Discovery Completed ✅
+- **Ferramenta Usada**: `apidof-mcp-server` (seguindo regra absoluta)
+- **Endpoints Identificados**:
+  - `GET /api/v1/analytics/admin/stats` - Estatísticas administrativas
+  - `GET /api/v1/marketplace/admin/reports/revenue` - Relatório de receitas
+  - `GET /api/v1/marketplace/admin/reports/downloads` - Relatório de downloads
+  - `GET /api/v1/workspaces/` - Listar workspaces (para dados reais)
+  - `GET /api/v1/analytics/overview` - Visão geral de analytics
+
+### Frontend Requirements
+- [ ] **Remover dados mockados** do `context/plan-context.tsx`
+- [ ] **Integrar endpoints reais** descobertos via API specification
+- [ ] **Criar service layer** para admin analytics usando `apiService`
+- [ ] **Implementar loading states** adequados para dados reais
+- [ ] **Adicionar error handling** para falhas de API
+- [ ] **Criar tipos TypeScript** baseados nos schemas da API
+- [ ] **Implementar cache** para dados de analytics
+- [ ] **Adicionar refresh automático** de dados em tempo real
+
+### Backend Verification
+- [ ] **Verificar se endpoints retornam dados reais** (não mocks)
+- [ ] **Confirmar autenticação admin** nos endpoints descobertos
+- [ ] **Validar schemas de resposta** vs tipos TypeScript
+- [ ] **Testar performance** dos endpoints de admin
+- [ ] **Verificar permissões** de acesso aos dados administrativos
+
+### Data Integration
+- [ ] **Substituir mock plans** por dados reais do backend
+- [ ] **Conectar métricas de receita** ao endpoint oficial
+- [ ] **Integrar dados de clientes** usando workspaces reais
+- [ ] **Implementar analytics real-time** usando endpoints descobertos
+- [ ] **Criar dashboard** baseado em dados reais da API
+
+### Security & Performance
+- [ ] **Validar permissões admin** em todos os endpoints
+- [ ] **Implementar rate limiting** para endpoints de admin
+- [ ] **Adicionar logging** de acesso a dados administrativos
+- [ ] **Otimizar queries** de analytics para performance
+- [ ] **Implementar caching estratégico** para dados pesados
+
+## Acceptance Criteria
+
+### ✅ Dados Reais Integrados
+- [ ] Página admin mostra dados reais do banco de dados
+- [ ] Métricas de receita vêm do endpoint `/api/v1/marketplace/admin/reports/revenue`
+- [ ] Estatísticas administrativas usam `/api/v1/analytics/admin/stats`
+- [ ] Dados de clientes baseados em workspaces reais da API
+
+### ✅ Performance & UX
+- [ ] Loading states durante carregamento de dados reais
+- [ ] Error handling para falhas de API
+- [ ] Refresh automático de dados a cada 30 segundos
+- [ ] Cache inteligente para reduzir chamadas desnecessárias
+
+### ✅ Type Safety
+- [ ] Tipos TypeScript baseados nos schemas da API oficial
+- [ ] Validação de dados recebidos da API
+- [ ] IntelliSense completo para objetos de admin
+
+### ✅ Admin Experience
+- [ ] Dashboard responsivo com dados reais
+- [ ] Filtros funcionais para relatórios
+- [ ] Exportação de dados administrativos
+- [ ] Alertas para métricas críticas
+
+## Implementation Constraints
+
+### Technology Stack
+- **API Discovery**: Obrigatório uso do `apidof-mcp-server` (regra absoluta)
+- **Service Layer**: Usar `apiService` existente em `@/lib/api/service`
+- **State Management**: Manter context pattern existente, mas com dados reais
+- **Types**: Gerar tipos baseados na API specification oficial
+- **Caching**: Implementar com React Query ou SWR
+
+### Dependencies
+- [ ] **API Specification**: Todos os endpoints devem estar documentados
+- [ ] **Authentication**: Admin permissions devem estar implementadas no backend
+- [ ] **Database**: Dados reais devem existir para popular os dashboards
+- [ ] **Performance**: Endpoints devem responder em <2s para boa UX
+
+### Timeline Considerations
+- **Fase 1**: Integração de endpoints básicos (1-2 dias)
+- **Fase 2**: Implementação de cache e otimizações (1 dia)
+- **Fase 3**: Refinamento de UX e error handling (1 dia)
+
+## Architecture Notes
+
+### Service Layer Pattern
+```typescript
+// Criar admin-service.ts baseado nos endpoints descobertos
+class AdminService {
+  async getAdminStats() {
+    return apiService.get('/api/v1/analytics/admin/stats')
+  }
+  
+  async getRevenueReport(startDate: string, endDate: string) {
+    return apiService.get('/api/v1/marketplace/admin/reports/revenue', {
+      params: { start_date: startDate, end_date: endDate }
+    })
+  }
+}
+```
+
+### Context Refactoring
+- Manter API do context existente para compatibilidade
+- Substituir dados mockados por chamadas reais
+- Implementar loading/error states adequados
+- Adicionar cache layer para performance
+
+### Error Handling Strategy
+- Fallback gracioso para dados mockados em caso de erro
+- Logs detalhados para debugging
+- Retry automático para falhas temporárias
+- Notificações para administradores sobre problemas
+
+### Performance Optimization
+- Lazy loading de dados pesados
+- Pagination para listas grandes
+- Debouncing para filtros em tempo real
+- Background refresh sem bloquear UI
+
+## Risk Assessment
+
+### Technical Risks
+- **Dados mockados em produção**: Verificar e substituir por dados reais
+- **Performance de queries**: Analytics podem ser lentos, implementar cache
+- **Segurança**: Área admin deve ser protegida adequadamente
+
+### Business Risks  
+- **Dados incorretos**: Podem levar a decisões erradas de negócio
+- **Falta de métricas**: Dificulta análise e crescimento
+
+### Mitigation Strategies
+- Implementar logging para debug de APIs
+- Fallbacks para quando não há dados
+- Monitoring de performance das queries
+
+## Success Metrics
+- **Precisão**: 100% dos dados vêm do banco real
+- **Performance**: APIs respondem em < 500ms
+- **Confiabilidade**: Zero dados mockados em produção
+- **Segurança**: Apenas admins acessam a área
+
+---
+
+## Notes for Task Master Integration
+
+Este PRD investigará e corrigirá:
+1. **Data Sources**: Identificar origem real dos dados
+2. **API Integration**: Conectar frontend com backend real
+3. **Analytics Implementation**: Implementar cálculos reais
+4. **Security**: Proteger área administrativa
+
+**Comandos para usar**: 
+```bash
+task-master parse-prd scripts/PRD.txt --research --num-tasks=12
+task-master analyze-complexity --research --threshold=6
+task-master expand --all --research --force
+task-master next
+``` 

@@ -1,0 +1,236 @@
+---
+description: 
+globs: 
+alwaysApply: false
+---
+# **🚨 API Integration - Absolute Rule**
+
+**CRITICAL RULE**: Always use `apidof-mcp-server` when working on frontend features that need information about official API endpoints and backend structure.
+
+---
+
+## **📋 Mandatory API Discovery Process**
+
+### **🔍 ALWAYS Use apidof-mcp-server Before:**
+- ✅ Creating new API calls in frontend components
+- ✅ Debugging existing API integrations
+- ✅ Implementing admin panels or dashboards
+- ✅ Working with authentication flows
+- ✅ Building forms that submit to backend
+- ✅ Implementing data fetching hooks
+- ✅ Creating service layer functions
+- ✅ Troubleshooting API-related issues
+- ✅ Documenting API endpoints
+- ✅ Planning new features that require backend data
+
+### **🛠️ Available MCP Tools for API Discovery**
+- **`mcp_API_specification_read_project_oas_67wbqv`** - Read complete OpenAPI specification
+- **`mcp_API_specification_read_project_oas_ref_resources_67wbqv`** - Read specific endpoint details
+- **`mcp_API_specification_refresh_project_oas_67wbqv`** - Refresh API spec from server
+
+---
+
+## **⚡ Workflow Pattern**
+
+### **Step 1: API Discovery (MANDATORY)**
+```typescript
+// ❌ NEVER start coding without API discovery
+const fetchUserData = async () => {
+  // Wrong: Guessing endpoint structure
+  const response = await fetch('/api/users')
+}
+
+// ✅ ALWAYS discover API first
+// 1. Use mcp_API_specification_read_project_oas_67wbqv
+// 2. Identify correct endpoints
+// 3. Understand request/response schemas
+// 4. Then implement
+```
+
+### **Step 2: Implementation with Verified Endpoints**
+```typescript
+// ✅ Implementation based on API discovery
+const fetchUserData = async (): Promise<UserResponse> => {
+  // Using verified endpoint from API spec
+  const response = await apiService.get<UserResponse>('/v1/users/profile')
+  return response.data
+}
+```
+
+---
+
+## **🎯 Specific Use Cases**
+
+### **Admin Panel Development**
+```typescript
+// ✅ CORRECT: API discovery first
+// 1. Check API spec for admin endpoints
+// 2. Verify authentication requirements
+// 3. Understand data schemas
+// 4. Implement with proper types
+
+// Example discovered endpoints:
+// GET /v1/admin/users
+// GET /v1/admin/analytics
+// POST /v1/admin/plans
+```
+
+### **Authentication Integration**
+```typescript
+// ✅ CORRECT: Verify auth endpoints
+// 1. Discover auth flow endpoints
+// 2. Understand token structure
+// 3. Check refresh token mechanics
+// 4. Implement proper error handling
+
+// Example discovered endpoints:
+// POST /v1/auth/login
+// POST /v1/auth/refresh
+// GET /v1/auth/me
+```
+
+### **Data Fetching Hooks**
+```typescript
+// ✅ CORRECT: API-informed hook creation
+// 1. Discover all related endpoints
+// 2. Understand pagination/filtering
+// 3. Check error response formats
+// 4. Implement comprehensive hooks
+
+// Example hook based on API discovery:
+export function useWorkspaces() {
+  // Implementation based on verified API spec
+}
+```
+
+---
+
+## **🚫 Anti-Patterns to Avoid**
+
+### **❌ NEVER Do This**
+```typescript
+// ❌ Guessing API endpoints
+const response = await fetch('/api/maybe-users')
+
+// ❌ Assuming data structure
+interface User {
+  id: string // Maybe it's number?
+  name: string // Maybe it's firstName/lastName?
+}
+
+// ❌ Hardcoding without verification
+const API_BASE = 'https://api.example.com' // Is this correct?
+```
+
+### **✅ ALWAYS Do This**
+```typescript
+// ✅ API discovery first
+// 1. Use mcp_API_specification_read_project_oas_67wbqv
+// 2. Verify endpoint exists and structure
+// 3. Get exact schemas and types
+// 4. Implement with confidence
+
+// ✅ Based on verified API spec
+interface UserProfile {
+  id: number // Confirmed from API spec
+  email: string // Confirmed from API spec
+  role: 'user' | 'admin' | 'premium' // Confirmed enum values
+}
+```
+
+---
+
+## **📊 Integration with Task Master Workflow**
+
+### **Enhanced Task Creation**
+When creating tasks that involve API integration:
+
+1. **✅ API Discovery Task** (Always first)
+   - Use apidof-mcp-server to understand available endpoints
+   - Document findings in task details
+   - Identify any missing backend endpoints
+
+2. **✅ Implementation Task** (After discovery)
+   - Implement based on verified API structure
+   - Use proper TypeScript types from API spec
+   - Handle all documented error cases
+
+3. **✅ Testing Task** (Verify integration)
+   - Test against real API endpoints
+   - Verify data matches API specification
+   - Test error scenarios
+
+---
+
+## **🔧 MCP Tool Usage Examples**
+
+### **Complete API Specification**
+```typescript
+// Use this to get full API overview
+mcp_API_specification_read_project_oas_67wbqv({})
+```
+
+### **Specific Endpoint Details**
+```typescript
+// Use this to get details about specific endpoints
+mcp_API_specification_read_project_oas_ref_resources_67wbqv({
+  path: ["/paths/_get_users.json", "/paths/_post_auth_login.json"]
+})
+```
+
+### **Refresh API Spec**
+```typescript
+// Use this to get latest API changes
+mcp_API_specification_refresh_project_oas_67wbqv({})
+```
+
+---
+
+## **⚠️ Consequences of Not Following This Rule**
+
+### **Problems Caused by Skipping API Discovery:**
+- ❌ **Broken Integrations**: Using wrong endpoints or data structures
+- ❌ **Type Mismatches**: Frontend types don't match backend reality
+- ❌ **Authentication Issues**: Wrong auth flow or token handling
+- ❌ **Error Handling**: Missing proper error response handling
+- ❌ **Performance Issues**: Inefficient API usage patterns
+- ❌ **Maintenance Burden**: Code breaks when API changes
+- ❌ **Development Time**: More debugging and rework needed
+
+### **Benefits of Following This Rule:**
+- ✅ **Reliable Integrations**: Code works with real API
+- ✅ **Type Safety**: Perfect TypeScript integration
+- ✅ **Proper Error Handling**: Handle all documented error cases
+- ✅ **Future-Proof**: Code adapts to API changes
+- ✅ **Faster Development**: Less debugging, more building
+- ✅ **Better UX**: Proper loading states and error messages
+
+---
+
+## **🎯 Quality Checklist**
+
+Before completing any API-related task:
+
+- [ ] **API Discovery Completed** - Used apidof-mcp-server tools
+- [ ] **Endpoints Verified** - Confirmed endpoints exist and work
+- [ ] **Schemas Documented** - Request/response types are accurate
+- [ ] **Error Cases Handled** - All documented error responses covered
+- [ ] **Authentication Verified** - Auth requirements understood and implemented
+- [ ] **Types Generated** - TypeScript types match API specification
+- [ ] **Testing Completed** - Integration tested with real API
+
+---
+
+## **🔗 Integration with Other Rules**
+
+- **Follows**: [development-workflow.mdc](mdc:.cursor/rules/development-workflow.mdc) for structured approach
+- **Enhances**: [taskmaster.mdc](mdc:.cursor/rules/taskmaster/taskmaster.mdc) task creation
+- **Supports**: All frontend development rules with API accuracy
+
+---
+
+**🎯 REMEMBER**: This rule is **ABSOLUTE** and **NON-NEGOTIABLE**. Every API-related frontend development MUST start with API discovery using apidof-mcp-server tools.
+
+---
+
+*This rule ensures that all frontend development is based on accurate, up-to-date API information, preventing integration issues and reducing development time.*

@@ -7,6 +7,8 @@
 
 import React, { createContext, useContext, useEffect, useState } from 'react'
 import { apiService } from '@/lib/api/service'
+import { adminService } from '@/lib/api/admin-service'
+import type { AdminStats, RealCustomer } from '@/types/admin-types'
 import type { Plan, Subscription, BillingInfo, PlanLimits } from '@/types/plan-types'
 
 // ===== INTERFACES =====
@@ -23,6 +25,10 @@ interface PlanContextType {
     projects_count: number
     storage_used_gb: number
   }
+  
+  // Dados reais de admin (via apidof-mcp-server)
+  adminStats: AdminStats | null
+  realCustomers: RealCustomer[]
   
   // Limits baseados no plano atual
   limits: PlanLimits
@@ -42,6 +48,7 @@ interface PlanContextType {
   
   // Actions
   refreshData: () => Promise<void>
+  refreshAdminData: () => Promise<void>
 }
 
 // ===== MOCK DATA ORGANIZADO =====
@@ -169,6 +176,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
     projects_count: 0,
     storage_used_gb: 0
   })
+  const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
+  const [realCustomers, setRealCustomers] = useState<RealCustomer[]>([])
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
@@ -177,6 +186,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
     try {
       setLoading(true)
       setError(null)
+
+      console.log('🔍 [PlanContext] Loading real usage data from workspaces...')
 
       // Usar APIs que realmente existem
       const workspaces = await apiService.getWorkspaces()
@@ -189,6 +200,16 @@ export function PlanProvider({ children }: PlanProviderProps) {
         totalMembers += workspace.member_count || 0
         totalProjects += workspace.project_count || 0
       }
+
+      const realUsage = {
+        workspaces_count: workspaces.length,
+        members_count: totalMembers,
+        projects_count: totalProjects,
+        storage_used_gb: Math.round(workspaces.reduce((total, ws) => total + (ws.storage_used_mb || 0), 0) / 1024 * 100) / 100
+      }
+
+      setUsage(realUsage)
+      console.log('✅ [PlanContext] Real usage data loaded:', realUsage)
 
       setUsage({
         workspaces_count: workspaces.length,
@@ -361,12 +382,40 @@ export function PlanProvider({ children }: PlanProviderProps) {
     amount_due: currentPlan.price
   }
 
+  // ===== ADMIN DATA FUNCTIONS =====
+
+  const refreshAdminData = async () => {
+    try {
+      setLoading(true)
+      const [stats, customers] = await Promise.all([
+        adminService.getAdminStats(),
+        adminService.getRealCustomers()
+      ])
+      setAdminStats(stats)
+      setRealCustomers(customers)
+    } catch (err) {
+      console.warn('⚠️ Error refreshing admin data:', err)
+      setError('Erro ao carregar dados administrativos')
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  // Carregar dados admin na inicialização se user tem permissão
+  useEffect(() => {
+    if (hasPermission('admin.access')) {
+      refreshAdminData()
+    }
+  }, [currentPlan])
+
   // ===== CONTEXT VALUE =====
 
   const contextValue: PlanContextType = {
     plans,
     currentPlan,
     usage,
+    adminStats,
+    realCustomers,
     limits: currentPlan.limits,
     hasPermission,
     hasFeature,
@@ -375,7 +424,8 @@ export function PlanProvider({ children }: PlanProviderProps) {
     upgradePlan,
     loading,
     error,
-    refreshData: loadRealUsage
+    refreshData: loadRealUsage,
+    refreshAdminData
   }
 
   return (
