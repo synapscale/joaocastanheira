@@ -6,9 +6,11 @@
  * - GET /api/v1/marketplace/admin/reports/revenue - Relatório de receitas
  * - GET /api/v1/marketplace/admin/reports/downloads - Relatório de downloads
  * - GET /api/v1/workspaces/ - Dados reais de clientes (workspaces)
+ * 
+ * ⚠️ TODOS OS ENDPOINTS REQUEREM AUTENTICAÇÃO
  */
 
-import { ApiService } from './service'
+import { apiService } from './service'
 import type { 
   AdminStats, 
   RevenueReport, 
@@ -19,8 +21,47 @@ import type {
   CustomersListParams
 } from '@/types/admin-types'
 
-// Instância do ApiService
-const apiService = new ApiService()
+// ===== HELPER FUNCTIONS =====
+
+/**
+ * Trata erros de API e retorna mensagens claras para o usuário
+ */
+function handleApiError(error: any, context: string): never {
+  console.error(`❌ [Admin Service] ${context}:`, error)
+  
+  // Erro de autenticação
+  if (error?.status === 401) {
+    throw new Error('Você precisa estar logado como administrador para acessar estes dados.')
+  }
+  
+  // Erro de autorização
+  if (error?.status === 403) {
+    throw new Error('Você não tem permissão para acessar estes dados administrativos.')
+  }
+  
+  // Erro de servidor
+  if (error?.status >= 500) {
+    throw new Error('Erro interno do servidor. Tente novamente em alguns minutos.')
+  }
+  
+  // Erro de rede
+  if (error?.message?.includes('Failed to fetch') || error?.message?.includes('conectar ao servidor')) {
+    throw new Error('Não foi possível conectar ao servidor. Verifique sua conexão de internet.')
+  }
+  
+  // Erro genérico
+  const message = error?.message || 'Erro desconhecido ao acessar dados administrativos'
+  throw new Error(message)
+}
+
+/**
+ * Verifica se o usuário está autenticado antes de fazer requisições admin
+ */
+function ensureAuthenticated(): void {
+  if (!apiService.isAuthenticated()) {
+    throw new Error('Você precisa estar logado para acessar dados administrativos.')
+  }
+}
 
 // ===== ADMIN SERVICE CLASS =====
 
@@ -31,6 +72,8 @@ class AdminService {
    */
   async getAdminStats(): Promise<AdminStats> {
     try {
+      ensureAuthenticated()
+      
       console.log('🔄 [Admin Service] Requesting admin stats from backend...')
       
       const response = await apiService.get<AdminStats>('/api/v1/analytics/admin/stats')
@@ -39,8 +82,7 @@ class AdminService {
       return response
       
     } catch (error) {
-      console.error('❌ [Admin Service] Failed to fetch admin stats:', error)
-      throw new Error('Não foi possível conectar ao servidor para obter estatísticas administrativas')
+      handleApiError(error, 'Failed to fetch admin stats')
     }
   }
 
@@ -49,6 +91,8 @@ class AdminService {
    */
   async getRevenueReport(params: RevenueReportParams): Promise<RevenueReport> {
     try {
+      ensureAuthenticated()
+      
       console.log('🔄 [Admin Service] Requesting revenue report from backend...', params)
       
       const queryParams = new URLSearchParams()
@@ -64,8 +108,7 @@ class AdminService {
       return response
       
     } catch (error) {
-      console.error('❌ [Admin Service] Failed to fetch revenue report:', error)
-      throw new Error('Não foi possível conectar ao servidor para obter relatório de receitas')
+      handleApiError(error, 'Failed to fetch revenue report')
     }
   }
 
@@ -74,6 +117,8 @@ class AdminService {
    */
   async getDownloadsReport(params: DownloadsReportParams): Promise<DownloadsReport> {
     try {
+      ensureAuthenticated()
+      
       console.log('🔄 [Admin Service] Requesting downloads report from backend...', params)
       
       const queryParams = new URLSearchParams()
@@ -89,38 +134,39 @@ class AdminService {
       return response
       
     } catch (error) {
-      console.error('❌ [Admin Service] Failed to fetch downloads report:', error)
-      throw new Error('Não foi possível conectar ao servidor para obter relatório de downloads')
+      handleApiError(error, 'Failed to fetch downloads report')
     }
   }
 
   /**
-   * Obter lista de clientes/workspaces reais
+   * Obter lista de clientes reais (workspaces)
    */
   async getCustomers(params: CustomersListParams = {}): Promise<RealCustomer[]> {
     try {
-      console.log('🔄 [Admin Service] Requesting customers list from backend...', params)
+      ensureAuthenticated()
+      
+      console.log('🔄 [Admin Service] Requesting customers from backend...', params)
       
       const queryParams = new URLSearchParams()
       if (params.limit) queryParams.append('limit', params.limit.toString())
-      if (params.page) queryParams.append('page', params.page.toString())
-      if (params.status) queryParams.append('status', params.status)
       if (params.plan) queryParams.append('plan', params.plan)
       
-      const endpoint = `/api/v1/workspaces?${queryParams.toString()}`
+      const endpoint = params.limit || params.plan 
+        ? `/api/v1/workspaces/?${queryParams.toString()}`
+        : '/api/v1/workspaces/'
       
       const response = await apiService.get<RealCustomer[]>(endpoint)
       
-      console.log('✅ [Admin Service] Customers list received:', response)
+      console.log('✅ [Admin Service] Customers received:', response)
       return response
       
     } catch (error) {
-      console.error('❌ [Admin Service] Failed to fetch customers:', error)
-      throw new Error('Não foi possível conectar ao servidor para obter lista de clientes')
+      handleApiError(error, 'Failed to fetch customers list')
     }
   }
 }
 
-// ===== SINGLETON EXPORT =====
+// ===== EXPORT SINGLETON =====
 
-export const adminService = new AdminService() 
+export const adminService = new AdminService()
+export default adminService 
