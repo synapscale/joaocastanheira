@@ -5,11 +5,12 @@
 
 'use client'
 
-import React, { createContext, useContext, useEffect, useState } from 'react'
+import React, { createContext, useContext, useEffect, useState, useMemo, useCallback } from 'react'
 import { apiService } from '@/lib/api/service'
 import { adminService } from '@/lib/api/admin-service'
 import type { AdminStats, RealCustomer } from '@/types/admin-types'
 import type { Plan, Subscription, BillingInfo, PlanLimits } from '@/types/plan-types'
+import { getApiUrl } from '@/lib/config'
 
 // ===== INTERFACES =====
 
@@ -51,105 +52,8 @@ interface PlanContextType {
   refreshAdminData: () => Promise<void>
 }
 
-// ===== MOCK DATA ORGANIZADO =====
+// ===== REAL DATA LOADING =====
 
-const mockPlans: Plan[] = [
-  {
-    id: 'free',
-    name: 'Free',
-    slug: 'free',
-    description: 'Plano gratuito para começar',
-    price: 0,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    is_active: true,
-    is_featured: false,
-    sort_order: 1,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    features: [],
-    limits: {
-      max_workspaces: 1,
-      max_members_per_workspace: 3,
-      max_projects_per_workspace: 5,
-      max_storage_gb: 1,
-      max_api_requests_per_month: 1000,
-      max_executions_per_month: 100,
-      max_file_upload_size_mb: 10,
-      can_create_custom_roles: false,
-      can_use_api: true,
-      can_export_data: false,
-      can_use_webhooks: false,
-      can_use_integrations: false,
-      can_use_sso: false,
-      has_priority_support: false
-    }
-  },
-  {
-    id: 'pro',
-    name: 'Pro',
-    slug: 'pro',
-    description: 'Plano profissional com recursos avançados',
-    price: 29,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    is_active: true,
-    is_featured: true,
-    sort_order: 2,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    features: [],
-    limits: {
-      max_workspaces: 5,
-      max_members_per_workspace: 25,
-      max_projects_per_workspace: 50,
-      max_storage_gb: 50,
-      max_api_requests_per_month: 10000,
-      max_executions_per_month: 1000,
-      max_file_upload_size_mb: 100,
-      can_create_custom_roles: true,
-      can_use_api: true,
-      can_export_data: true,
-      can_use_webhooks: true,
-      can_use_integrations: true,
-      can_use_sso: false,
-      has_priority_support: true
-    }
-  },
-  {
-    id: 'enterprise',
-    name: 'Enterprise',
-    slug: 'enterprise',
-    description: 'Plano enterprise com recursos ilimitados',
-    price: 99,
-    currency: 'USD',
-    billing_cycle: 'monthly',
-    is_active: true,
-    is_featured: false,
-    sort_order: 3,
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    features: [],
-    limits: {
-      max_workspaces: -1, // ilimitado
-      max_members_per_workspace: -1,
-      max_projects_per_workspace: -1,
-      max_storage_gb: -1,
-      max_api_requests_per_month: -1,
-      max_executions_per_month: -1,
-      max_file_upload_size_mb: 1000,
-      can_create_custom_roles: true,
-      can_use_api: true,
-      can_export_data: true,
-      can_use_webhooks: true,
-      can_use_integrations: true,
-      can_use_sso: true,
-      has_priority_support: true
-    }
-  }
-]
-
-// Simular plano atual (pode ser alterado via localStorage)
 const getCurrentPlanId = (): string => {
   if (typeof window !== 'undefined') {
     return localStorage.getItem('synapscale_current_plan') || 'free'
@@ -168,8 +72,8 @@ interface PlanProviderProps {
 }
 
 export function PlanProvider({ children }: PlanProviderProps) {
-  const [plans] = useState<Plan[]>(mockPlans)
-  const [currentPlan, setCurrentPlan] = useState<Plan>(mockPlans[0])
+  const [plans, setPlans] = useState<Plan[]>([])
+  const [currentPlan, setCurrentPlan] = useState<Plan | null>(null)
   const [usage, setUsage] = useState({
     workspaces_count: 0,
     members_count: 0,
@@ -178,11 +82,67 @@ export function PlanProvider({ children }: PlanProviderProps) {
   })
   const [adminStats, setAdminStats] = useState<AdminStats | null>(null)
   const [realCustomers, setRealCustomers] = useState<RealCustomer[]>([])
-  const [loading, setLoading] = useState(false)
+  const [loading, setLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
 
+  // ===== LOAD REAL DATA =====
+  
+  useEffect(() => {
+    const loadPlans = async () => {
+      try {
+        setLoading(true)
+        const plansData = await apiService.getPlans()
+        setPlans(plansData)
+        
+        // Set current plan
+        const currentPlanId = getCurrentPlanId()
+        const current = plansData.find(p => p.id === currentPlanId) || plansData[0]
+        setCurrentPlan(current)
+      } catch (err) {
+        console.error('Error loading plans:', err)
+        setError('Failed to load plans')
+        // Set fallback default plan to prevent null errors
+        setCurrentPlan({
+          id: 'free',
+          name: 'Free',
+          slug: 'free',
+          description: 'Free plan',
+          price: 0,
+          currency: 'USD',
+          billing_cycle: 'monthly',
+          is_active: true,
+          is_featured: false,
+          sort_order: 1,
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+          features: [],
+          limits: {
+            max_workspaces: 1,
+            max_members_per_workspace: 3,
+            max_projects_per_workspace: 5,
+            max_storage_gb: 1,
+            max_api_requests_per_month: 1000,
+            max_executions_per_month: 100,
+            max_file_upload_size_mb: 10,
+            can_create_custom_roles: false,
+            can_use_api: true,
+            can_export_data: false,
+            can_use_webhooks: false,
+            can_use_integrations: false,
+            can_use_sso: false,
+            has_priority_support: false
+          }
+        })
+      } finally {
+        setLoading(false)
+      }
+    }
+    
+    loadPlans()
+  }, [])
+
   // Carregar dados reais dos workspaces
-  const loadRealUsage = async () => {
+  const loadRealUsage = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
@@ -231,7 +191,7 @@ export function PlanProvider({ children }: PlanProviderProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
   // Atualizar plano atual baseado no localStorage
   useEffect(() => {
@@ -240,14 +200,15 @@ export function PlanProvider({ children }: PlanProviderProps) {
     setCurrentPlan(plan)
   }, [plans])
 
-  // Carregar dados reais na inicialização
-  useEffect(() => {
-    loadRealUsage()
-  }, [])
+  // Carregar dados reais apenas quando solicitado manualmente
+  // DESABILITADO temporariamente para evitar loops de polling
+  // useEffect(() => {
+  //   loadRealUsage()
+  // }, [])
 
   // ===== PERMISSION LOGIC =====
 
-  const hasPermission = (permission: string): boolean => {
+  const hasPermission = useCallback((permission: string): boolean => {
     if (!currentPlan) return false
 
     switch (permission) {
@@ -256,39 +217,39 @@ export function PlanProvider({ children }: PlanProviderProps) {
         return currentPlan.slug === 'pro' || currentPlan.slug === 'enterprise'
       
       case 'workspace.create':
-        return currentPlan.limits.max_workspaces === -1 || usage.workspaces_count < currentPlan.limits.max_workspaces
+        return currentPlan.limits?.max_workspaces === -1 || usage.workspaces_count < (currentPlan.limits?.max_workspaces || 0)
       
       case 'members.invite':
-        return currentPlan.limits.max_members_per_workspace === -1 || currentPlan.limits.max_members_per_workspace > 1
+        return currentPlan.limits?.max_members_per_workspace === -1 || (currentPlan.limits?.max_members_per_workspace || 0) > 1
       
       case 'members.manage':
         return true // Todos os planos podem gerenciar membros básico
       
       case 'custom_roles.create':
-        return currentPlan.limits.can_create_custom_roles
+        return currentPlan.limits?.can_create_custom_roles || false
       
       case 'data.export':
-        return currentPlan.limits.can_export_data
+        return currentPlan.limits?.can_export_data || false
       
       case 'webhooks.use':
-        return currentPlan.limits.can_use_webhooks
+        return currentPlan.limits?.can_use_webhooks || false
       
       case 'integrations.use':
-        return currentPlan.limits.can_use_integrations
+        return currentPlan.limits?.can_use_integrations || false
       
       case 'api.use':
-        return currentPlan.limits.can_use_api
+        return currentPlan.limits?.can_use_api || false
       
       case 'sso.use':
-        return currentPlan.limits.can_use_sso
+        return currentPlan.limits?.can_use_sso || false
       
       default:
         return false
     }
-  }
+  }, [currentPlan, usage.workspaces_count])
 
-  const hasFeature = (feature: keyof PlanLimits): boolean => {
-    if (!currentPlan) return false
+  const hasFeature = useCallback((feature: keyof PlanLimits): boolean => {
+    if (!currentPlan?.limits) return false
     const value = currentPlan.limits[feature]
     
     if (typeof value === 'boolean') {
@@ -300,37 +261,38 @@ export function PlanProvider({ children }: PlanProviderProps) {
     }
     
     return false
-  }
+  }, [currentPlan])
 
-  // ===== MOCK UPGRADE FUNCTION =====
+  // ===== REAL UPGRADE FUNCTION =====
 
-  const upgradePlan = async (planId: string): Promise<void> => {
+  const upgradePlan = useCallback(async (planId: string): Promise<void> => {
     try {
       setLoading(true)
       
-      // Simular upgrade (salvar no localStorage)
       const targetPlan = plans.find(p => p.id === planId)
       if (!targetPlan) {
         throw new Error('Plano não encontrado')
       }
 
-      // Simular delay de API
-      await new Promise(resolve => setTimeout(resolve, 1000))
+      // Call real API endpoint
+      const response = await fetch(getApiUrl('/plans/upgrade'), {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${localStorage.getItem('synapsefrontend_auth_token')}`
+        },
+        body: JSON.stringify({ planId })
+      })
 
-      if (typeof window !== 'undefined') {
-        localStorage.setItem('synapscale_current_plan', planId)
+      if (!response.ok) {
+        throw new Error(`HTTP error! status: ${response.status}`)
       }
+
+      const result = await response.json()
       
       setCurrentPlan(targetPlan)
       
-      console.log(`✅ Upgrade simulado para plano: ${targetPlan.name}`)
-      
-      // Mostrar feedback visual para o usuário
-      if (typeof window !== 'undefined') {
-        const message = `🎉 Upgrade realizado com sucesso!\n\nNovo plano: ${targetPlan.name}\nPreço: $${targetPlan.price}/mês\n\nRecursos desbloqueados:\n${targetPlan.limits.can_create_custom_roles ? '✅ Roles customizadas\n' : ''}${targetPlan.limits.can_export_data ? '✅ Exportar dados\n' : ''}${targetPlan.limits.can_use_webhooks ? '✅ Webhooks\n' : ''}${targetPlan.limits.can_use_integrations ? '✅ Integrações\n' : ''}${targetPlan.limits.can_use_sso ? '✅ SSO\n' : ''}`
-        
-        setTimeout(() => alert(message), 100)
-      }
+      console.log(`✅ Upgrade realizado para plano: ${targetPlan.name}`)
       
     } catch (err) {
       console.warn('⚠️ Erro no upgrade:', err)
@@ -339,52 +301,33 @@ export function PlanProvider({ children }: PlanProviderProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [plans])
 
-  // ===== MOCK BILLING INFO =====
+  // ===== REAL BILLING DATA =====
+  
+  const [billingInfo, setBillingInfo] = useState<BillingInfo | null>(null)
+  const [subscription, setSubscription] = useState<Subscription | null>(null)
 
-  const mockSubscription: Subscription = {
-    id: 'sub_123',
-    user_id: 'user_123',
-    plan_id: currentPlan.id,
-    status: 'active',
-    current_period_start: new Date().toISOString(),
-    current_period_end: new Date(Date.now() + 30 * 24 * 60 * 60 * 1000).toISOString(),
-    created_at: new Date().toISOString(),
-    updated_at: new Date().toISOString(),
-    plan: currentPlan
-  }
-
-  const mockBillingInfo: BillingInfo = {
-    subscription: mockSubscription,
-    usage_stats: {
-      workspace_id: '',
-      period_start: new Date().toISOString(),
-      period_end: new Date().toISOString(),
-      members_count: usage.members_count,
-      projects_count: usage.projects_count,
-      storage_used_gb: usage.storage_used_gb,
-      api_requests_count: 150,
-      executions_count: 25,
-      file_uploads_count: 10,
-      created_at: new Date().toISOString()
-    },
-    limits: currentPlan.limits,
-    usage_percentage: {
-      workspaces: currentPlan.limits.max_workspaces === -1 ? 0 : (usage.workspaces_count / currentPlan.limits.max_workspaces) * 100,
-      members: currentPlan.limits.max_members_per_workspace === -1 ? 0 : (usage.members_count / currentPlan.limits.max_members_per_workspace) * 100,
-      storage: currentPlan.limits.max_storage_gb === -1 ? 0 : (usage.storage_used_gb / currentPlan.limits.max_storage_gb) * 100,
-      api_requests: currentPlan.limits.max_api_requests_per_month === -1 ? 0 : (150 / currentPlan.limits.max_api_requests_per_month) * 100,
-      executions: currentPlan.limits.max_executions_per_month === -1 ? 0 : (25 / currentPlan.limits.max_executions_per_month) * 100
-    },
-    is_over_limit: false,
-    next_billing_date: mockSubscription.current_period_end,
-    amount_due: currentPlan.price
-  }
+  // Função para carregar dados reais de billing
+  const loadBillingData = useCallback(async () => {
+    try {
+      // TODO: Implementar chamadas reais para API de billing quando disponível
+      console.log('🔍 [PlanContext] Loading real billing data (API not implemented yet)')
+      
+      // Por enquanto, deixar null até API estar disponível
+      setBillingInfo(null)
+      setSubscription(null)
+      
+    } catch (error) {
+      console.error('❌ [PlanContext] Error loading billing data:', error)
+      setBillingInfo(null)
+      setSubscription(null)
+    }
+  }, [])
 
   // ===== ADMIN DATA FUNCTIONS =====
 
-  const refreshAdminData = async () => {
+  const refreshAdminData = useCallback(async () => {
     try {
       setLoading(true)
       const [stats, customers] = await Promise.all([
@@ -399,34 +342,31 @@ export function PlanProvider({ children }: PlanProviderProps) {
     } finally {
       setLoading(false)
     }
-  }
+  }, [])
 
-  // Carregar dados admin na inicialização se user tem permissão
-  useEffect(() => {
-    if (hasPermission('admin.access')) {
-      refreshAdminData()
-    }
-  }, [currentPlan])
+  // Carregar dados admin apenas quando solicitado manualmente
+  // REMOVIDO: useEffect automático que estava causando loops
+  // Os dados admin agora são carregados apenas quando refreshAdminData() é chamado manualmente
 
   // ===== CONTEXT VALUE =====
 
-  const contextValue: PlanContextType = {
-    plans,
-    currentPlan,
-    usage,
-    adminStats,
-    realCustomers,
-    limits: currentPlan.limits,
-    hasPermission,
-    hasFeature,
-    billingInfo: mockBillingInfo,
-    subscription: mockSubscription,
-    upgradePlan,
-    loading,
-    error,
-    refreshData: loadRealUsage,
-    refreshAdminData
-  }
+  const contextValue: PlanContextType = useMemo(() => ({
+      plans,
+      currentPlan,
+      usage,
+      adminStats,
+      realCustomers,
+      limits: currentPlan?.limits || {},
+      hasPermission,
+      hasFeature,
+      billingInfo: billingInfo,
+      subscription: subscription,
+      upgradePlan,
+      loading,
+      error,
+      refreshData: loadRealUsage,
+      refreshAdminData
+  }), [plans, currentPlan, usage, adminStats, realCustomers, billingInfo, subscription, hasPermission, hasFeature, upgradePlan, loading, error, loadRealUsage, refreshAdminData])
 
   return (
     <PlanContext.Provider value={contextValue}>

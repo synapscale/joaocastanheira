@@ -14,6 +14,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger, Dialog
 import { Label } from "@/components/ui/label"
 import { toast } from "sonner"
 import { apiService } from "@/lib/api/service"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 import type { Workflow as WorkflowApi } from "@/lib/api/service"
 
 // Tipos para os workflows
@@ -167,21 +168,22 @@ export default function WorkflowsPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 max-w-7xl">
-      <div className="flex flex-col space-y-6">
-        {/* Cabeçalho */}
-        <div className="flex flex-col space-y-2">
-          <div className="flex items-center justify-between">
-            <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
-            <Button onClick={() => setIsCreateDialogOpen(true)}>
-              <Plus className="h-4 w-4 mr-2" />
-              Criar Workflow
-            </Button>
+    <ProtectedRoute>
+      <div className="container mx-auto py-6 max-w-7xl">
+        <div className="flex flex-col space-y-6">
+          {/* Cabeçalho */}
+          <div className="flex flex-col space-y-2">
+            <div className="flex items-center justify-between">
+              <h1 className="text-3xl font-bold tracking-tight">Visão Geral</h1>
+              <Button onClick={() => setIsCreateDialogOpen(true)}>
+                <Plus className="h-4 w-4 mr-2" />
+                Criar Workflow
+              </Button>
+            </div>
+            <p className="text-muted-foreground">
+              Todos os workflows, credenciais e execuções que você tem acesso
+            </p>
           </div>
-          <p className="text-muted-foreground">
-            Todos os workflows, credenciais e execuções que você tem acesso
-          </p>
-        </div>
 
         {/* Métricas */}
         <div className="grid grid-cols-1 md:grid-cols-5 gap-4">
@@ -445,5 +447,6 @@ export default function WorkflowsPage() {
         </DialogContent>
       </Dialog>
     </div>
+    </ProtectedRoute>
   )
 }

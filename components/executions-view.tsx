@@ -27,7 +27,7 @@ import {
 export function ExecutionsView() {
   const [filter, setFilter] = useState("")
 
-  // TODO: Usar dados reais da API - execuções serão carregadas de /api/v1/workflow-executions
+  // TODO: Usar dados reais da API - execuções serão carregadas de /workflow-executions
   const executions = [
     {
       id: "exec-001",

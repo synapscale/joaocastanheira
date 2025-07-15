@@ -5,7 +5,7 @@
 
 'use client';
 
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useCallback } from 'react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
@@ -36,6 +36,7 @@ import { ExecutionMonitor } from '@/components/execution/execution-monitor';
 import { formatDistanceToNow } from 'date-fns';
 import { ptBR } from 'date-fns/locale';
 import { useAuth } from '@/context/auth-context';
+import { ProtectedRoute } from '@/components/auth/protected-route';
 
 interface ExecutionSummary {
   id: string;
@@ -66,6 +67,33 @@ export default function MonitoringPage() {
   const [statusFilter, setStatusFilter] = useState<string>('all');
   const [refreshing, setRefreshing] = useState(false);
 
+  const requestExecutionList = useCallback(() => {
+    setRefreshing(true);
+    sendMessage({ type: 'get_execution_list' });
+    setTimeout(() => setRefreshing(false), 1000);
+  }, [sendMessage]);
+
+  const requestGlobalStats = useCallback(() => {
+    sendMessage({ type: 'get_global_stats' });
+  }, [sendMessage]);
+
+  // Solicita lista de execuções quando conecta
+  useEffect(() => {
+    if (isConnected) {
+      requestExecutionList();
+      requestGlobalStats();
+    }
+  }, [isConnected, requestExecutionList, requestGlobalStats]);
+
+  // Processa eventos WebSocket
+  useEffect(() => {
+    events.forEach(event => {
+      if (event.event_type === 'execution_list_response') {
+        setExecutions(event.data);
+      }
+    });
+  }, [events]);
+
   // Verifica se o usuário é admin
   if (!user?.is_admin) {
     return (
@@ -85,32 +113,7 @@ export default function MonitoringPage() {
     );
   }
 
-  // Solicita lista de execuções quando conecta
-  useEffect(() => {
-    if (isConnected) {
-      requestExecutionList();
-      requestGlobalStats();
-    }
-  }, [isConnected]);
 
-  // Processa eventos WebSocket
-  useEffect(() => {
-    events.forEach(event => {
-      if (event.event_type === 'execution_list_response') {
-        setExecutions(event.data);
-      }
-    });
-  }, [events]);
-
-  const requestExecutionList = () => {
-    setRefreshing(true);
-    sendMessage({ type: 'get_execution_list' });
-    setTimeout(() => setRefreshing(false), 1000);
-  };
-
-  const requestGlobalStats = () => {
-    sendMessage({ type: 'get_global_stats' });
-  };
 
   // Filtra execuções
   const filteredExecutions = executions.filter(execution => {
@@ -170,15 +173,16 @@ export default function MonitoringPage() {
   }
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      {/* Header */}
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold">Monitoramento Global</h1>
-          <p className="text-muted-foreground">
-            Dashboard administrativo para monitorar todas as execuções
-          </p>
-        </div>
+    <ProtectedRoute>
+      <div className="container mx-auto py-6 space-y-6">
+        {/* Header */}
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold">Monitoramento Global</h1>
+            <p className="text-muted-foreground">
+              Dashboard administrativo para monitorar todas as execuções
+            </p>
+          </div>
         
         <div className="flex items-center gap-2">
           {/* Status da conexão */}
@@ -263,6 +267,7 @@ export default function MonitoringPage() {
           </tbody>
         </table>
       </ScrollArea>
-    </div>
+      </div>
+    </ProtectedRoute>
   );
 } 

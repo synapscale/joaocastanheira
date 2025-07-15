@@ -37,27 +37,36 @@ const defaultSyncConfig: SyncConfig = {
  */
 export function useAutoSync(config: Partial<SyncConfig> = {}) {
   const { isAuthenticated } = useAuth()
-  const { syncVariables, lastSync, syncing, error } = useVariables()
+  const { loadVariables, loading, error } = useVariables()
   const [syncConfig] = useState<SyncConfig>({ ...defaultSyncConfig, ...config })
+  const [lastSync, setLastSync] = useState<Date | null>(null)
   const [retryCount, setRetryCount] = useState(0)
 
   /**
    * Executa sincronização com retry automático
    */
   const performSync = useCallback(async () => {
-    if (!isAuthenticated || syncing) return
+    // Verificar se não está em rota de auth
+    const isAuthRoute = typeof window !== 'undefined' && 
+      ['/login', '/register', '/forgot-password', '/reset-password'].some(route => 
+        window.location.pathname.startsWith(route)
+      )
+    
+    if (!isAuthenticated || loading || isAuthRoute) {
+      if (isAuthRoute) {
+        console.log('🚫 VariableAutoSync: Pulando sincronização - em rota de autenticação')
+      }
+      return
+    }
 
     try {
-      const success = await syncVariables()
-      
-      if (success) {
-        setRetryCount(0)
-        console.log('Variáveis sincronizadas automaticamente')
-      } else {
-        throw new Error('Falha na sincronização')
-      }
+      console.log('🔄 VariableAutoSync: Executando sincronização automática...')
+      await loadVariables()
+      setRetryCount(0)
+      setLastSync(new Date())
+      console.log('✅ VariableAutoSync: Variáveis sincronizadas automaticamente')
     } catch (error) {
-      console.error('Erro na sincronização automática:', error)
+      console.error('❌ VariableAutoSync: Erro na sincronização automática:', error)
       
       if (retryCount < syncConfig.retryAttempts) {
         setRetryCount(prev => prev + 1)
@@ -70,7 +79,7 @@ export function useAutoSync(config: Partial<SyncConfig> = {}) {
         setRetryCount(0)
       }
     }
-  }, [isAuthenticated, syncing, syncVariables, retryCount, syncConfig])
+  }, [isAuthenticated, loading, loadVariables, retryCount, syncConfig])
 
   /**
    * Configura intervalo de sincronização
@@ -118,7 +127,7 @@ export function useAutoSync(config: Partial<SyncConfig> = {}) {
   return {
     isEnabled: syncConfig.enabled,
     lastSync,
-    syncing,
+    syncing: loading,
     error,
     retryCount,
     manualSync: performSync,
@@ -129,15 +138,31 @@ export function useAutoSync(config: Partial<SyncConfig> = {}) {
  * Componente de sincronização automática
  */
 export function VariableAutoSync(props: Partial<SyncConfig> = {}) {
-  const { isAuthenticated } = useAuth()
+  const { isAuthenticated, isInitialized } = useAuth()
   const autoSync = useAutoSync(props)
 
-  // Sincroniza na primeira vez que o usuário se autentica
+  // CORREÇÃO: Só sincroniza se estiver totalmente inicializado e autenticado
+  // E não estiver em rota de autenticação
   useEffect(() => {
-    if (isAuthenticated && props.enabled !== false) {
+    // Verificar se não está em rota de auth
+    const isAuthRoute = typeof window !== 'undefined' && 
+      ['/login', '/register', '/forgot-password', '/reset-password'].some(route => 
+        window.location.pathname.startsWith(route)
+      )
+    
+    // Só sincronizar se estiver totalmente autenticado, inicializado e não em rota de auth
+    if (isAuthenticated && isInitialized && !isAuthRoute && props.enabled !== false) {
+      console.log('🔄 VariableAutoSync: Executando sincronização inicial - usuário autenticado e não em rota de auth')
       autoSync.manualSync()
+    } else {
+      console.log('🚫 VariableAutoSync: Pulando sincronização automática', {
+        isAuthenticated,
+        isInitialized, 
+        isAuthRoute,
+        enabled: props.enabled !== false
+      })
     }
-  }, [isAuthenticated, autoSync.manualSync, props.enabled])
+  }, [isAuthenticated, isInitialized, autoSync.manualSync, props.enabled])
 
   // Este componente não renderiza nada, apenas gerencia a sincronização
   return null
@@ -147,8 +172,9 @@ export function VariableAutoSync(props: Partial<SyncConfig> = {}) {
  * Componente de indicador de status de sincronização
  */
 export function SyncStatusIndicator() {
-  const { syncing, lastSync, error } = useVariables()
+  const { loading, error } = useVariables()
   const { isAuthenticated } = useAuth()
+  const { lastSync, syncing } = useAutoSync()
 
   if (!isAuthenticated) return null
 
@@ -192,14 +218,14 @@ export function SyncStatusIndicator() {
  */
 export function useOfflineChanges() {
   const [hasOfflineChanges, setHasOfflineChanges] = useState(false)
-  const { variables, lastSync } = useVariables()
+  const { variables } = useVariables()
+  const { lastSync } = useAutoSync()
 
   useEffect(() => {
     // Verifica se há variáveis modificadas após a última sincronização
     const hasChanges = variables.some(variable => {
-      if (variable.isSystem) return false
       if (!lastSync) return true
-      return variable.updatedAt > lastSync
+      return new Date(variable.updatedAt) > lastSync
     })
 
     setHasOfflineChanges(hasChanges)
@@ -213,15 +239,17 @@ export function useOfflineChanges() {
  */
 export function OfflineChangesNotification() {
   const { isAuthenticated } = useAuth()
-  const { syncVariables, syncing } = useVariables()
+  const { loadVariables, loading } = useVariables()
   const hasOfflineChanges = useOfflineChanges()
   const [dismissed, setDismissed] = useState(false)
 
   const handleSync = async () => {
-    const success = await syncVariables()
-    if (success) {
+    try {
+      await loadVariables()
       setDismissed(true)
       toast.success('Mudanças sincronizadas com sucesso!')
+    } catch (error) {
+      toast.error('Erro na sincronização')
     }
   }
 
@@ -242,10 +270,10 @@ export function OfflineChangesNotification() {
         <div className="flex gap-2">
           <button
             onClick={handleSync}
-            disabled={syncing}
+            disabled={loading}
             className="text-yellow-800 dark:text-yellow-200 underline hover:no-underline disabled:opacity-50"
           >
-            {syncing ? 'Sincronizando...' : 'Sincronizar agora'}
+            {loading ? 'Sincronizando...' : 'Sincronizar agora'}
           </button>
           
           <button

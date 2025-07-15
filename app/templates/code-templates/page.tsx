@@ -3,19 +3,19 @@
 import { useState } from "react"
 import { useCodeTemplates } from "@/context/code-template-context"
 import { TemplateManager } from "@/components/node-editor/template-manager"
-import type { CodeTemplate } from "@/data/code-templates"
+import type { CodeTemplate } from "@/lib/api/openapi-types"
 
 export default function CodeTemplatesPage() {
   const { customTemplates, addCustomTemplate, updateCustomTemplate, deleteCustomTemplate } = useCodeTemplates()
   const [searchQuery, setSearchQuery] = useState("")
 
   // Handle save template
-  const handleSaveTemplate = (template: Omit<CodeTemplate, "id">) => {
+  const handleSaveTemplate = (template: Omit<CodeTemplate, "id" | "user_id" | "created_at" | "updated_at" | "usage_count" | "rating_average" | "rating_count">) => {
     addCustomTemplate(template)
   }
 
   // Handle update template
-  const handleUpdateTemplate = (id: string, template: Omit<CodeTemplate, "id">) => {
+  const handleUpdateTemplate = (id: string, template: Partial<CodeTemplate>) => {
     updateCustomTemplate(id, template)
   }
 

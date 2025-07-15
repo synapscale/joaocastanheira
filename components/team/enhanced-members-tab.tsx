@@ -10,7 +10,7 @@ import { Alert, AlertDescription } from '@/components/ui/alert'
 import { UserPlus, Users, Search, Filter, Crown, Shield, AlertTriangle, Activity } from 'lucide-react'
 import { usePermissions } from '@/context/plan-context'
 import { useAuth } from '@/context/auth-context'
-import type { WorkspaceResponse } from '@/types/workspace-types'
+import type { WorkspaceResponse } from '@/lib/api/service'
 
 // Import our new components
 import TeamWorkspaceSelector from './team-workspace-selector'

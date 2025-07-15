@@ -165,8 +165,6 @@ export default function Explainability({
         setExplanation(result)
       } else {
         // Caso contrário, usa o exemplo para demonstração
-        // Simula um delay para parecer que está processando
-        await new Promise(resolve => setTimeout(resolve, 1000))
         setExplanation(EXAMPLE_EXPLANATION)
       }
     } catch (error) {

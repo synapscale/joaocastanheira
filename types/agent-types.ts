@@ -69,25 +69,25 @@ export interface SelectOption {
 /**
  * Utility to map API Agent (from apiService) to UI Agent type (for components)
  */
-export function mapApiAgentToUiAgent(apiAgent: import("@/lib/api/service").Agent): Agent {
+export function mapApiAgentToUiAgent(apiAgent: any): Agent {
   return {
     id: apiAgent.id,
     name: apiAgent.name,
-    type: apiAgent.agent_type || "custom",
-    model: apiAgent.model_name || "",
-    prompt: undefined, // Not present in API
+    type: apiAgent.type || apiAgent.agent_type || "custom",
+    model: apiAgent.model || apiAgent.model_name || "",
+    prompt: apiAgent.prompt,
     description: apiAgent.description,
     status: apiAgent.status as Agent["status"],
-    maxTokens: apiAgent.max_tokens,
+    maxTokens: apiAgent.maxTokens || apiAgent.max_tokens,
     temperature: apiAgent.temperature,
-    topP: undefined, // Not present in API
-    frequencyPenalty: undefined, // Not present in API
-    presencePenalty: undefined, // Not present in API
-    stopSequences: undefined, // Not present in API
-    userDecision: undefined, // Not present in API
-    urls: undefined, // Not present in API
-    agents: undefined, // Not present in API
-    createdAt: apiAgent.created_at || "",
-    updatedAt: apiAgent.updated_at || "",
+    topP: apiAgent.topP,
+    frequencyPenalty: apiAgent.frequencyPenalty,
+    presencePenalty: apiAgent.presencePenalty,
+    stopSequences: apiAgent.stopSequences,
+    userDecision: apiAgent.userDecision,
+    urls: apiAgent.urls,
+    agents: apiAgent.agents,
+    createdAt: apiAgent.createdAt || apiAgent.created_at || "",
+    updatedAt: apiAgent.updatedAt || apiAgent.updated_at || "",
   };
 }

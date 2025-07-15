@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import { useToast } from "@/components/ui/use-toast"
 import { MarketplaceService } from "@/services/marketplace-service"
 import type {
@@ -342,18 +342,20 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     setFilters((prev) => ({ ...prev, ...newFilters }))
   }, [])
 
-  // Buscar templates quando os filtros mudarem
+  // TEMPORARIAMENTE DESABILITADO - Buscar templates quando os filtros mudarem
   useEffect(() => {
-    fetchTemplates()
+    console.warn('⚠️ MarketplaceProvider: fetchTemplates automático DESABILITADO temporariamente')
+    // fetchTemplates()
   }, [fetchTemplates])
 
-  // Buscar estatísticas do marketplace na montagem
+  // TEMPORARIAMENTE DESABILITADO - Buscar estatísticas do marketplace na montagem
   useEffect(() => {
-    fetchMarketplaceStats()
+    console.warn('⚠️ MarketplaceProvider: fetchMarketplaceStats automático DESABILITADO temporariamente')
+    // fetchMarketplaceStats()
   }, [fetchMarketplaceStats])
 
   // Valor do contexto
-  const value = {
+  const value = useMemo(() => ({
     templates,
     featuredTemplates,
     popularTemplates,
@@ -373,7 +375,7 @@ export function MarketplaceProvider({ children }: { children: React.ReactNode })
     installTemplate,
     addReview,
     markReviewHelpful,
-  }
+  }), [templates, featuredTemplates, popularTemplates, recentTemplates, isLoading, error, filters, stats, currentTemplate, currentTemplateReviews, updateFilters, fetchTemplates, fetchTemplate, fetchTemplateReviews, fetchMarketplaceStats, publishTemplate, installTemplate, addReview, markReviewHelpful])
 
   return <MarketplaceContext.Provider value={value}>{children}</MarketplaceContext.Provider>
 }

@@ -1,0 +1,35 @@
+# Arquivos de sessão e histórico do Codex CLI
+history.jsonl
+sessions/
+log/
+
+# Arquivos temporários
+*.tmp
+*.temp
+
+# Configurações específicas do usuário
+user-config.json
+local-config.toml
+
+# Caches
+.cache/
+cache/
+
+# Logs
+*.log
+logs/
+
+# Arquivos de backup
+*.backup
+*.bak
+
+# Arquivos de configuração com informações sensíveis
+config-local.json
+config-dev.toml
+
+# Manter apenas arquivos de configuração principais
+!config.json
+!config.toml
+!instructions.md
+!setup.sh
+!README.md 

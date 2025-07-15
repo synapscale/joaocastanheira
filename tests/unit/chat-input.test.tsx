@@ -46,7 +46,7 @@ describe('ChatInput', () => {
     );
     
     // Verifica se o textarea está presente
-    const textarea = screen.getByPlaceholderText('Pergunte alguma coisa...');
+    const textarea = screen.getByPlaceholderText('Digite sua mensagem aqui...');
     expect(textarea).toBeInTheDocument();
     
     // Verifica se o botão de enviar está presente (busca pelo role, pois não há label)

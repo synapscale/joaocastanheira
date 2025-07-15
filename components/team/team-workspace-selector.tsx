@@ -5,7 +5,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@
 import { Card, CardContent } from '@/components/ui/card'
 import { Badge } from '@/components/ui/badge'
 import { Building, Users, Activity } from 'lucide-react'
-import type { WorkspaceResponse } from '@/types/workspace-types'
+import type { WorkspaceResponse } from '@/lib/api/service'
 
 interface WorkspaceSelectorProps {
   workspaces: WorkspaceResponse[]

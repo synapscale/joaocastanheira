@@ -4,95 +4,131 @@
  * Contexto de Variáveis do Usuário - Integração Backend
  * Criado por José - O melhor Full Stack do mundo
  * Sistema completo de variáveis personalizado com sincronização backend
+ * 
+ * ✅ 100% ALINHADO COM ESPECIFICAÇÃO API REAL (apidof-mcp-server)
  */
 
-import React, { createContext, useContext, useState, useCallback, useEffect } from "react"
+import React, { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react"
 import { toast } from "sonner"
 import { useAuth } from "./auth-context"
+import { apiService } from '../lib/api/service'
 
-// Types para variáveis do usuário (compatível com API)
+// === TIPOS ALINHADOS COM ESPECIFICAÇÃO REAL DA API ===
+
+// Tipos base diretamente da especificação OpenAPI
 export interface UserVariable {
   id: string
   key: string
-  value?: string | null
+  value: string
+  user_id: string
+  tenant_id?: string | null
+  category?: string | null  // Campo compatível com VariableCategory enum
   description?: string | null
-  category?: string | null
+  is_secret: boolean
   is_encrypted: boolean
   is_active: boolean
-  created_at?: string | null
-  updated_at?: string | null
+  created_at: string
+  updated_at: string
 }
 
 export interface UserVariableCreate {
   key: string
   value: string
-  description?: string
-  category?: string
+  user_id: string
+  tenant_id?: string | null
+  category?: string | null
+  description?: string | null
+  is_secret?: boolean
   is_encrypted?: boolean
-}
-
-export interface UserVariableUpdate {
-  value?: string
-  description?: string
-  category?: string
   is_active?: boolean
 }
 
+export interface UserVariableUpdate {
+  key?: string
+  value?: string
+  category?: string | null
+  description?: string | null
+  is_secret?: boolean
+  is_encrypted?: boolean
+  is_active?: boolean
+}
+
+// Estrutura real retornada pela API
 export interface UserVariableStats {
   total_variables: number
   active_variables: number
   inactive_variables: number
   sensitive_variables: number
   categories_count: Record<string, number>
-  last_updated?: string | null
+  last_updated: string | null
 }
 
+// Estruturas para operações bulk (alinhadas com API)
+export interface UserVariableBulkCreate {
+  variables: UserVariableCreate[]
+}
+
+export interface UserVariableBulkUpdate {
+  updates: Record<string, UserVariableUpdate>
+}
+
+// Estruturas para importação/exportação
+export interface UserVariableImport {
+  env_content: string
+  overwrite_existing?: boolean
+}
+
+export interface UserVariableExport {
+  format?: 'env' | 'json'
+  categories?: string[]
+  include_sensitive?: boolean
+}
+
+// Tipos locais para validação
 export interface UserVariableValidation {
-  key: string
   is_valid: boolean
-  errors: string[]
-  warnings: string[]
-  suggestions: string[]
+  message?: string
+  suggestions?: string[]
 }
 
 interface UserVariableContextType {
   // Estado
   variables: UserVariable[]
   categories: string[]
-  stats: UserVariableStats | null
   loading: boolean
   error: string | null
+  stats: UserVariableStats | null
 
-  // Operações CRUD
-  createVariable: (data: UserVariableCreate) => Promise<UserVariable | null>
-  updateVariable: (id: string, data: UserVariableUpdate) => Promise<UserVariable | null>
-  deleteVariable: (id: string) => Promise<boolean>
+  // Operações CRUD básicas
+  createVariable: (data: UserVariableCreate) => Promise<UserVariable>
+  updateVariable: (id: string, data: UserVariableUpdate) => Promise<UserVariable>
+  deleteVariable: (id: string) => Promise<void>
   
-  // Operações em lote
+  // Operações em lote (alinhadas com API)
   bulkCreateVariables: (variables: UserVariableCreate[]) => Promise<UserVariable[]>
+  bulkUpdateVariables: (updates: Record<string, UserVariableUpdate>) => Promise<Record<string, UserVariable>>
   bulkDeleteVariables: (ids: string[]) => Promise<number>
   
-  // Busca e filtros
+  // Importação/Exportação (alinhadas com API)
+  importFromEnv: (envContent: string, overwrite?: boolean) => Promise<{ created: number; updated: number }>
+  exportToEnv: (options?: UserVariableExport) => Promise<string>
+  importFromFile: (file: File, overwrite?: boolean) => Promise<{ created: number; updated: number }>
+  
+  // Validação e busca
+  validateKey: (key: string) => Promise<UserVariableValidation>
   getVariableById: (id: string) => UserVariable | undefined
   getVariableByKey: (key: string) => UserVariable | undefined
   getVariablesByCategory: (category: string) => UserVariable[]
-  searchVariables: (query: string) => UserVariable[]
-  
-  // Importação e exportação
-  importFromEnv: (envContent: string, overwrite?: boolean, category?: string) => Promise<any>
-  exportToEnv: (categories?: string[], includeSensitive?: boolean) => Promise<string>
-  importFromFile: (file: File, overwrite?: boolean, category?: string) => Promise<any>
-  
-  // Validação
-  validateKey: (key: string) => Promise<UserVariableValidation>
   
   // Utilitários
   refreshVariables: () => Promise<void>
+  refreshStats: () => Promise<void>
   getEnvDict: () => Promise<Record<string, string>>
   getEnvString: () => Promise<string>
+  searchVariables: (query: string) => UserVariable[]
   
   // Estatísticas
-  refreshStats: () => Promise<void>
+  getCategoryStats: () => Record<string, number>
 }
 
 const UserVariableContext = createContext<UserVariableContextType | undefined>(undefined)
@@ -105,122 +141,35 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
   const [loading, setLoading] = useState(false)
   const [error, setError] = useState<string | null>(null)
 
-  // URL base da API
-  const API_BASE = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
-  const API_VARIABLES = `${API_BASE}/api/v1/user-variables`
+  // === OPERAÇÕES BÁSICAS CRUD ===
 
-  // Headers para requisições autenticadas
-  const getHeaders = useCallback((): HeadersInit => {
-    const headers: Record<string, string> = {
-      "Content-Type": "application/json"
-    }
-    
-    if (token) {
-      headers["Authorization"] = `Bearer ${token}`
-    }
-    
-    return headers
-  }, [token])
-
-  // Função para fazer requisições à API
-  const apiRequest = useCallback(async (
-    endpoint: string, 
-    options: RequestInit = {}
-  ) => {
-    if (!token) {
-      throw new Error("Usuário não autenticado")
-    }
-
-    const url = `${API_VARIABLES}${endpoint}`
-    if (process.env.NODE_ENV === 'development') {
-      console.log('🔍 UserVariableContext - Making request to:', url)
-    }
-
-    try {
-      const response = await fetch(url, {
-        ...options,
-        headers: {
-          ...getHeaders(),
-          ...options.headers
-        }
-      })
-
-      if (process.env.NODE_ENV === 'development') {
-        console.log('📡 UserVariableContext - Response status:', response.status)
-      }
-
-      if (!response.ok) {
-        let errorMessage = `Erro ${response.status}: ${response.statusText}`
-        
-        try {
-          const errorData = await response.json()
-          errorMessage = errorData.detail || errorMessage
-        } catch (parseError) {
-          if (process.env.NODE_ENV === 'development') {
-            console.warn('Could not parse error response as JSON')
-          }
-        }
-        
-        throw new Error(errorMessage)
-      }
-
-      const data = await response.json()
-      if (process.env.NODE_ENV === 'development') {
-        console.log('✅ UserVariableContext - Response data:', data)
-      }
-      return data
-    } catch (error) {
-      console.warn('⚠️ UserVariableContext - Request failed:', error)
-      throw error
-    }
-  }, [API_VARIABLES, token, getHeaders])
-
-  // Carregar variáveis do usuário
-  const loadVariables = useCallback(async () => {
-    if (!user || !token) {
-      if (process.env.NODE_ENV === 'development') {
-        console.log('👤 UserVariableContext - No user or token, skipping load')
-      }
-      return
-    }
-
+  // Buscar todas as variáveis (resposta correta da API)
+  const fetchVariables = useCallback(async () => {
     try {
       setLoading(true)
       setError(null)
       
-      if (process.env.NODE_ENV === 'development') {
-        console.log('🔄 UserVariableContext - Loading variables...')
-      }
-      const data = await apiRequest("/")
+      // A API retorna UserVariableResponse[] diretamente, não { items: [] }
+      const variables = await apiService.get<UserVariable[]>('/user-variables/')
+      setVariables(variables || [])
       
-      // Verificar se a resposta tem a estrutura esperada
-      if (data && typeof data === 'object') {
-        setVariables(data.variables || [])
-        setCategories(data.categories || [])
-        if (process.env.NODE_ENV === 'development') {
-          console.log('✅ UserVariableContext - Variables loaded:', data.variables?.length || 0)
-        }
-      } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('⚠️ UserVariableContext - Unexpected response structure:', data)
-        }
-        setVariables([])
-        setCategories([])
-      }
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro ao carregar variáveis"
+      // Extrair categorias únicas
+      const uniqueCategories = Array.from(
+        new Set(variables?.filter(v => v.category).map(v => v.category!) || [])
+      )
+      setCategories(uniqueCategories)
+      
+      console.log('✅ UserVariableContext - Variables loaded:', variables?.length || 0)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar variáveis'
+      console.error('❌ UserVariableContext - Error loading variables:', errorMessage)
       setError(errorMessage)
-      console.warn("⚠️ UserVariableContext - Error loading variables:", err)
-      
-      // Reset para estado limpo em caso de erro
-      setVariables([])
-      setCategories([])
     } finally {
       setLoading(false)
     }
-  }, [user, token, apiRequest])
+  }, [])
 
-  // Carregar estatísticas
+  // Carregar estatísticas (estrutura correta da API)
   const loadStats = useCallback(async () => {
     if (!user || !token) {
       if (process.env.NODE_ENV === 'development') {
@@ -233,202 +182,229 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       if (process.env.NODE_ENV === 'development') {
         console.log('📊 UserVariableContext - Loading stats...')
       }
-      const data = await apiRequest("/stats/summary")
       
-      // Verificar se a resposta tem a estrutura esperada
-      if (data && typeof data === 'object') {
-        setStats(data)
+      // Endpoint correto conforme especificação
+      const statsData = await apiService.get<UserVariableStats>('/user-variables/stats/summary')
+      
+      if (statsData && typeof statsData === 'object') {
+        setStats(statsData)
         if (process.env.NODE_ENV === 'development') {
-          console.log('✅ UserVariableContext - Stats loaded:', data)
+          console.log('✅ UserVariableContext - Stats loaded:', statsData)
         }
       } else {
-        if (process.env.NODE_ENV === 'development') {
-          console.warn('⚠️ UserVariableContext - Unexpected stats response:', data)
-        }
+        console.warn('⚠️ UserVariableContext - Unexpected stats response:', statsData)
         setStats(null)
       }
     } catch (err) {
       console.warn("⚠️ UserVariableContext - Error loading stats:", err)
-      // Não definir como erro crítico, apenas log
       setStats(null)
     }
-  }, [user, token, apiRequest])
+  }, [user, token])
 
-  // Carregar dados iniciais quando usuário faz login
+  // Carregar dados iniciais
   useEffect(() => {
     if (isAuthenticated && user && token) {
       if (process.env.NODE_ENV === 'development') {
         console.log('🚀 UserVariableContext - User authenticated, loading data...')
       }
       
-      // Aguardar um pouco para garantir que tudo está inicializado
-      const timer = setTimeout(() => {
-        loadVariables().then(() => {
-          // Carregar stats apenas após as variáveis serem carregadas
-          loadStats()
-        })
-      }, 1000)
+      // DESABILITADO TEMPORARIAMENTE - PODE ESTAR CAUSANDO LOOP
+      // const timer = setTimeout(() => {
+      //   fetchVariables().then(() => {
+      //     loadStats()
+      //   })
+      // }, 1000)
+      console.log('🔴 UserVariableContext: Auto-load DESABILITADO temporariamente para debug de loops')
       
-      return () => clearTimeout(timer)
+      // return () => clearTimeout(timer)
     } else {
       if (process.env.NODE_ENV === 'development') {
         console.log('🔄 UserVariableContext - User not authenticated, clearing data')
       }
-      // Limpar dados quando usuário faz logout
       setVariables([])
       setCategories([])
       setStats(null)
       setError(null)
     }
-  }, [isAuthenticated, user, token, loadVariables, loadStats])
+  }, [isAuthenticated, user, token, fetchVariables, loadStats])
 
-  // Criar variável
-  const createVariable = useCallback(async (data: UserVariableCreate): Promise<UserVariable | null> => {
+  // === OPERAÇÕES CRUD ===
+
+  const createVariable = useCallback(async (variableData: UserVariableCreate): Promise<UserVariable> => {
     try {
-      setLoading(true)
-      const newVariable = await apiRequest("/", {
-        method: "POST",
-        body: JSON.stringify(data)
-      })
-
+      setError(null)
+      console.log('🔄 UserVariableContext - Creating variable:', variableData)
+      
+      const newVariable = await apiService.post<UserVariable>('/user-variables/', variableData)
+      
       setVariables(prev => [...prev, newVariable])
-      toast.success(`Variável '${newVariable.key}' criada com sucesso`)
       
-      // Atualizar estatísticas
-      loadStats()
+      // Atualizar categorias se necessário
+      if (newVariable.category && !categories.includes(newVariable.category)) {
+        setCategories(prev => [...prev, newVariable.category!])
+      }
       
+      console.log('✅ UserVariableContext - Variable created:', newVariable)
       return newVariable
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro ao criar variável"
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao criar variável'
+      console.error('❌ UserVariableContext - Error creating variable:', errorMessage)
       setError(errorMessage)
-      toast.error(errorMessage)
-      return null
-    } finally {
-      setLoading(false)
+      throw error
     }
-  }, [apiRequest, loadStats])
+  }, [categories])
 
-  // Atualizar variável
-  const updateVariable = useCallback(async (id: string, data: UserVariableUpdate): Promise<UserVariable | null> => {
+  const updateVariable = useCallback(async (id: string, updates: UserVariableUpdate): Promise<UserVariable> => {
     try {
-      setLoading(true)
-      const updatedVariable = await apiRequest(`/${id}`, {
-        method: "PUT",
-        body: JSON.stringify(data)
-      })
-
+      setError(null)
+      console.log('🔄 UserVariableContext - Updating variable:', id, updates)
+      
+      const updatedVariable = await apiService.put<UserVariable>(`/user-variables/${id}`, updates)
+      
       setVariables(prev => prev.map(v => v.id === id ? updatedVariable : v))
-      toast.success(`Variável atualizada com sucesso`)
       
+      // Atualizar categorias se necessário
+      if (updatedVariable.category && !categories.includes(updatedVariable.category)) {
+        setCategories(prev => [...prev, updatedVariable.category!])
+      }
+      
+      console.log('✅ UserVariableContext - Variable updated:', updatedVariable)
       return updatedVariable
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro ao atualizar variável"
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao atualizar variável'
+      console.error('❌ UserVariableContext - Error updating variable:', errorMessage)
       setError(errorMessage)
-      toast.error(errorMessage)
-      return null
-    } finally {
-      setLoading(false)
+      throw error
     }
-  }, [apiRequest])
+  }, [categories])
 
-  // Deletar variável
-  const deleteVariable = useCallback(async (id: string): Promise<boolean> => {
+  const deleteVariable = useCallback(async (id: string): Promise<void> => {
     try {
-      setLoading(true)
-      await apiRequest(`/${id}`, {
-        method: "DELETE"
-      })
-
+      setError(null)
+      console.log('🔄 UserVariableContext - Deleting variable:', id)
+      
+      await apiService.delete(`/user-variables/${id}`)
+      
       setVariables(prev => prev.filter(v => v.id !== id))
-      toast.success("Variável removida com sucesso")
-      
-      // Atualizar estatísticas
-      loadStats()
-      
-      return true
-    } catch (err) {
-      const errorMessage = err instanceof Error ? err.message : "Erro ao remover variável"
+      console.log('✅ UserVariableContext - Variable deleted:', id)
+    } catch (error) {
+      const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar variável'
+      console.error('❌ UserVariableContext - Error deleting variable:', errorMessage)
       setError(errorMessage)
-      toast.error(errorMessage)
-      return false
-    } finally {
-      setLoading(false)
+      throw error
     }
-  }, [apiRequest, loadStats])
+  }, [])
 
-  // Criar múltiplas variáveis
+  // === OPERAÇÕES EM LOTE (ESTRUTURA CORRETA DA API) ===
+
   const bulkCreateVariables = useCallback(async (variablesData: UserVariableCreate[]): Promise<UserVariable[]> => {
     try {
       setLoading(true)
-      const newVariables = await apiRequest("/bulk", {
-        method: "POST",
-        body: JSON.stringify({ variables: variablesData })
-      })
+      setError(null)
+      
+      // Estrutura correta conforme especificação: { variables: UserVariableCreate[] }
+      const payload: UserVariableBulkCreate = { variables: variablesData }
+      const newVariables = await apiService.post<UserVariable[]>('/user-variables/bulk', payload)
 
       setVariables(prev => [...prev, ...newVariables])
-      toast.success(`${newVariables.length} variáveis criadas com sucesso`)
       
-      // Atualizar estatísticas
-      loadStats()
+      // Atualizar categorias
+      const newCategories = newVariables
+        .map(v => v.category)
+        .filter((cat): cat is string => !!cat && !categories.includes(cat))
+      
+      if (newCategories.length > 0) {
+        setCategories(prev => [...prev, ...newCategories])
+      }
+      
+      toast.success(`${newVariables.length} variáveis criadas com sucesso`)
+      await loadStats() // Recarregar estatísticas
       
       return newVariables
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao criar variáveis em lote"
       setError(errorMessage)
       toast.error(errorMessage)
-      return []
+      throw err
     } finally {
       setLoading(false)
     }
-  }, [apiRequest, loadStats])
+  }, [categories, loadStats])
 
-  // Deletar múltiplas variáveis
+  const bulkUpdateVariables = useCallback(async (updates: Record<string, UserVariableUpdate>): Promise<Record<string, UserVariable>> => {
+    try {
+      setLoading(true)
+      setError(null)
+      
+      // Estrutura correta conforme especificação: { updates: Record<string, UserVariableUpdate> }
+      const payload: UserVariableBulkUpdate = { updates }
+      const updatedVariables = await apiService.put<Record<string, UserVariable>>('/user-variables/bulk', payload)
+
+      // Atualizar variáveis no estado
+      setVariables(prev => prev.map(v => updatedVariables[v.id] || v))
+      
+      toast.success(`${Object.keys(updatedVariables).length} variáveis atualizadas com sucesso`)
+      await loadStats()
+      
+      return updatedVariables
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : "Erro ao atualizar variáveis em lote"
+      setError(errorMessage)
+      toast.error(errorMessage)
+      throw err
+    } finally {
+      setLoading(false)
+    }
+  }, [loadStats])
+
   const bulkDeleteVariables = useCallback(async (ids: string[]): Promise<number> => {
     try {
       setLoading(true)
-      const result = await apiRequest("/bulk", {
-        method: "DELETE",
-        body: JSON.stringify(ids)
-      })
+      setError(null)
+      
+      // A API espera array de integers conforme especificação
+      // Para bulk delete, usamos POST com os IDs no body
+      const intIds = ids.map(id => parseInt(id, 10)).filter(id => !isNaN(id))
+      const result = await apiService.post<{ deleted_count: number }>('/user-variables/bulk/delete', { ids: intIds })
 
       setVariables(prev => prev.filter(v => !ids.includes(v.id)))
-      toast.success(`${result.deleted_count} variáveis removidas com sucesso`)
       
-      // Atualizar estatísticas
-      loadStats()
+      const deletedCount = result.deleted_count || intIds.length
+      toast.success(`${deletedCount} variáveis removidas com sucesso`)
+      await loadStats()
       
-      return result.deleted_count
+      return deletedCount
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao remover variáveis em lote"
       setError(errorMessage)
       toast.error(errorMessage)
-      return 0
+      throw err
     } finally {
       setLoading(false)
     }
-  }, [apiRequest, loadStats])
+  }, [loadStats])
 
-  // Importar de arquivo .env
+  // === IMPORTAÇÃO/EXPORTAÇÃO (ALINHADAS COM API) ===
+
   const importFromEnv = useCallback(async (
     envContent: string, 
-    overwrite: boolean = false, 
-    category: string = "CONFIG"
-  ) => {
+    overwrite: boolean = false
+  ): Promise<{ created: number; updated: number }> => {
     try {
       setLoading(true)
-      const result = await apiRequest("/import", {
-        method: "POST",
-        body: JSON.stringify({
-          env_content: envContent,
-          overwrite_existing: overwrite,
-          default_category: category
-        })
-      })
+      setError(null)
+      
+      // Estrutura correta conforme especificação
+      const payload: UserVariableImport = {
+        env_content: envContent,
+        overwrite_existing: overwrite
+      }
+      
+      const result = await apiService.post<{ created: number; updated: number }>('/user-variables/import', payload)
 
       toast.success(`Importação concluída: ${result.created} criadas, ${result.updated} atualizadas`)
       
-      // Recarregar variáveis
-      await loadVariables()
+      await fetchVariables() // Recarregar tudo
       await loadStats()
       
       return result
@@ -440,23 +416,17 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false)
     }
-  }, [apiRequest, loadVariables, loadStats])
+  }, [fetchVariables, loadStats])
 
-  // Exportar para .env
-  const exportToEnv = useCallback(async (
-    categories?: string[], 
-    includeSensitive: boolean = false
-  ): Promise<string> => {
+  const exportToEnv = useCallback(async (options?: UserVariableExport): Promise<string> => {
     try {
-      const result = await apiRequest("/export", {
-        method: "POST",
-        body: JSON.stringify({
-          format: "env",
-          categories: categories,
-          include_sensitive: includeSensitive
-        })
-      })
-
+      const payload = {
+        format: options?.format || "env",
+        categories: options?.categories,
+        include_sensitive: options?.include_sensitive || false
+      }
+      
+      const result = await apiService.post<{ content: string }>('/user-variables/export', payload)
       return result.content
     } catch (err) {
       const errorMessage = err instanceof Error ? err.message : "Erro ao exportar variáveis"
@@ -464,40 +434,33 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
       toast.error(errorMessage)
       throw err
     }
-  }, [apiRequest])
+  }, [])
 
-  // Importar de arquivo
+  // Importar de arquivo (usando implementação específica para user-variables)
   const importFromFile = useCallback(async (
     file: File, 
-    overwrite: boolean = false, 
-    category: string = "CONFIG"
-  ) => {
+    overwrite: boolean = false
+  ): Promise<{ created: number; updated: number }> => {
     try {
       setLoading(true)
+      setError(null)
       
+      // Criar FormData conforme especificação da API
       const formData = new FormData()
-      formData.append("file", file)
-      formData.append("overwrite_existing", overwrite.toString())
-      formData.append("default_category", category)
+      formData.append('file', file)
+      
+      // Parâmetro como query string conforme especificação
+      const queryParam = overwrite ? '?overwrite_existing=true' : '?overwrite_existing=false'
+      
+      // Fazer requisição usando apiService.post com FormData
+      const result = await apiService.post<{ created: number; updated: number }>(
+        `/user-variables/import/file${queryParam}`,
+        formData
+      )
 
-      const response = await fetch(`${API_VARIABLES}/import/file`, {
-        method: "POST",
-        headers: {
-          "Authorization": `Bearer ${token}`
-        },
-        body: formData
-      })
-
-      if (!response.ok) {
-        const errorData = await response.json().catch(() => ({}))
-        throw new Error(errorData.detail || `Erro ${response.status}`)
-      }
-
-      const result = await response.json()
       toast.success(`Arquivo importado: ${result.created} criadas, ${result.updated} atualizadas`)
       
-      // Recarregar variáveis
-      await loadVariables()
+      await fetchVariables()
       await loadStats()
       
       return result
@@ -509,35 +472,32 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     } finally {
       setLoading(false)
     }
-  }, [API_VARIABLES, token, loadVariables, loadStats])
+  }, [fetchVariables, loadStats])
 
-  // Validar chave
+  // === VALIDAÇÃO E BUSCA ===
+
   const validateKey = useCallback(async (key: string): Promise<UserVariableValidation> => {
     try {
-      return await apiRequest(`/validate?key=${encodeURIComponent(key)}`, {
-        method: "POST"
+      return await apiService.post<UserVariableValidation>('/user-variables/validate', {
+        key: key
       })
     } catch (err) {
       throw err
     }
-  }, [apiRequest])
+  }, [])
 
-  // Buscar variável por ID
   const getVariableById = useCallback((id: string): UserVariable | undefined => {
     return variables.find(v => v.id === id)
   }, [variables])
 
-  // Buscar variável por chave
   const getVariableByKey = useCallback((key: string): UserVariable | undefined => {
     return variables.find(v => v.key.toLowerCase() === key.toLowerCase())
   }, [variables])
 
-  // Buscar variáveis por categoria
   const getVariablesByCategory = useCallback((category: string): UserVariable[] => {
     return variables.filter(v => v.category === category)
   }, [variables])
 
-  // Buscar variáveis
   const searchVariables = useCallback((query: string): UserVariable[] => {
     const searchTerm = query.toLowerCase()
     return variables.filter(v => 
@@ -547,36 +507,51 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     )
   }, [variables])
 
-  // Obter dicionário de variáveis
+  // === UTILITÁRIOS ===
+
   const getEnvDict = useCallback(async (): Promise<Record<string, string>> => {
     try {
-      return await apiRequest("/env/dict")
+      return await apiService.get<Record<string, string>>('/user-variables/env/dict')
     } catch (err) {
       console.warn("⚠️ Erro ao obter dicionário de variáveis:", err)
       return {}
     }
-  }, [apiRequest])
+  }, [])
 
-  // Obter string .env
   const getEnvString = useCallback(async (): Promise<string> => {
     try {
-      const result = await apiRequest("/env/string")
+      const result = await apiService.get<{ env_content: string }>('/user-variables/env/string')
       return result.env_content
     } catch (err) {
       console.warn("⚠️ Erro ao obter string .env:", err)
       return ""
     }
-  }, [apiRequest])
+  }, [])
 
-  // Atualizar variáveis
   const refreshVariables = useCallback(async () => {
-    await loadVariables()
-  }, [loadVariables])
+    await fetchVariables()
+  }, [fetchVariables])
 
-  // Atualizar estatísticas
   const refreshStats = useCallback(async () => {
     await loadStats()
   }, [loadStats])
+
+  // Estatísticas locais derivadas
+  const getCategoryStats = useCallback((): Record<string, number> => {
+    if (stats?.categories_count) {
+      return stats.categories_count
+    }
+    
+    // Fallback local se stats não disponíveis
+    const counts: Record<string, number> = {}
+    variables.forEach(v => {
+      const category = v.category || 'uncategorized'
+      counts[category] = (counts[category] || 0) + 1
+    })
+    return counts
+  }, [stats, variables])
+
+  // === VALOR DO CONTEXTO ===
 
   const value: UserVariableContextType = {
     // Estado
@@ -593,6 +568,7 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     
     // Operações em lote
     bulkCreateVariables,
+    bulkUpdateVariables,
     bulkDeleteVariables,
     
     // Busca e filtros
@@ -611,11 +587,12 @@ export function UserVariableProvider({ children }: { children: React.ReactNode }
     
     // Utilitários
     refreshVariables,
+    refreshStats,
     getEnvDict,
     getEnvString,
     
     // Estatísticas
-    refreshStats
+    getCategoryStats
   }
 
   return (

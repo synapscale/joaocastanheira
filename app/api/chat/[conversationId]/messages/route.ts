@@ -1,7 +1,5 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { ApiService } from "@/lib/api/service"
-
-const apiService = new ApiService()
+import { apiService } from "@/lib/api/service"
 
 export async function GET(req: NextRequest, { params }: { params: { conversationId: string } }) {
   try {

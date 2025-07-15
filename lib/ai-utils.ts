@@ -118,7 +118,7 @@ export function isDocumentFile(file: File): boolean {
 import { mapToApiModelName } from '@/lib/utils/model-mapper'
 
 /**
- * Integração com a API de chat usando o endpoint /api/v1/llm/chat
+ * Integração com a API de chat usando o endpoint /llm/chat (prefixo /api/v1/ adicionado automaticamente)
  * 
  * Envia mensagens para o LLM e retorna a resposta
  * @param messages Array de mensagens do chat (ou string única para compatibilidade)

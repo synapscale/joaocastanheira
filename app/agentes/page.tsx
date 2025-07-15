@@ -1,13 +1,30 @@
 "use client"
 
 import { useState, useEffect, useMemo } from "react"
-import { useRouter } from "next/navigation"
+import { useRouter, usePathname } from "next/navigation"
 import { motion, AnimatePresence } from "framer-motion"
-import { Search, Plus, ChevronLeft, ChevronRight, Filter, X, Copy, Trash2, MoreHorizontal } from "lucide-react"
+import { 
+  Search, 
+  Plus, 
+  ChevronLeft, 
+  ChevronRight, 
+  Filter, 
+  X, 
+  Copy, 
+  Trash2, 
+  MoreHorizontal, 
+  Menu, 
+  Bot, 
+  Wrench, 
+  Database, 
+  LogOut, 
+  User
+} from "lucide-react"
 import { formatDate } from "@/utils/date-utils"
 import type { Agent } from "@/types/agent-types"
 import { apiService } from "@/lib/api/service"
 import { mapApiAgentToUiAgent } from "@/types/agent-types"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 // Components
 import { Button } from "@/components/ui/button"
@@ -59,17 +76,17 @@ const Filters = ({
       <Input
         type="text"
         placeholder="Buscar agentes..."
-        value={searchQuery}
-        onChange={(e) => onSearchChange(e.target.value)}
+        value={searchQuery || ""}
+        onChange={(e) => onSearchChange(e.target.value || "")}
         className="pl-10 bg-white dark:bg-gray-800 border border-gray-200 dark:border-gray-700 rounded-lg shadow-sm focus:ring-2 focus:ring-indigo-500 focus:border-transparent transition-all duration-200"
       />
     </div>
     <div className="flex flex-wrap gap-2">
       <Badge 
         onClick={() => onStatusChange("all")} 
-        variant={statusFilter === "all" ? "default" : "outline"}
+        variant={(statusFilter || "all") === "all" ? "default" : "outline"}
         className={`cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-          statusFilter === "all" 
+          (statusFilter || "all") === "all" 
             ? "bg-indigo-100 text-indigo-800 dark:bg-indigo-900 dark:text-indigo-100 hover:bg-indigo-200 dark:hover:bg-indigo-800" 
             : "hover:bg-gray-100 dark:hover:bg-gray-800"
         }`}
@@ -79,9 +96,9 @@ const Filters = ({
       </Badge>
       <Badge 
         onClick={() => onStatusChange("active")} 
-        variant={statusFilter === "active" ? "default" : "outline"}
+        variant={(statusFilter || "all") === "active" ? "default" : "outline"}
         className={`cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-          statusFilter === "active" 
+          (statusFilter || "all") === "active" 
             ? "bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-100 hover:bg-green-200 dark:hover:bg-green-800" 
             : "hover:bg-gray-100 dark:hover:bg-gray-800"
         }`}
@@ -91,9 +108,9 @@ const Filters = ({
       </Badge>
       <Badge 
         onClick={() => onStatusChange("draft")} 
-        variant={statusFilter === "draft" ? "default" : "outline"}
+        variant={(statusFilter || "all") === "draft" ? "default" : "outline"}
         className={`cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-          statusFilter === "draft" 
+          (statusFilter || "all") === "draft" 
             ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900 dark:text-yellow-100 hover:bg-yellow-200 dark:hover:bg-yellow-800" 
             : "hover:bg-gray-100 dark:hover:bg-gray-800"
         }`}
@@ -103,9 +120,9 @@ const Filters = ({
       </Badge>
       <Badge 
         onClick={() => onStatusChange("archived")} 
-        variant={statusFilter === "archived" ? "default" : "outline"}
+        variant={(statusFilter || "all") === "archived" ? "default" : "outline"}
         className={`cursor-pointer px-3 py-1.5 rounded-full text-sm font-medium transition-all duration-200 ${
-          statusFilter === "archived" 
+          (statusFilter || "all") === "archived" 
             ? "bg-gray-300 text-gray-800 dark:bg-gray-700 dark:text-gray-100 hover:bg-gray-400 dark:hover:bg-gray-600" 
             : "hover:bg-gray-100 dark:hover:bg-gray-800"
         }`}
@@ -407,16 +424,38 @@ const ErrorState = ({ error, onRetry }: { error: string, onRetry: () => void }) 
 // Number of items per page
 const ITEMS_PER_PAGE = 6;
 
+// Placeholder for Tools
+const ToolsPlaceholder = () => (
+  <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+    <Wrench className="w-12 h-12 mb-4 text-muted-foreground" />
+    <h2 className="text-xl font-bold mb-2">Gerencie as ferramentas dos agentes</h2>
+    <p className="text-muted-foreground mb-4">Aqui você poderá adicionar, editar e remover integrações e ferramentas disponíveis para seus agentes.</p>
+    <Button variant="outline" disabled>Nova Ferramenta (em breve)</Button>
+  </div>
+);
+
+// Placeholder for Knowledge Base
+const KnowledgePlaceholder = () => (
+  <div className="flex flex-col items-center justify-center h-[60vh] text-center">
+    <Database className="w-12 h-12 mb-4 text-muted-foreground" />
+    <h2 className="text-xl font-bold mb-2">Base de Conhecimento dos agentes</h2>
+    <p className="text-muted-foreground mb-4">Organize e gerencie as fontes de conhecimento que os agentes podem acessar.</p>
+    <Button variant="outline" disabled>Nova Base (em breve)</Button>
+  </div>
+);
+
 // Main Component
 export default function AgentsPage() {
+  const pathname = usePathname()
   const router = useRouter()
   const [agents, setAgents] = useState<Agent[]>([])
-  const [searchQuery, setSearchQuery] = useState("")
-  const [statusFilter, setStatusFilter] = useState<"all" | "active" | "draft" | "archived">("all")
+  const [searchQuery, setSearchQuery] = useState<string>("")
+  const [statusFilter, setStatusFilter] = useState<string>("all")
   const [isLoading, setIsLoading] = useState(true)
   const [error, setError] = useState<string | null>(null)
   const [agentToDelete, setAgentToDelete] = useState<Agent | null>(null)
   const [currentPage, setCurrentPage] = useState(1)
+  const [totalPages, setTotalPages] = useState(1)
 
   // Load agents from API with server-side filtering
   useEffect(() => {
@@ -433,9 +472,12 @@ export default function AgentsPage() {
     }
 
     apiService.getAgents(params)
-      .then((res) => {
-        setAgents(res.items.map(mapApiAgentToUiAgent))
-        setTotalPages(res.pages || Math.ceil(res.total / ITEMS_PER_PAGE))
+      .then((res: any) => {
+        const items = res.items || (res.data && res.data.items) || [];
+        const totalPages = res.pages || (res.data && res.data.pages) || Math.ceil((res.total || (res.data && res.data.total) || 0) / ITEMS_PER_PAGE);
+
+        setAgents(items.map(mapApiAgentToUiAgent))
+        setTotalPages(totalPages)
         setIsLoading(false)
       })
       .catch((err) => {
@@ -448,8 +490,6 @@ export default function AgentsPage() {
   useEffect(() => {
     setCurrentPage(1)
   }, [searchQuery, statusFilter])
-
-  const [totalPages, setTotalPages] = useState(1)
 
   // Filter agents based on search query and status - now server-side
   const filteredAgents = useMemo(() => {
@@ -506,30 +546,81 @@ export default function AgentsPage() {
     router.push("/agentes/novo")
   }
 
+  // Detectar se está em /agentes/tools ou /agentes/knowledge
+  if (pathname === "/agentes/tools" || pathname === "/agentes/knowledge") {
+    const isTools = pathname === "/agentes/tools"
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[60vh] text-center gap-6">
+        <div className="flex flex-col items-center gap-2">
+          {isTools ? <Wrench className="w-12 h-12 text-primary" /> : <Database className="w-12 h-12 text-primary" />}
+          <h2 className="text-2xl font-bold">
+            {isTools ? "Gerenciamento de Tools" : "Knowledge Base do Agente"}
+          </h2>
+          <p className="text-muted-foreground max-w-md">
+            {isTools
+              ? "Aqui você poderá adicionar, remover e configurar ferramentas (tools) para seus agentes. Em breve!"
+              : "Aqui você poderá gerenciar a base de conhecimento dos agentes, adicionar fontes, editar conteúdos e muito mais. Em breve!"}
+          </p>
+        </div>
+        <Button onClick={() => router.push("/agentes")}>Voltar para Agentes</Button>
+      </div>
+    )
+  }
+
   // Render loading state
   if (isLoading) {
-    return <LoadingSkeleton />
+    return (
+      <div className="container py-6">
+        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-8">
+          <div className="h-8 w-48 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="h-10 w-36 bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+        </div>
+        
+        <div className="mb-8 space-y-4">
+          <div className="h-10 w-full bg-gray-200 dark:bg-gray-700 rounded animate-pulse" />
+          <div className="flex gap-2">
+            {[1, 2, 3, 4].map(i => (
+              <div key={i} className="h-8 w-24 bg-gray-200 dark:bg-gray-700 rounded-full animate-pulse" />
+            ))}
+          </div>
+        </div>
+        
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[1, 2, 3, 4, 5, 6].map(i => (
+            <div key={i} className="h-64 bg-gray-200 dark:bg-gray-700 rounded-xl animate-pulse" />
+          ))}
+        </div>
+      </div>
+    )
   }
 
   // Render error state
   if (error) {
-    return <ErrorState error={error} onRetry={() => window.location.reload()} />
+    return (
+      <div className="container py-6 flex flex-col items-center justify-center min-h-[300px]">
+        <div className="w-16 h-16 rounded-full bg-red-100 dark:bg-red-900/20 flex items-center justify-center mb-4">
+          <X className="h-8 w-8 text-red-600 dark:text-red-400" />
+        </div>
+        <div className="text-red-600 dark:text-red-400 font-semibold mb-4 text-center">{error}</div>
+        <Button 
+          onClick={() => window.location.reload()} 
+          className="bg-gradient-to-r from-indigo-600 to-purple-600 hover:from-indigo-700 hover:to-purple-700 text-white"
+        >
+          Tentar novamente
+        </Button>
+      </div>
+    )
   }
 
   return (
     <div className="container py-8">
-      {/* Header */}
       <Header onCreateAgent={handleCreateAgent} />
-
-      {/* Filters */}
       <Filters
         searchQuery={searchQuery}
         statusFilter={statusFilter}
-        onSearchChange={setSearchQuery}
-        onStatusChange={(value) => setStatusFilter(value as "all" | "active" | "draft" | "archived")}
+        onSearchChange={(value) => setSearchQuery(String(value))}
+        onStatusChange={(value) => setStatusFilter(String(value))}
       />
-
-      {/* Agent list */}
       <AnimatePresence mode="wait">
         {filteredAgents.length === 0 ? (
           <EmptyState onCreateAgent={handleCreateAgent} />
@@ -554,17 +645,13 @@ export default function AgentsPage() {
           </motion.div>
         )}
       </AnimatePresence>
-
-      {/* Pagination */}
-      {filteredAgents.length > ITEMS_PER_PAGE && (
+      {filteredAgents.length > 0 && (
         <EnhancedPagination
           currentPage={currentPage}
           totalPages={totalPages}
           onPageChange={setCurrentPage}
         />
       )}
-
-      {/* Delete confirmation modal */}
       <DeleteModal
         agent={agentToDelete}
         onCancel={() => setAgentToDelete(null)}

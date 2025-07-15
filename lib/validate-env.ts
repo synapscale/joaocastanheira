@@ -68,7 +68,7 @@ export function validateAndPrint(): EnvValidationResult {
   // Validações específicas de URL
   const apiUrl = process.env.NEXT_PUBLIC_API_URL;
   if (apiUrl) {
-    if (apiUrl.includes('/api/v1/api/v1')) {
+    if (apiUrl.includes('/api/v1/v1')) {
       errors.push(`❌ NEXT_PUBLIC_API_URL contém /api/v1 duplicado: ${apiUrl}`);
       console.log('💡 Sugestão: Use apenas a URL base (ex: http://localhost:8000)');
     }

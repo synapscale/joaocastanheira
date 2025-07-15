@@ -4,7 +4,7 @@
  */
 
 import { config } from '../config'
-import { ApiService } from './service'
+import { apiService } from './service'
 import type { HealthStatus } from './openapi-types'
 
 export interface ApiValidationResult {
@@ -28,10 +28,8 @@ export interface EndpointValidation {
 }
 
 export class ApiValidator {
-  private apiService: ApiService
-
   constructor() {
-    this.apiService = new ApiService()
+    // Use the global singleton instance
   }
 
   /**
@@ -46,13 +44,13 @@ export class ApiValidator {
     // Validar endpoints críticos
     const validations = [
       { name: 'Health Check', path: '/health', method: this.validateHealthEndpoint.bind(this) },
-      { name: 'Auth Me', path: '/api/v1/auth/me', method: this.validateAuthEndpoint.bind(this) },
-      { name: 'User Variables', path: '/api/v1/user-variables/', method: this.validateUserVariablesEndpoint.bind(this) },
-      { name: 'Workspaces', path: '/api/v1/workspaces/', method: this.validateWorkspacesEndpoint.bind(this) },
-      { name: 'Analytics', path: '/api/v1/analytics/overview', method: this.validateAnalyticsEndpoint.bind(this) },
-      { name: 'Workflows', path: '/api/v1/workflows/', method: this.validateWorkflowsEndpoint.bind(this) },
-      { name: 'Agents', path: '/api/v1/agents/', method: this.validateAgentsEndpoint.bind(this) },
-      { name: 'Marketplace', path: '/api/v1/marketplace/components', method: this.validateMarketplaceEndpoint.bind(this) }
+      { name: 'Auth Me', path: '/auth/me', method: this.validateAuthEndpoint.bind(this) },
+      { name: 'User Variables', path: '/user-variables/', method: this.validateUserVariablesEndpoint.bind(this) },
+      { name: 'Workspaces', path: '/workspaces/', method: this.validateWorkspacesEndpoint.bind(this) },
+      { name: 'Analytics', path: '/analytics/overview', method: this.validateAnalyticsEndpoint.bind(this) },
+      { name: 'Workflows', path: '/workflows/', method: this.validateWorkflowsEndpoint.bind(this) },
+      { name: 'Agents', path: '/agents/', method: this.validateAgentsEndpoint.bind(this) },
+      { name: 'Marketplace', path: '/marketplace/components', method: this.validateMarketplaceEndpoint.bind(this) }
     ]
 
     for (const validation of validations) {
@@ -100,7 +98,7 @@ export class ApiValidator {
   private async validateHealthEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      const health = await this.apiService.healthCheck()
+      const health = await apiService.healthCheck()
       const responseTime = Date.now() - startTime
       
       return {
@@ -121,7 +119,7 @@ export class ApiValidator {
     const startTime = Date.now()
     try {
       // Tentativa de acessar endpoint protegido - esperado falhar sem auth
-      await this.apiService.getCurrentUser()
+      await apiService.getCurrentUser()
       return {
         success: true,
         message: 'Endpoint de autenticação acessível',
@@ -147,7 +145,7 @@ export class ApiValidator {
   private async validateUserVariablesEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.get('/api/v1/user-variables/')
+              await apiService.get('/user-variables/')
       return {
         success: true,
         message: 'Endpoint de variáveis acessível',
@@ -165,7 +163,7 @@ export class ApiValidator {
   private async validateWorkspacesEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.getWorkspaces()
+      await apiService.getWorkspaces()
       return {
         success: true,
         message: 'Endpoint de workspaces acessível',
@@ -183,7 +181,7 @@ export class ApiValidator {
   private async validateAnalyticsEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.getAnalyticsOverview()
+      await apiService.getAnalyticsOverview()
       return {
         success: true,
         message: 'Endpoint de analytics acessível',
@@ -201,7 +199,7 @@ export class ApiValidator {
   private async validateWorkflowsEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.getWorkflows()
+      await apiService.getWorkflows()
       return {
         success: true,
         message: 'Endpoint de workflows acessível',
@@ -219,7 +217,7 @@ export class ApiValidator {
   private async validateAgentsEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.getAgents()
+      await apiService.getAgents()
       return {
         success: true,
         message: 'Endpoint de agents acessível',
@@ -237,7 +235,7 @@ export class ApiValidator {
   private async validateMarketplaceEndpoint(): Promise<{ success: boolean; message?: string; responseTime?: number }> {
     const startTime = Date.now()
     try {
-      await this.apiService.get('/api/v1/marketplace/components')
+              await apiService.get('/marketplace/components')
       return {
         success: true,
         message: 'Endpoint de marketplace acessível',
@@ -297,7 +295,7 @@ export class ApiValidator {
     const errors: string[] = []
 
     try {
-      const connectivityResult = await this.apiService.testConnectivity()
+      const connectivityResult = await apiService.testConnectivity()
       if (!connectivityResult.success) {
         errors.push(...connectivityResult.errors)
       }

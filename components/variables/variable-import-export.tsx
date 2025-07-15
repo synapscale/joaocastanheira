@@ -22,7 +22,7 @@ interface VariableImportExportProps {
 }
 
 export function VariableImportExport({ open, onOpenChange }: VariableImportExportProps) {
-  const { variables, addVariable } = useVariables()
+  const { variables, createVariable } = useVariables()
   const { toast } = useToast()
   const [importData, setImportData] = useState("")
   const [copied, setCopied] = useState(false)
@@ -63,7 +63,7 @@ export function VariableImportExport({ open, onOpenChange }: VariableImportExpor
     })
   }
 
-  const handleImport = () => {
+  const handleImport = async () => {
     try {
       const parsedData = JSON.parse(importData)
 
@@ -79,15 +79,13 @@ export function VariableImportExport({ open, onOpenChange }: VariableImportExpor
         }
 
         // Add the variable
-        addVariable({
-          name: item.name,
+        await createVariable({
           key: item.key,
-          type: item.type,
-          scope: item.scope,
           value: item.value,
           description: item.description,
-          encrypted: item.encrypted,
-          tags: item.tags,
+          category: item.scope,
+          is_secret: item.encrypted || false,
+          is_active: true
         })
         importCount++
       }

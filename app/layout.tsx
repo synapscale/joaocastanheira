@@ -22,28 +22,31 @@ import { UserVariableProvider } from '@/context/user-variable-context';
 import { NodeTemplateProvider } from '@/context/node-template-context';
 import { MarketplaceProvider } from '@/context/marketplace-context';
 import { PlanProvider } from '@/context/plan-context';
-import { PostSignupOnboarding, usePostSignupOnboarding } from '@/components/onboarding/post-signup-onboarding';
+// import { PostSignupOnboarding, usePostSignupOnboarding } from '@/components/onboarding/post-signup-onboarding';
 import { Toaster } from '@/components/ui/toaster';
+import { Inter } from 'next/font/google';
+import { Suspense } from 'react';
+// import LoadingSpinner from '@/components/loading-spinner';
 
 // Componente interno para layout com onboarding
 function AppLayoutContent({ children }: { children: React.ReactNode }) {
-  const { shouldShow, hideOnboarding } = usePostSignupOnboarding()
+  // const { shouldShow, hideOnboarding } = usePostSignupOnboarding()
 
   return (
     <>
-      {/* Sincronização automática de variáveis */}
-      <VariableAutoSync />
+      {/* Sincronização automática de variáveis - TEMPORARIAMENTE DESABILITADO PARA TESTE */}
+      {/* <VariableAutoSync /> */}
       
       {/* Layout com sidebar integrada */}
       <ClientLayout>
         {children}
       </ClientLayout>
 
-      {/* Onboarding pós-signup */}
-      <PostSignupOnboarding
+      {/* Onboarding pós-signup - DESABILITADO TEMPORARIAMENTE */}
+      {/* <PostSignupOnboarding
         isOpen={shouldShow}
         onComplete={hideOnboarding}
-      />
+      /> */}
       
       {/* Toast notifications */}
       <Toaster />
@@ -53,27 +56,15 @@ function AppLayoutContent({ children }: { children: React.ReactNode }) {
 
 // Componente interno que usa o contexto de autenticação
 function AppLayout({ children }: { children: React.ReactNode }) {
-  const { isAuthenticated, isInitialized } = useAuth();
   const pathname = usePathname();
   
   // Rotas de autenticação que não devem mostrar a sidebar
   const authRoutes = ['/login', '/register', '/forgot-password', '/reset-password'];
   const isAuthRoute = pathname ? authRoutes.some(route => pathname.startsWith(route)) : false;
   
-  // Mostrar loading enquanto inicializa
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-background text-foreground flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    );
-  }
-  
-  // Se não está autenticado ou está em rota de auth, mostrar layout simples
-  if (!isAuthenticated || isAuthRoute) {
+  // ❌ REMOVIDO: Verificação de autenticação daqui - deixar para middleware e ProtectedRoute
+  // Apenas verificar se é rota de auth para decidir layout
+  if (isAuthRoute) {
     return (
       <main className="min-h-screen bg-background text-foreground">
         {children}
@@ -116,6 +107,27 @@ export default function RootLayout({
 }: {
   children: React.ReactNode;
 }) {
+  // INTERCEPTOR GLOBAL PARA CAPTURAR TODOS OS REQUESTS - HABILITADO PARA DEBUG
+  if (typeof window !== 'undefined' && !window.FETCH_INTERCEPTED) {
+    window.FETCH_INTERCEPTED = true
+    const originalFetch = window.fetch
+    
+    window.fetch = function(...args) {
+      const url = typeof args[0] === 'string' ? args[0] : (args[0] as Request)?.url
+      const method = args[1]?.method || 'GET'
+      
+      // Log TODOS os requests com stack trace
+      console.log('🌐 ALL FETCH INTERCEPTED:', {
+        url,
+        method,
+        timestamp: new Date().toISOString(),
+        stackTrace: new Error().stack?.split('\n').slice(1, 5).join('\n')
+      })
+      
+      return originalFetch.apply(this, args)
+    }
+  }
+
   return (
     <html lang="pt-BR" suppressHydrationWarning>
       <body className="min-h-screen bg-background text-foreground" suppressHydrationWarning={true}>
@@ -138,6 +150,7 @@ export default function RootLayout({
             </WorkspaceProvider>
           </AuthProvider>
         </ThemeProvider>
+        <Toaster />
       </body>
     </html>
   );

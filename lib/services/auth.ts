@@ -51,14 +51,14 @@ class AuthStorageImpl implements AuthStorage {
     // Também definir como cookie para compatibilidade com middleware
     this.setCookie(this.tokenKey, token, 7) // 7 dias
     
-    // Notificar o ApiService sobre a mudança de token
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: this.tokenKey,
-        newValue: token,
-        storageArea: localStorage
-      }));
-    }
+    // 🔍 DEBUG: Verificar se o cookie foi definido
+    console.log('🔍 AuthStorage - Token salvo em localStorage e cookie:', {
+      tokenKey: this.tokenKey,
+      tokenLength: token.length,
+      cookieAfterSet: document.cookie
+    })
+    
+    // Token salvo diretamente (sem eventos artificiais para evitar loops)
     
     // Verificar se o cookie foi definido corretamente
     setTimeout(() => {
@@ -81,14 +81,7 @@ class AuthStorageImpl implements AuthStorage {
     // Também definir como cookie para compatibilidade com middleware
     this.setCookie(this.refreshTokenKey, token, 30) // 30 dias
     
-    // Notificar o ApiService sobre a mudança de token
-    if (typeof window !== 'undefined') {
-      window.dispatchEvent(new StorageEvent('storage', {
-        key: this.refreshTokenKey,
-        newValue: token,
-        storageArea: localStorage
-      }));
-    }
+    // Refresh token salvo diretamente (sem eventos artificiais para evitar loops)
   }
 
   getUser(): AuthUser | null {
@@ -141,7 +134,9 @@ class AuthStorageImpl implements AuthStorage {
     expires.setTime(expires.getTime() + days * 24 * 60 * 60 * 1000)
     
     // Usar configurações mais específicas para garantir compatibilidade
-    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax;Secure=${window.location.protocol === 'https:'}`
+    const isSecure = window.location.protocol === 'https:'
+    const secureFlag = isSecure ? ';Secure' : ''
+    document.cookie = `${name}=${value};expires=${expires.toUTCString()};path=/;SameSite=Lax${secureFlag}`
   }
 
   /**
@@ -173,7 +168,21 @@ export class AuthService {
       if (!raw.user) throw new Error('Resposta do backend não contém usuário.')
       return raw
     }
-    // Caso venha no formato OAuth2/FastAPI
+    
+    // Caso venha no formato camelCase (novo formato do backend)
+    if (raw && raw.accessToken && raw.user) {
+      return {
+        tokens: {
+          accessToken: raw.accessToken,
+          refreshToken: raw.refreshToken,
+          tokenType: raw.tokenType || 'Bearer',
+          expiresIn: raw.expiresIn || 0,
+        },
+        user: raw.user,
+      }
+    }
+    
+    // Caso venha no formato OAuth2/FastAPI (snake_case)
     if (raw && raw.access_token && raw.refresh_token && raw.user) {
       return {
         tokens: {
@@ -185,10 +194,12 @@ export class AuthService {
         user: raw.user,
       }
     }
+    
     // Caso venha só tokens (sem user)
-    if (raw && raw.access_token && raw.refresh_token) {
+    if (raw && (raw.access_token || raw.accessToken)) {
       throw new Error('Resposta do backend não contém usuário.')
     }
+    
     // Log para debug
     console.error('Formato de resposta de autenticação desconhecido:', raw)
     throw new Error('Formato de resposta de autenticação desconhecido: ' + JSON.stringify(raw))
@@ -236,10 +247,11 @@ export class AuthService {
           formData.append('client_id', '')
           formData.append('client_secret', '')
 
-          response = await apiService.post(
+          response = await apiService.request<any>(
             '/auth/login',
-            formData.toString(),
             {
+              method: 'POST',
+              body: formData.toString(),
               skipAuth: true,
               headers: {
                 'Content-Type': 'application/x-www-form-urlencoded',
@@ -339,15 +351,27 @@ export class AuthService {
       const response = await apiService.refreshAccessToken()
       
       if (response) {
-        this.storage.setToken(response.access_token)
+        console.log('✅ AuthService: Novo token recebido do refresh, salvando...')
+        this.storage.setToken(response.accessToken)
+        
+        // Salvar também o refresh token se vier na resposta
+        if (response.refreshToken) {
+          this.storage.setRefreshToken(response.refreshToken)
+          console.log('✅ AuthService: Novo refresh token salvo')
+        }
         
         // Sincronizar tokens com o ApiService
-        apiService.syncTokensWithAuthService(
-          response.access_token,
-          this.storage.getRefreshToken() || ''
-        )
+        apiService.syncTokensWithAuthService()
+        console.log('✅ AuthService: Tokens sincronizados com ApiService')
         
-        return response.access_token
+        // Verificar se o token foi persistido corretamente
+        setTimeout(() => {
+          const savedToken = this.storage.getToken()
+          console.log('🔍 AuthService: Token salvo no storage:', savedToken ? 'SIM' : 'NÃO')
+          console.log('🔍 AuthService: Token length:', savedToken?.length || 0)
+        }, 100)
+        
+        return response.accessToken
       }
       return null
     } catch (error) {

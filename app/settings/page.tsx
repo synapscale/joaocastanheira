@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { useAuth } from "@/context/auth-context"
 import { Separator } from "@/components/ui/separator"
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card"
 import { Label } from "@/components/ui/label"
@@ -29,8 +30,10 @@ import {
   Moon,
   Laptop,
   Lock,
-  Building
+  Building,
+  Save
 } from "lucide-react"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 interface UserInfo {
   id: string
@@ -104,7 +107,7 @@ export default function SettingsPage() {
     showMinimap: true,
   })
 
-
+  const { user } = useAuth()
 
   useEffect(() => {
     loadUserData()
@@ -175,11 +178,9 @@ export default function SettingsPage() {
     }
   }
 
-
-
-  // TODO: Backend - Implementar endpoint PUT /api/v1/auth/profile
+  // TODO: Backend - Implementar endpoint PUT /auth/profile
   // Para atualizar informações do perfil do usuário
-  // Endpoint: PUT /api/v1/auth/profile
+  // Endpoint: PUT /auth/profile (prefixo /api/v1/ adicionado automaticamente)
   // Headers: Authorization: Bearer {token}, Content-Type: application/json
   // Request body: { full_name?: string, email?: string, bio?: string }
   // Response: UserResponse (mesmo schema do GET /auth/me)
@@ -393,14 +394,15 @@ export default function SettingsPage() {
   const passwordStrength = getPasswordStrength(passwordData.newPassword)
 
   return (
-    <div className="container mx-auto py-8 space-y-8 max-w-5xl">
-      <div className="flex items-center justify-between">
-        <div>
-          <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
-          <p className="text-muted-foreground mt-1">
-            Gerencie suas configurações pessoais e de sistema.
-          </p>
-        </div>
+    <ProtectedRoute>
+      <div className="container mx-auto py-8 space-y-8 max-w-5xl">
+        <div className="flex items-center justify-between">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Configurações</h1>
+            <p className="text-muted-foreground mt-1">
+              Gerencie suas configurações pessoais e de sistema.
+            </p>
+          </div>
         <TooltipProvider>
           <Tooltip>
             <TooltipTrigger asChild>
@@ -907,8 +909,6 @@ export default function SettingsPage() {
           </Card>
         </TabsContent>
 
-
-
         {/* System Tab */}
         <TabsContent value="system" className="space-y-6">
           <Card>
@@ -974,5 +974,6 @@ export default function SettingsPage() {
         </TabsContent>
       </Tabs>
     </div>
+    </ProtectedRoute>
   )
 }

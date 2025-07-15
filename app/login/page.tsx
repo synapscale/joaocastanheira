@@ -11,20 +11,28 @@ import { useAuth } from '@/context/auth-context';
 import { useRouter, useSearchParams } from 'next/navigation';
 import { useEffect } from 'react';
 import { Suspense } from 'react'
-import LoginForm from '../../components/auth/login-form'
+import LoginForm from '@/components/auth/login-form'
+import { AuthProvider } from '@/context/auth-context'
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { Toaster } from '@/components/ui/toaster'
+import ProtectedRoute from '@/components/auth/protected-route'
+
+
+interface LoginPageProps {
+  searchParams?: {
+    redirectTo?: string
+    error?: string
+  }
+}
 
 export default function LoginPage() {
   const { isAuthenticated, isInitialized } = useAuth();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const redirectTo = searchParams.get('redirect') || '/chat';
+  const redirectTo = searchParams?.get('redirect') || '/chat';
 
-  useEffect(() => {
-    console.log('LoginPage - isInitialized:', isInitialized, 'isAuthenticated:', isAuthenticated, 'redirectTo:', redirectTo);
-    if (isInitialized && isAuthenticated) {
-      router.replace(redirectTo);
-    }
-  }, [isInitialized, isAuthenticated, redirectTo, router]);
+  // ❌ REMOVIDO: useEffect que estava causando loops de redirecionamento
+  // O middleware já cuida disso quando usuário autenticado tenta acessar /login
 
   return (
     <div className="min-h-screen bg-gray-50 dark:bg-gray-900 flex flex-col">

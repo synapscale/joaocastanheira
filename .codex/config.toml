@@ -1,0 +1,62 @@
+# Configuração do Codex CLI para o projeto Synapscale
+# Este arquivo define as configurações padrão para o assistente de IA
+
+# Modelo padrão - recomendado para desenvolvimento
+model = "gpt-4"
+
+# Política de aprovação para comandos
+ask_for_approval = "on-failure"  # "never", "on-failure", "unless-allow-listed"
+
+# Permissões do sandbox
+sandbox_permissions = [
+    "disk-read-cwd",
+    "disk-write-cwd", 
+    "disk-write-platform-user-temp-folder",
+    "disk-write-platform-global-temp-folder"
+]
+
+# Política de ambiente shell
+[shell_environment_policy]
+inherit = "env"  # "all", "env", "none"
+
+# Provedores de IA disponíveis
+[providers.openai]
+name = "OpenAI"
+base_url = "https://api.openai.com/v1"
+env_key = "OPENAI_API_KEY"
+
+[providers.vercel]
+name = "Vercel v0"
+base_url = "https://api.v0.dev/v1"
+env_key = "V0_API_KEY"
+
+# Perfis de configuração para diferentes casos de uso
+[profiles.development]
+model = "gpt-4"
+ask_for_approval = "on-failure"
+sandbox_permissions = [
+    "disk-read-cwd",
+    "disk-write-cwd",
+    "disk-write-platform-user-temp-folder"
+]
+
+[profiles.production]
+model = "gpt-4"
+ask_for_approval = "unless-allow-listed"
+sandbox_permissions = [
+    "disk-read-cwd"
+]
+
+[profiles.quick]
+model = "gpt-4o-mini" 
+ask_for_approval = "never"
+sandbox_permissions = [
+    "disk-read-cwd",
+    "disk-write-cwd"
+]
+
+# Configurações específicas do projeto
+[project]
+name = "Synapscale Frontend"
+description = "Projeto frontend React/Next.js com integração de IA"
+tech_stack = ["Next.js", "React", "TypeScript", "TailwindCSS"] 

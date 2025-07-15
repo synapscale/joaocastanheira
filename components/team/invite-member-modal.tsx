@@ -13,7 +13,7 @@ import { UserPlus, Mail, Shield, AlertTriangle, CheckCircle } from 'lucide-react
 import { useToast } from '@/components/ui/use-toast'
 import { apiService } from '@/lib/api/service'
 import { usePermissions } from '@/context/plan-context'
-import type { WorkspaceResponse } from '@/types/workspace-types'
+import type { WorkspaceResponse } from '@/lib/api/service'
 
 interface InviteMemberModalProps {
   isOpen: boolean

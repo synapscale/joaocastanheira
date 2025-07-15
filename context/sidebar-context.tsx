@@ -10,7 +10,7 @@
  */
 
 import type React from "react"
-import { createContext, useContext, useState, useCallback, useEffect } from "react"
+import { createContext, useContext, useState, useCallback, useEffect, useMemo } from "react"
 
 /**
  * Interface defining the shape of the sidebar context
@@ -88,13 +88,13 @@ export function SidebarProvider({ children }: { children: React.ReactNode }) {
   }, [])
 
   // Create context value object
-  const contextValue = {
+  const contextValue = useMemo(() => ({
     isOpen,
     isCollapsed,
     toggle,
     close,
     toggleCollapse,
-  }
+  }), [isOpen, isCollapsed, toggle, close, toggleCollapse])
 
   return <SidebarContext.Provider value={contextValue}>{children}</SidebarContext.Provider>
 }

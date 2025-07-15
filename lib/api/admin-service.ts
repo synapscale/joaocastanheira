@@ -2,10 +2,10 @@
  * Admin Service Layer - Integração com Backend Real
  * 
  * ENDPOINTS DO BACKEND:
- * - GET /api/v1/analytics/admin/stats - Estatísticas administrativas
- * - GET /api/v1/marketplace/admin/reports/revenue - Relatório de receitas
- * - GET /api/v1/marketplace/admin/reports/downloads - Relatório de downloads
- * - GET /api/v1/workspaces/ - Dados reais de clientes (workspaces)
+ * - GET /analytics/admin/stats - Estatísticas administrativas
+* - GET /marketplace/admin/reports/revenue - Relatório de receitas
+* - GET /marketplace/admin/reports/downloads - Relatório de downloads
+* - GET /workspaces/ - Dados reais de clientes (workspaces)
  * 
  * ⚠️ TODOS OS ENDPOINTS REQUEREM AUTENTICAÇÃO
  */
@@ -76,7 +76,7 @@ class AdminService {
       
       console.log('🔄 [Admin Service] Requesting admin stats from backend...')
       
-      const response = await apiService.get<AdminStats>('/api/v1/analytics/admin/stats')
+      const response = await apiService.get<AdminStats>('/analytics/admin/stats')
       
       console.log('✅ [Admin Service] Admin stats received:', response)
       return response
@@ -100,7 +100,7 @@ class AdminService {
       if (params.end_date) queryParams.append('end_date', params.end_date)
       if (params.period) queryParams.append('period', params.period)
       
-      const endpoint = `/api/v1/marketplace/admin/reports/revenue?${queryParams.toString()}`
+      const endpoint = `/marketplace/admin/reports/revenue?${queryParams.toString()}`
       
       const response = await apiService.get<RevenueReport>(endpoint)
       
@@ -126,7 +126,7 @@ class AdminService {
       if (params.end_date) queryParams.append('end_date', params.end_date)
       if (params.category) queryParams.append('category', params.category)
       
-      const endpoint = `/api/v1/marketplace/admin/reports/downloads?${queryParams.toString()}`
+      const endpoint = `/marketplace/admin/reports/downloads?${queryParams.toString()}`
       
       const response = await apiService.get<DownloadsReport>(endpoint)
       
@@ -152,8 +152,8 @@ class AdminService {
       if (params.plan) queryParams.append('plan', params.plan)
       
       const endpoint = params.limit || params.plan 
-        ? `/api/v1/workspaces/?${queryParams.toString()}`
-        : '/api/v1/workspaces/'
+        ? `/workspaces/?${queryParams.toString()}`
+        : '/workspaces/'
       
       const response = await apiService.get<RealCustomer[]>(endpoint)
       

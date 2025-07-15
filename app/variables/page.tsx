@@ -10,6 +10,7 @@ import { VariableDialog } from "@/components/variables/variable-dialog"
 import { VariableImportExport } from "@/components/variables/variable-import-export"
 import { Plus, Search, FileDown } from "lucide-react"
 import type { VariableScope } from "@/types/variable"
+import { ProtectedRoute } from "@/components/auth/protected-route"
 
 export default function VariablesPage() {
   const { variables, getVariablesByScope } = useVariables()
@@ -27,12 +28,13 @@ export default function VariablesPage() {
   )
 
   return (
-    <div className="container mx-auto py-6 space-y-6">
-      <div className="flex justify-between items-center">
-        <div>
-          <h1 className="text-2xl font-bold">Variables</h1>
-          <p className="text-muted-foreground">Manage variables that can be used across your workflow</p>
-        </div>
+    <ProtectedRoute>
+      <div className="container mx-auto py-6 space-y-6">
+        <div className="flex justify-between items-center">
+          <div>
+            <h1 className="text-2xl font-bold">Variables</h1>
+            <p className="text-muted-foreground">Manage variables that can be used across your workflow</p>
+          </div>
         <div className="flex gap-2">
           <Button variant="outline" onClick={() => setIsImportExportOpen(true)}>
             <FileDown className="h-4 w-4 mr-2" />
@@ -117,6 +119,7 @@ export default function VariablesPage() {
       <VariableDialog open={isCreateDialogOpen} onOpenChange={setIsCreateDialogOpen} defaultScope={activeTab} />
 
       <VariableImportExport open={isImportExportOpen} onOpenChange={setIsImportExportOpen} />
-    </div>
+      </div>
+    </ProtectedRoute>
   )
 }

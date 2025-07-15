@@ -93,10 +93,17 @@ export function useConversations(): UseConversationsReturn {
   const loadConversations = useCallback(async () => {
     try {
       setIsLoading(true)
-      const data = await chatService.getConversations(1, 50)
+      console.log('🔄 Carregando conversas da API...')
+      
+      const apiData = await chatService.getConversations({
+        page: 1,
+        size: 50
+      })
+      
+      console.log('📝 Conversas carregadas da API:', apiData.length)
       
       // Transformar dados da API para o formato local
-      const apiConversations: Conversation[] = data.conversations.map((conv: any) => ({
+      const apiConversations: Conversation[] = apiData.map((conv: any) => ({
         id: conv.id,
         title: conv.title || "Nova Conversa",
         messages: [], // Mensagens são carregadas separadamente
@@ -116,9 +123,11 @@ export function useConversations(): UseConversationsReturn {
       }))
 
       setConversations(apiConversations)
+      console.log('💾 Conversas salvas no estado:', apiConversations.length)
       
       // Se não há conversa atual e há conversas disponíveis, selecionar a primeira
       if (apiConversations.length > 0 && !currentConversationId) {
+        console.log('🎯 Selecionando primeira conversa:', apiConversations[0].id)
         await setCurrentConversation(apiConversations[0].id)
       }
     } catch (error) {
@@ -143,9 +152,7 @@ export function useConversations(): UseConversationsReturn {
         const newConversation = await chatService.createConversation({
           title: data?.title || `Conversa ${new Date().toLocaleTimeString()}`,
           agent_id: data?.agent_id,
-          workspace_id: data?.workspace_id,
-          context: data?.context,
-          settings: data?.settings,
+          model: data?.settings?.model,
         })
 
         // Transformar para formato local
@@ -205,24 +212,25 @@ export function useConversations(): UseConversationsReturn {
       let apiMessages: Message[] = []
       try {
         const messagesData = await chatService.getMessages(id, 1, 100)
-        apiMessages = messagesData.messages.map(msg => ({
+        console.log('📬 Mensagens carregadas da API:', messagesData.length)
+        
+        apiMessages = messagesData.map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: msg.content,
           timestamp: new Date(msg.created_at || Date.now()).getTime(),
           status: 'sent',
-          model: msg.model_used,
+          model: msg.metadata?.model || 'unknown',
           metadata: {
-            provider: msg.model_provider,
+            provider: msg.metadata?.provider || 'unknown',
             tokens_used: msg.tokens_used,
-            processing_time_ms: msg.processing_time_ms,
-            temperature: msg.temperature,
-            max_tokens: msg.max_tokens,
-            error_message: msg.error_message,
-            rating: msg.rating,
-            feedback: msg.feedback,
+            processing_time_ms: msg.metadata?.processing_time_ms,
+            temperature: msg.metadata?.temperature,
+            max_tokens: msg.metadata?.max_tokens,
+            cost: msg.cost,
+            agent_id: msg.agent_id,
+            agent_name: msg.agent_name,
           },
-          attachments: msg.attachments,
         }))
       } catch (apiError) {
         console.warn('⚠️ Erro ao carregar mensagens da API, usando apenas offline:', apiError)
@@ -236,13 +244,13 @@ export function useConversations(): UseConversationsReturn {
         content: msg.content,
         timestamp: new Date(msg.created_at || Date.now()).getTime(),
         status: 'sent',
-        model: msg.model_used,
+        model: msg.metadata?.model || 'unknown',
         metadata: {
-          provider: msg.model_provider,
+          provider: msg.metadata?.provider || 'unknown',
           tokens_used: msg.tokens_used,
-          processing_time_ms: msg.processing_time_ms,
-          temperature: msg.temperature,
-          max_tokens: msg.max_tokens,
+          processing_time_ms: msg.metadata?.processing_time_ms,
+          temperature: msg.metadata?.temperature,
+          max_tokens: msg.metadata?.max_tokens,
           error_message: msg.error_message,
           rating: msg.rating,
           feedback: msg.feedback,
@@ -393,13 +401,14 @@ export function useConversations(): UseConversationsReturn {
           content: result.assistantMessage.content,
           timestamp: new Date(result.assistantMessage.created_at || Date.now()).getTime(),
           status: 'sent',
-          model: result.assistantMessage.model_used,
+          model: result.assistantMessage.metadata?.model || 'unknown',
           metadata: {
-            provider: result.assistantMessage.model_provider,
+            provider: result.assistantMessage.metadata?.provider || 'unknown',
             tokens_used: result.assistantMessage.tokens_used,
-            processing_time_ms: result.assistantMessage.processing_time_ms,
-            temperature: result.assistantMessage.temperature,
-            max_tokens: result.assistantMessage.max_tokens,
+            processing_time_ms: result.assistantMessage.metadata?.processing_time_ms,
+            temperature: result.assistantMessage.metadata?.temperature,
+            max_tokens: result.assistantMessage.metadata?.max_tokens,
+            cost: result.assistantMessage.cost,
           },
         }
 
@@ -466,24 +475,23 @@ export function useConversations(): UseConversationsReturn {
       try {
         const messagesData = await chatService.getMessages(conversationId, 1, 100)
         
-        return messagesData.messages.map(msg => ({
+        return messagesData.map(msg => ({
           id: msg.id,
           role: msg.role as 'user' | 'assistant' | 'system',
           content: msg.content,
           timestamp: new Date(msg.created_at || Date.now()).getTime(),
           status: 'sent',
-          model: msg.model_used,
+          model: msg.metadata?.model || 'unknown',
           metadata: {
-            provider: msg.model_provider,
+            provider: msg.metadata?.provider || 'unknown',
             tokens_used: msg.tokens_used,
-            processing_time_ms: msg.processing_time_ms,
-            temperature: msg.temperature,
-            max_tokens: msg.max_tokens,
-            error_message: msg.error_message,
-            rating: msg.rating,
-            feedback: msg.feedback,
+            processing_time_ms: msg.metadata?.processing_time_ms,
+            temperature: msg.metadata?.temperature,
+            max_tokens: msg.metadata?.max_tokens,
+            cost: msg.cost,
+            agent_id: msg.agent_id,
+            agent_name: msg.agent_name,
           },
-          attachments: msg.attachments,
         }))
       } catch (error) {
         console.error("Erro ao obter mensagens:", error)

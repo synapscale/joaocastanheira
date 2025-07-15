@@ -23,8 +23,8 @@ Este repositório contém o frontend **João Castanheira** completamente otimiza
 - ✅ Interceptors de autenticação
 
 ### 📁 **Novos Arquivos Criados:**
-- `lib/config_optimized.ts` - Configuração otimizada
-- `lib/api_optimized.ts` - Cliente HTTP robusto
+- `lib/config.ts` - Configuração centralizada
+- `lib/api/service.ts` - Cliente HTTP robusto e unificado
 - `.env.local` - Variáveis de ambiente configuradas
 - `start_frontend.sh` - Script de inicialização
 
@@ -87,8 +87,8 @@ npm run dev
 ```
 joaocastanheira-main/
 ├── lib/
-│   ├── config_optimized.ts    # Configuração otimizada
-│   └── api_optimized.ts       # Cliente HTTP robusto
+│   ├── config.ts              # Configuração centralizada
+│   └── api/service.ts         # Cliente HTTP robusto e unificado
 ├── context/
 │   └── auth-context.tsx       # Contexto de autenticação
 ├── app/

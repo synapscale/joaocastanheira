@@ -330,3 +330,32 @@ export interface UserPreferences {
   /** Outras preferências */
   [key: string]: any
 }
+
+/**
+ * Representam analytics/estatísticas do chat
+ */
+export interface ChatAnalytics {
+  /** Total de mensagens enviadas */
+  totalMessages: number
+
+  /** Total de conversas criadas */
+  totalConversations: number
+
+  /** Tempo médio de resposta em ms */
+  averageResponseTime: number
+
+  /** Pontuação de satisfação (0-10) */
+  satisfactionScore: number
+
+  /** Mensagens por dia */
+  messagesPerDay?: number
+
+  /** Conversas ativas */
+  activeConversations?: number
+
+  /** Modelos mais usados */
+  mostUsedModels?: string[]
+
+  /** Ferramentas mais usadas */
+  mostUsedTools?: string[]
+}

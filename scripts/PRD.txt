@@ -1,178 +1,185 @@
-# Product Requirements Document - Admin Page Data Integration Fix
+# Product Requirements Document - Login System Fix
 
 ## Problem Statement
-Após análise usando `apidof-mcp-server`, identifiquei problemas críticos na página admin:
+O sistema de login está apresentando um loop de redirecionamento crítico que impede usuários de acessar o sistema mesmo após autenticação bem-sucedida no backend.
 
-**🚨 PROBLEMAS CONFIRMADOS:**
-1. **Planos 100% Mockados**: Os 3 planos (Free, Pro, Enterprise) estão hardcoded no `context/plan-context.tsx`
-2. **Dados de Analytics Mockados**: Receita, clientes e métricas são simulados, não vêm de endpoints reais
-3. **Endpoints Admin Existem**: A API tem `/api/v1/analytics/admin/stats` e `/api/v1/marketplace/admin/reports/*` mas não estão sendo usados
-4. **Desconexão Frontend-Backend**: O frontend não está consumindo os dados reais da API oficial
+### Problemas Identificados:
+- **Loop de Redirecionamento**: Usuários são continuamente redirecionados para `/login?redirect=%2Fuser-variables` mesmo após login bem-sucedido
+- **Falha na Verificação de Tokens**: Middleware não reconhece tokens salvos no localStorage/cookies
+- **Sincronização Inconsistente**: Tokens não são sincronizados corretamente entre localStorage, cookies e memória
+- **Timing Issues**: Race conditions entre salvamento de tokens e verificação pelo middleware
 
-**IMPACTO:**
-- Administradores veem dados fictícios
-- Impossível tomar decisões baseadas em dados reais
-- Experiência inconsistente entre desenvolvimento e produção
+### Impacto:
+- Usuários não conseguem acessar o sistema após login
+- Perda de produtividade e frustração dos usuários
+- Sistema de autenticação completamente comprometido
+- Logs do backend mostram login bem-sucedido, mas frontend não reconhece
 
 ## Technical Requirements
 
-### API Discovery Completed ✅
-- **Ferramenta Usada**: `apidof-mcp-server` (seguindo regra absoluta)
-- **Endpoints Identificados**:
-  - `GET /api/v1/analytics/admin/stats` - Estatísticas administrativas
-  - `GET /api/v1/marketplace/admin/reports/revenue` - Relatório de receitas
-  - `GET /api/v1/marketplace/admin/reports/downloads` - Relatório de downloads
-  - `GET /api/v1/workspaces/` - Listar workspaces (para dados reais)
-  - `GET /api/v1/analytics/overview` - Visão geral de analytics
-
 ### Frontend Requirements
-- [ ] **Remover dados mockados** do `context/plan-context.tsx`
-- [ ] **Integrar endpoints reais** descobertos via API specification
-- [ ] **Criar service layer** para admin analytics usando `apiService`
-- [ ] **Implementar loading states** adequados para dados reais
-- [ ] **Adicionar error handling** para falhas de API
-- [ ] **Criar tipos TypeScript** baseados nos schemas da API
-- [ ] **Implementar cache** para dados de analytics
-- [ ] **Adicionar refresh automático** de dados em tempo real
+- [x] **Middleware Authentication Fix**: Corrigir verificação de tokens no `middleware.ts`
+- [x] **Token Synchronization**: Garantir sincronização perfeita entre localStorage, cookies e memória
+- [x] **JWT Decoding**: Implementar decodificação JWT robusta e tratamento de erros
+- [x] **Cookie Management**: Otimizar configuração de cookies para funcionamento correto
+- [x] **AuthContext Integration**: Garantir inicialização correta do contexto de autenticação
+- [x] **Race Condition Prevention**: Implementar timeouts e delays adequados para evitar timing issues
+- [x] **Error Handling**: Implementar tratamento robusto de erros em todo o fluxo de autenticação
+- [x] **Debugging & Logging**: Adicionar logs detalhados para troubleshooting em desenvolvimento
 
-### Backend Verification
-- [ ] **Verificar se endpoints retornam dados reais** (não mocks)
-- [ ] **Confirmar autenticação admin** nos endpoints descobertos
-- [ ] **Validar schemas de resposta** vs tipos TypeScript
-- [ ] **Testar performance** dos endpoints de admin
-- [ ] **Verificar permissões** de acesso aos dados administrativos
+### Backend Integration Requirements  
+- [x] **API Endpoint Verification**: Verificar e validar endpoints de autenticação usando MCP apidog
+- [x] **Response Format Validation**: Garantir que formato de resposta está correto para normalização
+- [x] **Token Format Validation**: Validar estrutura e formato dos JWTs retornados
+- [x] **CORS Configuration**: Verificar configuração CORS para cookies e headers
+- [x] **Security Headers**: Implementar headers de segurança apropriados
 
-### Data Integration
-- [ ] **Substituir mock plans** por dados reais do backend
-- [ ] **Conectar métricas de receita** ao endpoint oficial
-- [ ] **Integrar dados de clientes** usando workspaces reais
-- [ ] **Implementar analytics real-time** usando endpoints descobertos
-- [ ] **Criar dashboard** baseado em dados reais da API
+### Integration Requirements
+- [x] **ApiService Integration**: Garantir integração perfeita com ApiService para login
+- [x] **AuthService Synchronization**: Sincronizar AuthService com ApiService e AuthContext
+- [x] **localStorage Management**: Implementar gerenciamento robusto de localStorage
+- [x] **Cookie Security**: Implementar configurações de cookie seguras e funcionais
+- [x] **Token Refresh**: Implementar renovação automática de tokens
 
-### Security & Performance
-- [ ] **Validar permissões admin** em todos os endpoints
-- [ ] **Implementar rate limiting** para endpoints de admin
-- [ ] **Adicionar logging** de acesso a dados administrativos
-- [ ] **Otimizar queries** de analytics para performance
-- [ ] **Implementar caching estratégico** para dados pesados
+### Performance & Scalability
+- [x] **Fast Authentication Check**: Verificação de autenticação em < 50ms
+- [x] **Efficient Token Storage**: Armazenamento eficiente de tokens
+- [x] **Minimal Redirects**: Reduzir redirecionamentos desnecessários
+- [x] **Memory Management**: Gerenciamento eficiente de memória para tokens
 
 ## Acceptance Criteria
-
-### ✅ Dados Reais Integrados
-- [ ] Página admin mostra dados reais do banco de dados
-- [ ] Métricas de receita vêm do endpoint `/api/v1/marketplace/admin/reports/revenue`
-- [ ] Estatísticas administrativas usam `/api/v1/analytics/admin/stats`
-- [ ] Dados de clientes baseados em workspaces reais da API
-
-### ✅ Performance & UX
-- [ ] Loading states durante carregamento de dados reais
-- [ ] Error handling para falhas de API
-- [ ] Refresh automático de dados a cada 30 segundos
-- [ ] Cache inteligente para reduzir chamadas desnecessárias
-
-### ✅ Type Safety
-- [ ] Tipos TypeScript baseados nos schemas da API oficial
-- [ ] Validação de dados recebidos da API
-- [ ] IntelliSense completo para objetos de admin
-
-### ✅ Admin Experience
-- [ ] Dashboard responsivo com dados reais
-- [ ] Filtros funcionais para relatórios
-- [ ] Exportação de dados administrativos
-- [ ] Alertas para métricas críticas
+- [x] **Login Success**: Usuário pode fazer login e ser redirecionado corretamente para a página desejada
+- [x] **Token Persistence**: Tokens persistem corretamente entre sessões do navegador
+- [x] **Middleware Recognition**: Middleware reconhece tokens válidos sem falhas
+- [x] **No Redirect Loops**: Eliminação completa de loops de redirecionamento
+- [x] **User Variables Access**: Usuário pode acessar `/user-variables` após login bem-sucedido
+- [x] **Session Restoration**: Sessões são restauradas corretamente ao recarregar a página
+- [x] **Token Expiration Handling**: Tokens expirados são renovados automaticamente
+- [x] **Error Recovery**: Sistema se recupera graciosamente de erros de autenticação
+- [x] **Cross-Tab Synchronization**: Autenticação sincronizada entre abas do navegador
+- [x] **Logout Functionality**: Logout funciona corretamente e limpa todos os tokens
 
 ## Implementation Constraints
 
 ### Technology Stack
-- **API Discovery**: Obrigatório uso do `apidof-mcp-server` (regra absoluta)
-- **Service Layer**: Usar `apiService` existente em `@/lib/api/service`
-- **State Management**: Manter context pattern existente, mas com dados reais
-- **Types**: Gerar tipos baseados na API specification oficial
-- **Caching**: Implementar com React Query ou SWR
+- Frontend: Next.js 15.3.2, React, TypeScript, Tailwind CSS
+- Authentication: Custom JWT implementation with ApiService
+- Storage: localStorage + httpOnly cookies
+- Middleware: Next.js middleware for route protection
+- Backend: External API with JWT authentication
 
-### Dependencies
-- [ ] **API Specification**: Todos os endpoints devem estar documentados
-- [ ] **Authentication**: Admin permissions devem estar implementadas no backend
-- [ ] **Database**: Dados reais devem existir para popular os dashboards
-- [ ] **Performance**: Endpoints devem responder em <2s para boa UX
+### Dependencies & Prerequisites
+- [x] **Backend API Endpoints**: Verificar endpoints de autenticação via MCP apidog
+- [x] **Environment Variables**: Configurar variáveis de ambiente para API
+- [x] **Cookie Configuration**: Configurar cookies para funcionar com domínio/HTTPS
+- [x] **CORS Setup**: Configurar CORS para permitir cookies cross-origin
 
 ### Timeline Considerations
-- **Fase 1**: Integração de endpoints básicos (1-2 dias)
-- **Fase 2**: Implementação de cache e otimizações (1 dia)
-- **Fase 3**: Refinamento de UX e error handling (1 dia)
+- Priority: **CRITICAL** - Sistema não funciona sem isso
+- Estimated complexity: **HIGH** - Múltiplos pontos de falha identificados
+- Blocking factors: Verificação de endpoints do backend, configuração de cookies
 
 ## Architecture Notes
 
-### Service Layer Pattern
-```typescript
-// Criar admin-service.ts baseado nos endpoints descobertos
-class AdminService {
-  async getAdminStats() {
-    return apiService.get('/api/v1/analytics/admin/stats')
-  }
-  
-  async getRevenueReport(startDate: string, endDate: string) {
-    return apiService.get('/api/v1/marketplace/admin/reports/revenue', {
-      params: { start_date: startDate, end_date: endDate }
-    })
-  }
-}
+### Authentication Flow Fix
+```
+1. User submits login → LoginForm
+2. LoginForm → useLogin hook → AuthContext.login
+3. AuthContext.login → AuthService.login
+4. AuthService.login → ApiService.login (backend call)
+5. ApiService normalizes response → saves tokens (localStorage + cookies)
+6. AuthService syncs with ApiService
+7. AuthContext updates state
+8. LoginForm redirects with delay (250ms)
+9. Middleware checks tokens → MUST WORK HERE
+10. User accesses protected route successfully
 ```
 
-### Context Refactoring
-- Manter API do context existente para compatibilidade
-- Substituir dados mockados por chamadas reais
-- Implementar loading/error states adequados
-- Adicionar cache layer para performance
+### Token Management Strategy
+- **Primary Storage**: localStorage para persistência
+- **Secondary Storage**: httpOnly cookies para segurança
+- **In-Memory Cache**: Tokens em memória para performance
+- **Synchronization**: Listener para mudanças no localStorage
 
-### Error Handling Strategy
-- Fallback gracioso para dados mockados em caso de erro
-- Logs detalhados para debugging
-- Retry automático para falhas temporárias
-- Notificações para administradores sobre problemas
+### Middleware Fix Strategy
+```typescript
+// Middleware deve verificar tokens nesta ordem:
+1. Cookie check (appConfig.auth.tokenKey)
+2. Authorization header check
+3. JWT decode com tratamento de erro robusto
+4. Validação de expiração
+5. Logging detalhado em desenvolvimento
+```
 
-### Performance Optimization
-- Lazy loading de dados pesados
-- Pagination para listas grandes
-- Debouncing para filtros em tempo real
-- Background refresh sem bloquear UI
+### Security Considerations
+- **JWT Validation**: Decodificação segura com tratamento de erros
+- **Cookie Security**: SameSite=Lax, Secure baseado em HTTPS
+- **XSS Prevention**: Sanitização de dados do usuário
+- **CSRF Protection**: Tokens CSRF quando necessário
+
+### Testing Strategy
+- **Unit Tests**: Middleware, AuthService, ApiService
+- **Integration Tests**: Fluxo completo de login
+- **E2E Tests**: Login → redirect → access protected route
+- **Performance Tests**: Verificação de tempo de resposta < 50ms
 
 ## Risk Assessment
 
 ### Technical Risks
-- **Dados mockados em produção**: Verificar e substituir por dados reais
-- **Performance de queries**: Analytics podem ser lentos, implementar cache
-- **Segurança**: Área admin deve ser protegida adequadamente
+- **JWT Decoding Failure**: Implementar fallback e logging detalhado
+- **Cookie Issues**: Testar em diferentes navegadores e configurações
+- **Race Conditions**: Implementar timeouts e delays apropriados
+- **Backend Changes**: Validar endpoints via MCP apidog
 
 ### Business Risks  
-- **Dados incorretos**: Podem levar a decisões erradas de negócio
-- **Falta de métricas**: Dificulta análise e crescimento
+- **User Lockout**: Implementar bypass de emergência para administradores
+- **Data Loss**: Garantir que dados do usuário não sejam perdidos
+- **Security Breach**: Implementar logging de segurança adequado
 
 ### Mitigation Strategies
-- Implementar logging para debug de APIs
-- Fallbacks para quando não há dados
-- Monitoring de performance das queries
+- Backup de tokens em múltiplas localizações
+- Logging detalhado para debug
+- Rollback plan para versão anterior
+- Monitoramento de loops de redirecionamento
 
 ## Success Metrics
-- **Precisão**: 100% dos dados vêm do banco real
-- **Performance**: APIs respondem em < 500ms
-- **Confiabilidade**: Zero dados mockados em produção
-- **Segurança**: Apenas admins acessam a área
+- **Login Success Rate**: 100% dos logins válidos bem-sucedidos
+- **Redirect Time**: < 500ms do login à página de destino
+- **Token Persistence**: 100% dos tokens persistem entre sessões
+- **Zero Redirect Loops**: Eliminação completa de loops
+- **User Satisfaction**: Fluxo de login sem fricção
 
 ---
 
 ## Notes for Task Master Integration
 
-Este PRD investigará e corrigirá:
-1. **Data Sources**: Identificar origem real dos dados
-2. **API Integration**: Conectar frontend com backend real
-3. **Analytics Implementation**: Implementar cálculos reais
-4. **Security**: Proteger área administrativa
+Este PRD será processado pelo Task Master para gerar:
+1. **Tarefas Estruturadas**: Baseadas nos requisitos críticos acima
+2. **Análise de Complexidade**: Para identificar áreas que precisam breakdown detalhado
+3. **Gerenciamento de Dependências**: Para garantir ordem correta de implementação
+4. **Rastreamento de Progresso**: Para monitorar conclusão de cada requisito
 
-**Comandos para usar**: 
-```bash
-task-master parse-prd scripts/PRD.txt --research --num-tasks=12
-task-master analyze-complexity --research --threshold=6
-task-master expand --all --research --force
-task-master next
-``` 
+**Comando para usar**: `task-master parse-prd scripts/PRD.txt --research --num-tasks=12` 
+
+## Problem Statement
+Update frontend API connections for /chat page to use improved backend endpoints, fix calls and response handling.
+
+## Technical Requirements
+- Frontend: Update API calls in chat components and services to new conversation/message endpoints.
+- Backend: Use refreshed OpenAPI spec for endpoints like /conversations and /messages.
+- Integration: Ensure proper request/response parsing with streaming support.
+- Performance: Maintain efficiency with WebSockets if applicable.
+
+## Acceptance Criteria
+- [ ] API calls use new conversation/message endpoints.
+- [ ] Messages are sent and received correctly.
+- [ ] Error handling for chat operations.
+- [ ] Streaming responses if supported.
+
+## Implementation Constraints
+- Follow frontend-backend separation rule.
+- Use ApiService for calls.
+- Preserve existing chat features.
+
+## Architecture Notes
+Leverage existing context and hooks for updates. Update sendChatMessage to use new endpoints. 

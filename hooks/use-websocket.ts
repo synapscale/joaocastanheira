@@ -93,7 +93,7 @@ export function useExecutionWebSocket(
     try {
       const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || (() => {
       throw new Error('NEXT_PUBLIC_WS_URL não está definida no arquivo .env')
-    })()}/api/v1/ws/execution/${executionId}?token=${token}`;
+    })()}/ws/execution/${executionId}?token=${token}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {
@@ -278,7 +278,7 @@ export function useGlobalWebSocket(
     try {
       const wsUrl = `${process.env.NEXT_PUBLIC_WS_URL || (() => {
       throw new Error('NEXT_PUBLIC_WS_URL não está definida no arquivo .env')
-    })()}/api/v1/ws/global?token=${token}`;
+    })()}/ws/global?token=${token}`;
       const ws = new WebSocket(wsUrl);
 
       ws.onopen = () => {

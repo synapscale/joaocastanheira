@@ -5,7 +5,7 @@
 
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { useRouter } from 'next/navigation'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import { Tabs, TabsContent, TabsList, TabsTrigger } from '@/components/ui/tabs'
@@ -21,41 +21,28 @@ import {
   Crown, 
   Plus, 
   ArrowUpRight,
-  AlertTriangle,
-  CheckCircle,
-  TrendingUp,
-  Shield,
-  Zap,
-  Package,
-  BarChart3,
-  UserPlus,
+  Briefcase,
   Calendar,
-  Clock,
-  Globe,
-  Lock,
-  FileText,
-  Download,
-  Upload,
-  Webhook,
-  Key,
-  Star,
+  Shield,
+  TrendingUp,
   Activity,
-  RefreshCw
+  Database,
+  Zap,
+  BarChart3,
+  Loader2,
+  AlertTriangle,
+  RefreshCcw
 } from 'lucide-react'
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 
-// Contexts
-import { usePlan, useBilling, usePermissions } from '@/context/plan-context'
+import { apiService, TeamStats, WorkspaceResponse as ApiWorkspaceResponse, WorkspaceMemberResponse } from '@/lib/api/service'
+import { usePlan } from '@/context/plan-context'
+import { useToast } from '@/hooks/use-toast'
 import { useAuth } from '@/context/auth-context'
-
-// Components
-import EnhancedWorkspaceDashboard from '@/components/workspaces/enhanced-workspace-dashboard'
 import EnhancedMembersTab from '@/components/team/enhanced-members-tab'
+// import { WorkspaceResponse } from '@/types/workspace-types' - Removido, usando tipos da API
+import { ProtectedRoute } from '@/components/auth/protected-route'
 
-// API Service
-import { apiService } from '@/lib/api/service'
-import { useWorkspace, useCurrentWorkspace } from '@/context/workspace-context'
-
-// Types
 interface TeamMember {
   id: string
   name: string
@@ -67,713 +54,612 @@ interface TeamMember {
   created_at: string
 }
 
-interface TeamStats {
-  total_members: number
-  active_members: number
-  pending_invites: number
-  total_workspaces: number
-  storage_used: number
-  api_calls_used: number
+// Função auxiliar para transformar WorkspaceMemberResponse para TeamMember
+const transformWorkspaceMemberToTeamMember = (member: WorkspaceMemberResponse): TeamMember => {
+  return {
+    id: String(member.id),
+    name: member.user_name || member.user_email || 'Usuário sem nome',
+    email: member.user_email || '',
+    role: member.role.toLowerCase(),
+    status: (member.status === 'active' ? 'active' : 'inactive') as 'active' | 'pending' | 'inactive',
+    last_activity: member.last_seen_at || member.joined_at,
+    workspace_count: 1,
+    created_at: member.joined_at
+  }
 }
+
+// Usar WorkspaceResponse diretamente da API
 
 export default function TeamPage() {
   const router = useRouter()
-  const [activeTab, setActiveTab] = useState('overview')
-  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
+  const { toast } = useToast()
+  const { currentPlan, limits } = usePlan()
+  const { isAuthenticated, isInitialized } = useAuth()
+  
+  // Estados da página
+  const [loading, setLoading] = useState(true)
+  const [refreshing, setRefreshing] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  const [isLoadingData, setIsLoadingData] = useState(false)
+  const hasLoadedData = useRef(false)
+  
+  // Estados dos dados
   const [teamStats, setTeamStats] = useState<TeamStats>({
     total_members: 0,
-    active_members: 0,
-    pending_invites: 0,
     total_workspaces: 0,
-    storage_used: 0,
-    api_calls_used: 0
+    total_projects: 0,
+    storage_used_gb: 0,
+    api_calls_this_month: 0,
+    active_executions: 0
   })
-  const [loading, setLoading] = useState(false)
-  const [error, setError] = useState<string | null>(null)
-
-  // Contexts
-  const { user, isAuthenticated, isInitialized } = useAuth()
-  const { currentPlan, usage, limits } = usePlan()
-  const { billingInfo } = useBilling()
-  const { hasPermission } = usePermissions()
-  const { state: workspaceState } = useWorkspace()
-  const currentWorkspace = useCurrentWorkspace()
+  const [workspaces, setWorkspaces] = useState<ApiWorkspaceResponse[]>([])
+  const [teamMembers, setTeamMembers] = useState<TeamMember[]>([])
   
-  // Usar dados do WorkspaceContext
-  const workspaces = workspaceState.workspaces
-  const workspacesLoading = workspaceState.isLoading
-  const workspacesError = workspaceState.error
+  // Estado da aba ativa
+  const [activeTab, setActiveTab] = useState('overview')
 
-  // DEBUG: Log dos dados do workspace
-  useEffect(() => {
-    console.log('🔍 DEBUG TeamPage - WorkspaceState:', {
-      workspaces: workspaces,
-      workspacesCount: workspaces.length,
-      workspacesLoading,
-      workspacesError,
-      isInitialized: workspaceState.isInitialized,
-      currentWorkspace,
-      user: user?.email
-    })
-  }, [workspaces, workspacesLoading, workspacesError, workspaceState.isInitialized, currentWorkspace, user])
+  const [selectedWorkspaceId, setSelectedWorkspaceId] = useState<string | null>(null)
+  const [workspaceMembers, setWorkspaceMembers] = useState<TeamMember[]>([])
 
-  // Verificar se é admin
-  const isAdmin = user?.role === 'admin' || user?.email === 'admin@synapscale.com'
-
-  // Loading state se não inicializou ainda
-  if (!isInitialized) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Carregando...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // Redirect se não autenticado
-  useEffect(() => {
-    if (isInitialized && !isAuthenticated) {
-      console.log('🔐 Usuario não autenticado, redirecionando para /login...')
-      router.push('/login')
-    }
-  }, [isInitialized, isAuthenticated, router])
-
-  // Se não está autenticado, mostrar loading enquanto redireciona
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecionando para login...</p>
-        </div>
-      </div>
-    )
-  }
-
-  // ===== WORKSPACE DATA =====
-  // Os workspaces são gerenciados pelo WorkspaceContext automaticamente
-
-  // ===== LOAD TEAM DATA =====
-
-  const loadTeamData = async () => {
+  /**
+   * Carrega todos os dados da equipe usando os novos endpoints da API
+   */
+  const loadTeamData = useCallback(async (showRefreshIndicator = false) => {
     try {
-      setLoading(true)
-      setError(null)
+      if (!isAuthenticated) {
+        setLoading(false);
+        return;
+      }
+      if (isLoadingData) return;
+      setIsLoadingData(true);
+      if (showRefreshIndicator) setRefreshing(true); else setLoading(true);
+      setError(null);
 
-      console.log('🔍 DEBUG loadTeamData - Carregando dados da equipe...')
-      console.log('🔍 DEBUG loadTeamData - User autenticado:', !!user)
-      console.log('🔍 DEBUG loadTeamData - User email:', user?.email)
-      console.log('🔍 DEBUG loadTeamData - ApiService autenticado:', apiService.isAuthenticated())
-      console.log('🔍 DEBUG loadTeamData - Token disponível:', !!apiService.getAccessToken())
-      console.log('🔍 DEBUG loadTeamData - Workspaces disponíveis:', workspaces.length)
-      console.log('🔍 DEBUG loadTeamData - Workspaces:', workspaces.map(w => ({ id: w.id, name: w.name })))
+      // Buscar dados em paralelo usando os novos endpoints
+      const [statsData, workspacesData, membersData] = await Promise.allSettled([
+        apiService.getTeamStats(),
+        apiService.getWorkspaces(),
+        apiService.getAllTeamMembers()
+      ]);
 
-      // Verificar se há workspaces para processar
-      if (workspaces.length === 0) {
-        console.log('⚠️ DEBUG loadTeamData - Nenhum workspace encontrado')
-        setTeamStats({
-          total_members: 0,
-          active_members: 0,
-          pending_invites: 0,
-          total_workspaces: 0,
-          storage_used: 0,
-          api_calls_used: 0
-        })
-        setTeamMembers([])
-        return
+      // Processar estatísticas
+      if (statsData.status === 'fulfilled') {
+        setTeamStats(statsData.value);
+      } else {
+        console.error('Erro ao carregar estatísticas:', statsData.reason);
       }
 
-      // Teste de conectividade com a API antes de buscar dados
-      try {
-        const healthCheck = await apiService.healthCheck()
-        console.log('✅ DEBUG loadTeamData - API Health Check:', healthCheck)
-      } catch (healthError) {
-        console.warn('⚠️ DEBUG loadTeamData - API Health Check failed:', healthError)
-      }
-
-      // Carregar estatísticas agregadas, execução e membros em paralelo
-      const promises = [
-        apiService.getTeamStats().catch(error => {
-          console.error('❌ Erro ao carregar team stats:', error)
-          throw new Error(`Falha ao carregar estatísticas da equipe: ${error.message}`)
-        }),
-        apiService.getExecutionStats().catch(error => {
-          console.warn('⚠️ Erro ao carregar estatísticas de execução:', error)
-          return { total_executions: 0 }
-        }),
-        ...workspaces.map(workspace => 
-          apiService.getWorkspaceMembers(workspace.id).catch(error => {
-            console.warn(`⚠️ Erro ao carregar membros do workspace ${workspace.name}:`, error)
-            return []
-          })
-        )
-      ]
-
-      console.log('🔍 DEBUG loadTeamData - Executando', promises.length, 'promises em paralelo...')
-      
-      const [teamStatsFromApi, executionStatsFromApi, ...memberPromises] = await Promise.all(promises)
-
-      console.log('✅ DEBUG loadTeamData - Todas as promises resolvidas')
-      console.log('✅ DEBUG loadTeamData - Estatísticas da API:', teamStatsFromApi)
-      console.log('✅ DEBUG loadTeamData - Estatísticas de execução:', executionStatsFromApi)
-      console.log('✅ DEBUG loadTeamData - Membros por workspace:', memberPromises.map((members, i) => ({ workspace: workspaces[i].name, count: members.length })))
-
-      // Processar membros de todos os workspaces
-      let allMembers: TeamMember[] = []
-      memberPromises.forEach((members, index) => {
-        const workspace = workspaces[index]
-        console.log(`🔍 DEBUG loadTeamData - Processando ${members.length} membros do workspace "${workspace.name}"`)
+      // Processar workspaces
+      if (workspacesData.status === 'fulfilled') {
+        const workspacesList = workspacesData.value || [];
+        setWorkspaces(workspacesList);
         
-        const workspaceMembers: TeamMember[] = members.map(member => ({
-          id: `${workspace.id}-${member.id}`,
-          name: member.user_name,
-          email: member.user_email,
-          role: member.role,
-          status: member.status === 'active' ? 'active' as const : 'inactive' as const,
-          last_activity: member.last_active_at || member.joined_at,
-          workspace_count: 1, // Será recalculado abaixo
-          created_at: member.joined_at
-        }))
-        allMembers = [...allMembers, ...workspaceMembers]
-      })
-
-      // Remover duplicatas de membros (mesmo usuário em múltiplos workspaces)
-      const uniqueMembers = allMembers.reduce((acc: TeamMember[], current) => {
-        const exists = acc.find(member => member.email === current.email)
-        if (!exists) {
-          // Contar em quantos workspaces o usuário está
-          const workspaceCount = allMembers.filter(m => m.email === current.email).length
-          acc.push({
-            ...current,
-            workspace_count: workspaceCount
-          })
+        // Selecionar primeiro workspace se não há nenhum selecionado (apenas se não houve seleção manual)
+        if (workspacesList.length > 0 && !selectedWorkspaceId) {
+          setSelectedWorkspaceId(workspacesList[0].id);
         }
-        return acc
-      }, [])
-
-      console.log(`✅ DEBUG loadTeamData - Processamento de membros concluído: ${allMembers.length} total, ${uniqueMembers.length} únicos`)
-
-      // Combinar estatísticas da API com dados processados
-      const stats: TeamStats = {
-        total_members: Math.max(uniqueMembers.length, teamStatsFromApi.total_members),
-        active_members: uniqueMembers.filter(m => m.status === 'active').length,
-        pending_invites: uniqueMembers.filter(m => m.status === 'pending').length,
-        total_workspaces: teamStatsFromApi.total_workspaces,
-        storage_used: teamStatsFromApi.total_storage_mb / 1024, // Converter MB para GB
-        api_calls_used: executionStatsFromApi.total_executions || 0 // Dados reais de execução da API
+      } else {
+        console.error('Erro ao carregar workspaces:', workspacesData.reason);
       }
 
-      console.log('✅ DEBUG loadTeamData - Estatísticas finais:', stats)
-      console.log('✅ DEBUG loadTeamData - Membros únicos:', uniqueMembers.length)
-
-      setTeamMembers(uniqueMembers)
-      setTeamStats(stats)
+      // Processar membros
+      if (membersData.status === 'fulfilled') {
+        const members = membersData.value || [];
+        setTeamMembers(members.map(transformWorkspaceMemberToTeamMember));
+      } else {
+        console.error('Erro ao carregar membros:', membersData.reason);
+      }
 
     } catch (err) {
-      console.error('❌ DEBUG loadTeamData - Erro detalhado:', err)
-      console.error('❌ DEBUG loadTeamData - Stack trace:', (err as Error).stack)
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido';
+      setError(errorMessage);
+      console.error('Erro geral ao carregar dados da equipe:', err);
       
-      // Mostrar erro mais específico para o usuário
-      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido ao carregar dados da equipe'
-      setError(`Erro ao carregar dados da equipe: ${errorMessage}`)
-      
-      // Analytics de erro (se disponível)
-      if ('gtag' in window) {
-        (window as any).gtag('event', 'team_data_load_error', {
-          error_message: errorMessage,
-          user_email: user?.email,
-          workspaces_count: workspaces.length
-        })
-      }
+      toast({
+        title: 'Erro ao carregar dados',
+        description: errorMessage,
+        variant: 'destructive'
+      });
     } finally {
-      setLoading(false)
+      setLoading(false);
+      setRefreshing(false);
+      setIsLoadingData(false);
     }
-  }
+  }, [isAuthenticated])
 
-  // ===== EFFECTS =====
-
-  useEffect(() => {
-    if (workspaceState.isInitialized && !workspacesLoading) { // Aguardar carregamento dos workspaces
-      loadTeamData()
-    }
-  }, [workspaceState.isInitialized, workspaces, user, workspacesLoading])
-
-  // ===== RENDER HELPERS =====
-
-  const getUsagePercentage = (used: number, limit: number) => {
-    if (limit === -1) return 0 // Ilimitado
+  /**
+   * Calcular porcentagem de uso
+   */
+  const getUsagePercentage = (used: number, limit: number): number => {
+    if (limit === 0 || limit === -1) return 0
     return Math.min((used / limit) * 100, 100)
   }
 
-  const getStatusColor = (percentage: number) => {
-    if (percentage >= 90) return 'bg-red-500'
-    if (percentage >= 70) return 'bg-yellow-500'
-    return 'bg-green-500'
-  }
-
-  const getPlanIcon = (slug: string) => {
-    switch (slug) {
-      case 'free': return <Package className="h-5 w-5" />
-      case 'pro': return <Zap className="h-5 w-5" />
-      case 'enterprise': return <Crown className="h-5 w-5" />
-      default: return <Package className="h-5 w-5" />
+  /**
+   * Formatar números grandes
+   */
+  const formatNumber = (num: number): string => {
+    if (num >= 1000000) {
+      return (num / 1000000).toFixed(1) + 'M'
     }
+    if (num >= 1000) {
+      return (num / 1000).toFixed(1) + 'K'
+    }
+    return num.toString()
   }
 
-  const getFeatureBadge = (hasFeature: boolean) => {
-    return hasFeature ? (
-      <Badge className="bg-green-100 text-green-800">
-        <CheckCircle className="h-3 w-3 mr-1" />
-        Disponível
-      </Badge>
-    ) : (
-      <Badge variant="outline" className="text-gray-500">
-        <Lock className="h-3 w-3 mr-1" />
-        Upgrade
-      </Badge>
+  /**
+   * Carrega membros do workspace selecionado
+   */
+  const loadWorkspaceMembers = useCallback(async (workspaceId: string) => {
+    setIsLoadingData(true)
+    setError(null)
+    try {
+      const members = await apiService.getWorkspaceMembers(workspaceId)
+      setWorkspaceMembers(members.map(transformWorkspaceMemberToTeamMember))
+    } catch (err) {
+      const errorMessage = err instanceof Error ? err.message : 'Erro desconhecido'
+      setError(errorMessage)
+      toast({
+        title: 'Erro ao carregar membros',
+        description: errorMessage,
+        variant: 'destructive'
+      })
+    } finally {
+      setIsLoadingData(false)
+    }
+  }, [toast])
+
+  // Carregar dados quando a autenticação estiver inicializada e usuário autenticado (apenas uma vez)
+  useEffect(() => {
+    if (isInitialized && isAuthenticated && !hasLoadedData.current) {
+      hasLoadedData.current = true
+      loadTeamData()
+    } else if (isInitialized && !isAuthenticated) {
+      // Usuário não autenticado, limpar loading
+      setLoading(false);
+    }
+  }, [isInitialized, isAuthenticated, loadTeamData])
+
+  // Carregar membros do workspace selecionado (apenas quando o usuário muda manualmente)
+  useEffect(() => {
+    if (selectedWorkspaceId && hasLoadedData.current) {
+      loadWorkspaceMembers(selectedWorkspaceId)
+    }
+  }, [selectedWorkspaceId, loadWorkspaceMembers])
+
+  if (loading && !refreshing) {
+    return (
+      <ProtectedRoute>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4">
+            <Loader2 className="h-8 w-8 animate-spin mx-auto text-primary" />
+            <div>
+              <h3 className="text-lg font-medium">Carregando dados da equipe...</h3>
+              <p className="text-sm text-muted-foreground">Buscando informações dos workspaces e membros</p>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
     )
   }
 
-  // ===== RENDER =====
+  if (error && !refreshing) {
+    return (
+      <ProtectedRoute>
+        <div className="flex items-center justify-center min-h-[400px]">
+          <div className="text-center space-y-4 max-w-md">
+            <AlertTriangle className="h-12 w-12 text-destructive mx-auto" />
+            <div>
+              <h3 className="text-lg font-medium">Erro ao carregar dados</h3>
+              <p className="text-sm text-muted-foreground mb-4">{error}</p>
+              <Button onClick={() => loadTeamData(true)} className="gap-2">
+                <RefreshCcw className="h-4 w-4" />
+                Tentar novamente
+              </Button>
+            </div>
+          </div>
+        </div>
+      </ProtectedRoute>
+    )
+  }
 
   return (
-    <div className="min-h-screen bg-background">
-      <div className="max-w-7xl mx-auto p-6 space-y-6">
-        {/* Header */}
-        <div className="flex items-center justify-between">
-          <div>
-            <h1 className="text-3xl font-bold">Gerenciamento de Equipe</h1>
-            <p className="text-muted-foreground mt-1">
-              Gerencie sua equipe, workspaces e configurações
-            </p>
-            {/* Badge indicando dados reais */}
-            <Badge variant="outline" className="mt-2 bg-green-50 text-green-700 border-green-200">
-              ✅ Dados reais da API oficial
-            </Badge>
-          </div>
-          <div className="flex items-center gap-3">
-            <Badge variant="outline" className="flex items-center gap-2">
-              {getPlanIcon(currentPlan.slug)}
-              {currentPlan.name}
-            </Badge>
-            {billingInfo?.next_billing_date && (
-              <Badge variant="secondary">
-                <Calendar className="h-3 w-3 mr-1" />
-                Próximo: {new Date(billingInfo.next_billing_date).toLocaleDateString('pt-BR')}
-              </Badge>
-            )}
-          </div>
+    <ProtectedRoute>
+      <div className="container mx-auto p-6 space-y-8">
+      {/* Header */}
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4">
+        <div>
+          <h1 className="text-3xl font-bold flex items-center gap-3">
+            <Users className="h-8 w-8 text-primary" />
+            Gestão de Equipe
+            {refreshing && <Loader2 className="h-5 w-5 animate-spin text-muted-foreground" />}
+          </h1>
+          <p className="text-muted-foreground mt-2">
+            Gerencie workspaces, membros e monitore o uso dos recursos da sua equipe
+          </p>
         </div>
-
-        {/* Alerts */}
-        {error && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>{error}</AlertDescription>
-          </Alert>
-        )}
-
-        {workspacesError && (
-          <Alert variant="destructive">
-            <AlertTriangle className="h-4 w-4" />
-            <AlertDescription>Erro ao carregar workspaces: {workspacesError}</AlertDescription>
-          </Alert>
-        )}
-
-        {/* Status da Conexão com API */}
-        <Card className="border-green-200 bg-green-50">
-          <CardContent className="pt-6">
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-green-900">
-                  Status da API
-                </p>
-                <p className="text-xs text-green-700 mt-1">
-                  {teamStats.total_workspaces > 0 ? 
-                    `✅ Conectado - ${teamStats.total_workspaces} workspace(s) carregado(s)` : 
-                    '⚠️ Aguardando dados...'
-                  }
-                </p>
-              </div>
-              <CheckCircle className="h-5 w-5 text-green-600" />
-            </div>
-            <div className="mt-2 text-xs text-green-600">
-              • Usuário: {user?.email || 'N/A'}<br />
-              • Workspaces: {workspaces.length}<br />
-              • Membros: {teamStats.total_members}<br />
-              • API Calls: {teamStats.api_calls_used} (dados reais de execução)
-            </div>
-          </CardContent>
-        </Card>
-
-        {/* Quick Stats */}
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6">
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Workspaces</CardTitle>
-              <Building className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{teamStats.total_workspaces}</div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {limits.max_workspaces === -1 ? 'Ilimitado' : `de ${limits.max_workspaces}`}
-                </p>
-                {limits.max_workspaces !== -1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {getUsagePercentage(teamStats.total_workspaces, limits.max_workspaces).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-              {limits.max_workspaces !== -1 && (
-                <Progress 
-                  value={getUsagePercentage(teamStats.total_workspaces, limits.max_workspaces)} 
-                  className="mt-2"
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Membros</CardTitle>
-              <Users className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{teamStats.active_members}</div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {limits.max_members_per_workspace === -1 ? 'Ilimitado' : `de ${limits.max_members_per_workspace} por workspace`}
-                </p>
-                {teamStats.pending_invites > 0 && (
-                  <span className="text-xs text-blue-600">
-                    +{teamStats.pending_invites} pendentes
-                  </span>
-                )}
-              </div>
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">Storage</CardTitle>
-              <BarChart3 className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{teamStats.storage_used.toFixed(1)}GB</div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {limits.max_storage_gb === -1 ? 'Ilimitado' : `de ${limits.max_storage_gb}GB`}
-                </p>
-                {limits.max_storage_gb !== -1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {getUsagePercentage(teamStats.storage_used, limits.max_storage_gb).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-              {limits.max_storage_gb !== -1 && (
-                <Progress 
-                  value={getUsagePercentage(teamStats.storage_used, limits.max_storage_gb)} 
-                  className="mt-2"
-                />
-              )}
-            </CardContent>
-          </Card>
-
-          <Card>
-            <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
-              <CardTitle className="text-sm font-medium">API Calls</CardTitle>
-              <Activity className="h-4 w-4 text-muted-foreground" />
-            </CardHeader>
-            <CardContent>
-              <div className="text-2xl font-bold">{teamStats.api_calls_used}</div>
-              <div className="flex items-center justify-between">
-                <p className="text-xs text-muted-foreground">
-                  {limits.max_api_requests_per_month === -1 ? 'Ilimitado' : `de ${limits.max_api_requests_per_month.toLocaleString()} este mês`}
-                </p>
-                {limits.max_api_requests_per_month !== -1 && (
-                  <span className="text-xs text-muted-foreground">
-                    {getUsagePercentage(teamStats.api_calls_used, limits.max_api_requests_per_month).toFixed(0)}%
-                  </span>
-                )}
-              </div>
-              {limits.max_api_requests_per_month !== -1 && (
-                <Progress 
-                  value={getUsagePercentage(teamStats.api_calls_used, limits.max_api_requests_per_month)} 
-                  className="mt-2"
-                />
-              )}
-            </CardContent>
-          </Card>
+        
+        <div className="flex gap-3">
+          <Button
+            variant="outline"
+            onClick={() => loadTeamData(true)}
+            disabled={refreshing}
+            className="gap-2"
+          >
+            <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Atualizar Dados
+          </Button>
+          <Button
+            variant="outline"
+            onClick={() => selectedWorkspaceId && loadWorkspaceMembers(selectedWorkspaceId)}
+            disabled={refreshing || !selectedWorkspaceId}
+            className="gap-2"
+          >
+            <RefreshCcw className={`h-4 w-4 ${refreshing ? 'animate-spin' : ''}`} />
+            Atualizar Membros
+          </Button>
+          <Button onClick={() => router.push('/workspaces/new')} className="gap-2">
+            <Plus className="h-4 w-4" />
+            Novo Workspace
+          </Button>
         </div>
+      </div>
 
-        {/* Main Content */}
-        <Tabs value={activeTab} onValueChange={setActiveTab}>
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="overview" className="flex items-center gap-2">
-              <BarChart3 className="h-4 w-4" />
-              Visão Geral
-            </TabsTrigger>
-            <TabsTrigger value="workspaces" className="flex items-center gap-2">
-              <Building className="h-4 w-4" />
-              Workspaces
-            </TabsTrigger>
-            <TabsTrigger value="members" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Membros
-            </TabsTrigger>
-            <TabsTrigger value="permissions" className="flex items-center gap-2">
-              <Shield className="h-4 w-4" />
-              Permissões
-            </TabsTrigger>
-          </TabsList>
+      {/* Seletor de workspace */}
+      <div className="mb-6">
+        <label className="block mb-2 text-sm font-medium">Selecione o workspace</label>
+        <Select value={selectedWorkspaceId || ''} onValueChange={setSelectedWorkspaceId}>
+          <SelectTrigger className="w-full max-w-md">
+            <SelectValue placeholder="Selecione um workspace" />
+          </SelectTrigger>
+          <SelectContent>
+            {workspaces.map((ws) => (
+              <SelectItem key={ws.id} value={ws.id}>{ws.name}</SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      </div>
 
-          {/* Overview Tab */}
-          <TabsContent value="overview" className="space-y-6">
-            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-              {/* Plan Info */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    {getPlanIcon(currentPlan.slug)}
-                    Plano Atual: {currentPlan.name}
-                  </CardTitle>
-                  <CardDescription>{currentPlan.description}</CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div>
-                      <span className="text-muted-foreground">Preço:</span>
-                      <p className="font-medium">
-                        {currentPlan.price === 0 ? 'Gratuito' : `$${currentPlan.price}/mês`}
-                      </p>
-                    </div>
-                    <div>
-                      <span className="text-muted-foreground">Próximo pagamento:</span>
-                      <p className="font-medium">
-                        {billingInfo ? new Date(billingInfo.next_billing_date).toLocaleDateString() : 'N/A'}
-                      </p>
-                    </div>
-                  </div>
-                  
-                  <Separator />
-                  
-                  <div className="space-y-2">
-                    <h4 className="font-medium">Recursos Inclusos</h4>
-                    <div className="grid grid-cols-1 gap-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Workspaces:</span>
-                        <span className="text-sm font-medium">
-                          {limits.max_workspaces === -1 ? 'Ilimitado' : limits.max_workspaces}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Membros por workspace:</span>
-                        <span className="text-sm font-medium">
-                          {limits.max_members_per_workspace === -1 ? 'Ilimitado' : limits.max_members_per_workspace}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Storage:</span>
-                        <span className="text-sm font-medium">
-                          {limits.max_storage_gb === -1 ? 'Ilimitado' : `${limits.max_storage_gb}GB`}
-                        </span>
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">API Calls/mês:</span>
-                        <span className="text-sm font-medium">
-                          {limits.max_api_requests_per_month === -1 ? 'Ilimitado' : limits.max_api_requests_per_month.toLocaleString()}
-                        </span>
-                      </div>
-                    </div>
-                  </div>
-                  
-                  {currentPlan.slug === 'free' && (
-                    <Button className="w-full">
-                      <Crown className="h-4 w-4 mr-2" />
-                      Fazer Upgrade
-                    </Button>
-                  )}
-                </CardContent>
-              </Card>
+      {/* Tabs principais */}
+      <Tabs value={activeTab} onValueChange={setActiveTab} className="space-y-6">
+        <TabsList className="grid w-full grid-cols-3 lg:w-auto lg:grid-cols-none lg:inline-flex">
+          <TabsTrigger value="overview" className="gap-2">
+            <BarChart3 className="h-4 w-4" />
+            <span className="hidden sm:inline">Visão Geral</span>
+          </TabsTrigger>
+          <TabsTrigger value="members" className="gap-2">
+            <Users className="h-4 w-4" />
+            <span className="hidden sm:inline">Membros</span>
+          </TabsTrigger>
+          <TabsTrigger value="workspaces" className="gap-2">
+            <Building className="h-4 w-4" />
+            <span className="hidden sm:inline">Workspaces</span>
+          </TabsTrigger>
+        </TabsList>
 
-              {/* Recent Activity */}
-              <Card>
-                <CardHeader>
-                  <CardTitle>Atividade Recente</CardTitle>
-                  <CardDescription>Últimas ações nos seus workspaces</CardDescription>
-                </CardHeader>
-                <CardContent>
-                  <div className="space-y-4">
-                    {teamMembers.slice(0, 3).map((member) => (
-                      <div key={member.id} className="flex items-center gap-3">
-                        <div className="w-8 h-8 bg-primary/10 rounded-full flex items-center justify-center">
-                          <Users className="h-4 w-4 text-primary" />
-                        </div>
-                        <div className="flex-1">
-                          <p className="text-sm font-medium">{member.name}</p>
-                          <p className="text-xs text-muted-foreground">
-                            Ativo há {new Date(member.last_activity).toLocaleDateString()}
-                          </p>
-                        </div>
-                        <Badge variant="outline">{member.role}</Badge>
-                      </div>
-                    ))}
-                    
-                    {teamMembers.length === 0 && (
-                      <p className="text-sm text-muted-foreground text-center py-4">
-                        Nenhuma atividade recente
-                      </p>
-                    )}
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-
-            {/* Usage Overview */}
+        {/* Aba: Visão Geral */}
+        <TabsContent value="overview" className="space-y-6">
+          {/* Cards de Estatísticas */}
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {/* Total de Membros */}
             <Card>
-              <CardHeader>
-                <CardTitle>Uso dos Recursos</CardTitle>
-                <CardDescription>Acompanhe o uso dos recursos do seu plano</CardDescription>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Total de Membros</CardTitle>
+                <Users className="h-4 w-4 text-muted-foreground" />
               </CardHeader>
               <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Workspaces</span>
-                      <span className="text-sm text-muted-foreground">
-                        {teamStats.total_workspaces} / {limits.max_workspaces === -1 ? '∞' : limits.max_workspaces}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={limits.max_workspaces === -1 ? 0 : getUsagePercentage(teamStats.total_workspaces, limits.max_workspaces)}
-                      className="h-2"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">Storage</span>
-                      <span className="text-sm text-muted-foreground">
-                        {teamStats.storage_used.toFixed(1)}GB / {limits.max_storage_gb === -1 ? '∞' : `${limits.max_storage_gb}GB`}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={limits.max_storage_gb === -1 ? 0 : getUsagePercentage(teamStats.storage_used, limits.max_storage_gb)}
-                      className="h-2"
-                    />
-                  </div>
-                  
-                  <div className="space-y-2">
-                    <div className="flex items-center justify-between">
-                      <span className="text-sm font-medium">API Calls</span>
-                      <span className="text-sm text-muted-foreground">
-                        {teamStats.api_calls_used} / {limits.max_api_requests_per_month === -1 ? '∞' : limits.max_api_requests_per_month.toLocaleString()}
-                      </span>
-                    </div>
-                    <Progress 
-                      value={limits.max_api_requests_per_month === -1 ? 0 : getUsagePercentage(teamStats.api_calls_used, limits.max_api_requests_per_month)}
-                      className="h-2"
-                    />
-                  </div>
-                </div>
+                <div className="text-2xl font-bold">{teamStats.total_members}</div>
+                <p className="text-xs text-muted-foreground">
+                  {limits?.max_members_per_workspace === -1 ? 'Ilimitados' : `de ${limits?.max_members_per_workspace || 0} permitidos`}
+                </p>
               </CardContent>
             </Card>
-          </TabsContent>
 
-          {/* Workspaces Tab */}
-          <TabsContent value="workspaces" className="space-y-6">
-            <EnhancedWorkspaceDashboard />
-          </TabsContent>
+            {/* Total de Workspaces */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Workspaces Ativos</CardTitle>
+                <Building className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{teamStats.total_workspaces}</div>
+                <p className="text-xs text-muted-foreground">
+                  {limits?.max_workspaces === -1 ? 'Ilimitados' : `de ${limits?.max_workspaces || 0} permitidos`}
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Members Tab */}
-          <TabsContent value="members" className="space-y-6">
-            <EnhancedMembersTab 
-              teamMembers={teamMembers}
-              workspaces={workspaces}
-              loading={loading}
-              onDataRefresh={loadTeamData}
-            />
-          </TabsContent>
+            {/* Total de Projetos */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Projetos Ativos</CardTitle>
+                <Briefcase className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{teamStats.total_projects}</div>
+                <p className="text-xs text-muted-foreground">
+                  Distribuídos entre os workspaces
+                </p>
+              </CardContent>
+            </Card>
 
-          {/* Permissions Tab */}
-          <TabsContent value="permissions" className="space-y-6">
+            {/* Armazenamento */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Armazenamento</CardTitle>
+                <Database className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{teamStats.storage_used_gb.toFixed(1)} GB</div>
+                <p className="text-xs text-muted-foreground">
+                  {limits?.max_storage_gb === -1 ? 'Ilimitado' : `de ${limits?.max_storage_gb || 0} GB`}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* API Calls */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Chamadas API</CardTitle>
+                <Zap className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{formatNumber(teamStats.api_calls_this_month)}</div>
+                <p className="text-xs text-muted-foreground">
+                  {limits?.max_api_requests_per_month === -1 ? 'Ilimitadas' : `de ${formatNumber(limits?.max_api_requests_per_month || 0)}`}
+                </p>
+              </CardContent>
+            </Card>
+
+            {/* Execuções Ativas */}
+            <Card>
+              <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
+                <CardTitle className="text-sm font-medium">Execuções Ativas</CardTitle>
+                <Activity className="h-4 w-4 text-muted-foreground" />
+              </CardHeader>
+              <CardContent>
+                <div className="text-2xl font-bold">{teamStats.active_executions}</div>
+                <p className="text-xs text-muted-foreground">
+                  Processamentos em andamento
+                </p>
+              </CardContent>
+            </Card>
+          </div>
+
+          {/* Card do Plano Atual e Uso de Recursos */}
+          <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+            {/* Plano Atual */}
             <Card>
               <CardHeader>
-                <CardTitle>Permissões e Recursos</CardTitle>
+                <CardTitle className="flex items-center gap-2">
+                  <Crown className="h-5 w-5 text-yellow-500" />
+                  Plano Atual
+                </CardTitle>
                 <CardDescription>
-                  Recursos disponíveis baseados no seu plano atual
+                  Informações sobre seu plano e limites
                 </CardDescription>
               </CardHeader>
-              <CardContent>
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Recursos Básicos</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Criar Workspaces</span>
-                        {getFeatureBadge(hasPermission('workspace.create'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Convidar Membros</span>
-                        {getFeatureBadge(hasPermission('members.invite'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Acesso à API</span>
-                        {getFeatureBadge(hasPermission('api.use'))}
-                      </div>
+              <CardContent className="space-y-4">
+                <div className="flex items-center justify-between">
+                  <span className="font-medium">Plano:</span>
+                  <Badge variant={currentPlan?.name === 'premium' ? 'default' : 'secondary'}>
+                    {currentPlan?.name?.toUpperCase() || 'FREE'}
+                  </Badge>
+                </div>
+                
+                <Separator />
+                
+                <div className="space-y-3">
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Membros</span>
+                      <span>
+                        {teamStats.total_members}
+                        {limits?.max_members_per_workspace !== -1 && ` / ${limits?.max_members_per_workspace || 0}`}
+                      </span>
+                    </div>
+                                       {limits?.max_members_per_workspace !== -1 && (
+                     <Progress 
+                       value={getUsagePercentage(teamStats.total_members, limits?.max_members_per_workspace || 1)} 
+                       className="h-2"
+                     />
+                   )}
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>Armazenamento</span>
+                      <span>
+                        {teamStats.storage_used_gb.toFixed(2)} GB
+                        {limits?.max_storage_gb !== -1 && ` / ${limits?.max_storage_gb || 0} GB`}
+                      </span>
+                    </div>
+                    {limits?.max_storage_gb !== -1 && (
+                      <Progress 
+                        value={getUsagePercentage(teamStats.storage_used_gb, limits?.max_storage_gb || 1)} 
+                        className="h-2"
+                      />
+                    )}
+                  </div>
+
+                  <div>
+                    <div className="flex justify-between text-sm mb-1">
+                      <span>API Calls</span>
+                      <span>
+                        {formatNumber(teamStats.api_calls_this_month)}
+                        {limits?.max_api_requests_per_month !== -1 && ` / ${formatNumber(limits?.max_api_requests_per_month || 0)}`}
+                      </span>
+                    </div>
+                    {limits?.max_api_requests_per_month !== -1 && (
+                      <Progress 
+                        value={getUsagePercentage(teamStats.api_calls_this_month, limits?.max_api_requests_per_month || 1)} 
+                        className="h-2"
+                      />
+                    )}
+                  </div>
+                </div>
+
+                <Separator />
+
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2"
+                  onClick={() => router.push('/settings/billing')}
+                >
+                  <TrendingUp className="h-4 w-4" />
+                  Gerenciar Plano
+                </Button>
+              </CardContent>
+            </Card>
+
+            {/* Atividade Recente */}
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Calendar className="h-5 w-5" />
+                  Resumo da Atividade
+                </CardTitle>
+                <CardDescription>
+                  Atividade dos workspaces e membros
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-4">
+                <div className="space-y-3">
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Users className="h-4 w-4 text-blue-500" />
+                      <span className="text-sm">Membros ativos</span>
+                    </div>
+                    <span className="font-medium">{teamStats.total_members}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Activity className="h-4 w-4 text-green-500" />
+                      <span className="text-sm">Execuções hoje</span>
+                    </div>
+                    <span className="font-medium">{teamStats.active_executions}</span>
+                  </div>
+
+                  <div className="flex items-center justify-between p-3 bg-muted/50 rounded-lg">
+                    <div className="flex items-center gap-3">
+                      <Briefcase className="h-4 w-4 text-purple-500" />
+                      <span className="text-sm">Projetos ativos</span>
+                    </div>
+                    <span className="font-medium">{teamStats.total_projects}</span>
+                  </div>
+                </div>
+
+                <Separator />
+
+                <Button 
+                  variant="outline" 
+                  className="w-full gap-2"
+                  onClick={() => router.push('/analytics')}
+                >
+                  <BarChart3 className="h-4 w-4" />
+                  Ver Analytics Completo
+                </Button>
+              </CardContent>
+            </Card>
+          </div>
+        </TabsContent>
+
+        {/* Aba: Membros */}
+        <TabsContent value="members">
+          <EnhancedMembersTab
+            teamMembers={workspaceMembers}
+            workspaces={workspaces}
+            loading={loading || refreshing || isLoadingData}
+            onDataRefresh={() => selectedWorkspaceId && loadWorkspaceMembers(selectedWorkspaceId)}
+          />
+        </TabsContent>
+
+        {/* Aba: Workspaces */}
+        <TabsContent value="workspaces" className="space-y-6">
+          <div className="flex items-center justify-between">
+            <div>
+              <h3 className="text-lg font-medium">Workspaces da Equipe</h3>
+              <p className="text-sm text-muted-foreground">
+                Gerencie e monitore todos os workspaces da sua organização
+              </p>
+            </div>
+            <Button onClick={() => router.push('/workspaces/new')} className="gap-2">
+              <Plus className="h-4 w-4" />
+              Novo Workspace
+            </Button>
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+            {workspaces.map((workspace) => (
+              <Card key={workspace.id} className="cursor-pointer hover:shadow-md transition-shadow">
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <CardTitle className="text-lg">{workspace.name}</CardTitle>
+                    <Badge variant={workspace.status === 'active' ? 'default' : 'secondary'}>
+                      {workspace.status}
+                    </Badge>
+                  </div>
+                  {workspace.description && (
+                    <CardDescription>{workspace.description}</CardDescription>
+                  )}
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-2">
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Membros:</span>
+                      <span className="font-medium">{workspace.member_count || 0}</span>
+                    </div>
+                    <div className="flex items-center justify-between text-sm">
+                      <span className="text-muted-foreground">Criado em:</span>
+                      <span className="font-medium">
+                        {new Date(workspace.created_at).toLocaleDateString('pt-BR')}
+                      </span>
                     </div>
                   </div>
                   
-                  <div className="space-y-3">
-                    <h4 className="font-medium">Recursos Avançados</h4>
-                    <div className="space-y-2">
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Roles Customizadas</span>
-                        {getFeatureBadge(hasPermission('custom_roles.create'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Exportar Dados</span>
-                        {getFeatureBadge(hasPermission('data.export'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Webhooks</span>
-                        {getFeatureBadge(hasPermission('webhooks.use'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">Integrações</span>
-                        {getFeatureBadge(hasPermission('integrations.use'))}
-                      </div>
-                      <div className="flex items-center justify-between">
-                        <span className="text-sm">SSO</span>
-                        {getFeatureBadge(hasPermission('sso.use'))}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-                
-                {currentPlan.slug === 'free' && (
-                  <div className="mt-6 p-4 bg-blue-50 rounded-lg border border-blue-200">
-                    <div className="flex items-center gap-2 mb-2">
-                      <Crown className="h-5 w-5 text-blue-600" />
-                      <h4 className="font-medium text-blue-900">Desbloqueie mais recursos</h4>
-                    </div>
-                    <p className="text-sm text-blue-700 mb-3">
-                      Faça upgrade para o plano Pro ou Enterprise para acessar recursos avançados como roles customizadas, webhooks e integrações.
-                    </p>
-                    <Button>
-                      Ver Planos
+                  <Separator className="my-4" />
+                  
+                  <div className="flex gap-2">
+                    <Button 
+                      variant="outline" 
+                      size="sm" 
+                      className="flex-1 gap-2"
+                      onClick={() => router.push(`/workspaces/${workspace.id}`)}
+                    >
+                      <ArrowUpRight className="h-3 w-3" />
+                      Abrir
+                    </Button>
+                    <Button 
+                      variant="outline" 
+                      size="sm"
+                      onClick={() => router.push(`/workspaces/${workspace.id}/settings`)}
+                    >
+                      <Settings className="h-3 w-3" />
                     </Button>
                   </div>
-                )}
-              </CardContent>
-            </Card>
-          </TabsContent>
+                </CardContent>
+              </Card>
+            ))}
+          </div>
 
-        </Tabs>
-      </div>
+          {workspaces.length === 0 && (
+            <div className="text-center py-12">
+              <Building className="h-12 w-12 text-muted-foreground mx-auto mb-4" />
+              <h3 className="text-lg font-medium mb-2">Nenhum workspace encontrado</h3>
+              <p className="text-muted-foreground mb-4">
+                Crie seu primeiro workspace para começar a colaborar com sua equipe
+              </p>
+              <Button onClick={() => router.push('/workspaces/new')} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Criar Workspace
+              </Button>
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
+    </ProtectedRoute>
   )
 }

@@ -205,14 +205,18 @@ class PerformanceMonitor {
         })
       }
 
-      // Verificar memória a cada 30 segundos
-      const memoryInterval = setInterval(checkMemory, 30000)
-      checkMemory() // Verificação inicial
+      // TEMPORARIAMENTE DESABILITADO - verificação de memória a cada 30 segundos
+      // const memoryInterval = setInterval(checkMemory, 30000)
+      // checkMemory() // Verificação inicial
+      console.log('🔴 PerformanceMonitor: Memory check timer DESABILITADO temporariamente')
+
+      // Fazer apenas a verificação inicial sem timer
+      checkMemory()
 
       // Cleanup quando parar o monitor
       const originalStop = this.stop.bind(this)
       this.stop = () => {
-        clearInterval(memoryInterval)
+        // clearInterval(memoryInterval) // Timer já desabilitado
         originalStop()
       }
     }
@@ -518,17 +522,18 @@ export const usePerformanceMonitor = () => {
     // Iniciar monitor quando o hook é usado
     performanceMonitor.start()
 
-    // Atualizar relatório a cada 30 segundos
-    const interval = setInterval(() => {
-      setReport(performanceMonitor.getReport())
-    }, 30000)
+    // TEMPORARIAMENTE DESABILITADO - atualizar relatório a cada 30 segundos
+    // const interval = setInterval(() => {
+    //   setReport(performanceMonitor.getReport())
+    // }, 30000)
 
     // Relatório inicial
     setReport(performanceMonitor.getReport())
 
     return () => {
-      clearInterval(interval)
+      // clearInterval(interval)
       // Não parar o monitor aqui pois pode ser usado em outros componentes
+      console.log('🔴 PerformanceMonitor: Timer de 30 segundos DESABILITADO temporariamente')
     }
   }, [])
 

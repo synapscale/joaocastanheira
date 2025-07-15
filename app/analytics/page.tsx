@@ -1,4 +1,5 @@
 import { AnalyticsComponent } from '@/components/analytics/analytics-component'
+import { ProtectedRoute } from '@/components/auth/protected-route'
 import { Metadata } from 'next'
 
 export const metadata: Metadata = {
@@ -8,8 +9,10 @@ export const metadata: Metadata = {
 
 export default function AnalyticsPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <AnalyticsComponent />
-    </div>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <AnalyticsComponent />
+      </div>
+    </ProtectedRoute>
   )
 } 

@@ -1,8 +1,10 @@
+"use client"
+
 import Link from 'next/link';
 
 export default function Home() {
   return (
-      <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
+    <main className="flex min-h-screen flex-col items-center justify-center p-6 bg-gray-50 dark:bg-gray-900">
         <div className="max-w-4xl w-full">
           <h1 className="text-3xl font-bold text-center mb-8">SynapScale - Integração de Canvas</h1>
           
@@ -25,38 +27,19 @@ export default function Home() {
               </Link>
             </div>
             
-            <div className="bg-yellow-50 dark:bg-yellow-900/10 rounded-lg p-4 border border-yellow-200 dark:border-yellow-800">
-              <h3 className="text-lg font-medium mb-2 text-yellow-700 dark:text-yellow-300">Como utilizar os Workflows:</h3>
-              <ol className="list-decimal list-inside space-y-2 text-gray-700 dark:text-gray-300">
-                <li>Acesse a área de <strong>Workflows</strong> para visualizar todos os seus workflows</li>
-                <li>Clique em <strong>Criar Workflow</strong> para iniciar um novo workflow</li>
-                <li>Para editar um workflow existente, selecione a opção <strong>Editar no Canvas</strong> no menu de ações</li>
-                <li>Dentro do Canvas, você poderá criar e conectar nodes para construir seu workflow</li>
-              </ol>
+            <div className="border-t pt-6">
+              <h3 className="text-lg font-medium mb-3">Funcionalidades:</h3>
+              <ul className="space-y-2 text-gray-600 dark:text-gray-300">
+                <li>• <strong>Criação de Workflows:</strong> Interface visual para criar workflows complexos</li>
+                <li>• <strong>Canvas Integrados:</strong> Seamless integration entre diferentes tipos de canvas</li>
+                <li>• <strong>Nodes Personalizados:</strong> Crie e reutilize components customizados</li>
+                <li>• <strong>Armazenamento Persistente:</strong> Todos os dados são salvos automaticamente</li>
+              </ul>
             </div>
           </div>
           
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-medium mb-3">Persistência Local</h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Os nodes criados são persistidos localmente via localStorage, garantindo que não sejam perdidos entre sessões.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-medium mb-3">Sincronização Bidirecional</h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Alterações em nodes são sincronizadas automaticamente entre os dois canvases, garantindo consistência.
-              </p>
-            </div>
-            
-            <div className="bg-white dark:bg-gray-800 rounded-lg shadow-md p-6">
-              <h3 className="text-lg font-medium mb-3">Adaptadores de Formato</h3>
-              <p className="text-gray-600 dark:text-gray-300 text-sm">
-                Conversão automática entre os diferentes formatos de nodes utilizados nos dois canvases.
-              </p>
-            </div>
+          <div className="text-center text-sm text-gray-500 dark:text-gray-400">
+            <p>Projeto SynapScale • Canvas Integration Demo</p>
           </div>
         </div>
       </main>

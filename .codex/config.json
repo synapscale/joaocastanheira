@@ -1,0 +1,24 @@
+{
+  "model": "gpt-4",
+  "providers": {
+    "openai": {
+      "name": "OpenAI",
+      "baseURL": "https://api.openai.com/v1",
+      "envKey": "OPENAI_API_KEY"
+    },
+    "vercel": {
+      "name": "Vercel v0",
+      "baseURL": "https://api.v0.dev/v1",
+      "envKey": "V0_API_KEY"
+    }
+  },
+  "defaultProvider": "openai",
+  "sandbox_permissions": [
+    "disk-read-cwd",
+    "disk-write-cwd",
+    "disk-write-platform-user-temp-folder"
+  ],
+  "shell_environment_policy": {
+    "inherit": "env"
+  }
+} 

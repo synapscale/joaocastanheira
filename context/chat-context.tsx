@@ -5,8 +5,8 @@
 
 "use client"
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
-import { chatService, type Conversation, type Message, type ConversationCreate, type MessageCreate } from '@/lib/services/chat'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react'
+import { chatUnifiedService, type ConversationResponse, type MessageResponse, type ConversationCreate, type MessageCreate, type LLMModel, type LLMProvider } from '@/lib/services/chat-unified'
 import { useAuth } from '@/context/auth-context'
 
 // Types for backward compatibility
@@ -33,6 +33,7 @@ export interface ChatMessage {
 
 export interface ChatConfig {
   model?: string
+  provider?: string
   personality?: string
   tools?: string[]
   temperature?: number
@@ -49,6 +50,8 @@ export interface ChatState {
   config: ChatConfig
   isConnected: boolean
   connectionStatus: 'connected' | 'connecting' | 'disconnected' | 'error'
+  availableModels: LLMModel[]
+  availableProviders: LLMProvider[]
 }
 
 export type ChatAction =
@@ -63,6 +66,8 @@ export type ChatAction =
   | { type: 'SET_ERROR'; payload: string | null }
   | { type: 'SET_CONFIG'; payload: Partial<ChatConfig> }
   | { type: 'SET_CONNECTION_STATUS'; payload: ChatState['connectionStatus'] }
+  | { type: 'SET_AVAILABLE_MODELS'; payload: LLMModel[] }
+  | { type: 'SET_AVAILABLE_PROVIDERS'; payload: LLMProvider[] }
   | { type: 'CLEAR_SESSIONS' }
 
 export interface ChatContextType {
@@ -80,15 +85,17 @@ export interface ChatContextType {
   connect: () => Promise<void>
   disconnect: () => void
   sendTyping: (isTyping: boolean) => void
+  loadModels: () => Promise<void>
+  loadProviders: () => Promise<void>
 }
 
 // Convert API types to UI types for backward compatibility
-function conversationToSession(conversation: Conversation, messages: Message[] = []): ChatSession {
+function conversationToSession(conversation: ConversationResponse, messages: MessageResponse[] = []): ChatSession {
   return {
     id: conversation.id,
-    title: conversation.title,
-    createdAt: conversation.created_at || new Date().toISOString(),
-    updatedAt: conversation.updated_at || new Date().toISOString(),
+    title: conversation.title || 'Nova Conversa',
+    createdAt: conversation.created_at,
+    updatedAt: conversation.updated_at,
     userId: conversation.user_id,
     messages: messages.map(messageToChat),
     metadata: {
@@ -101,22 +108,15 @@ function conversationToSession(conversation: Conversation, messages: Message[] =
   }
 }
 
-function messageToChat(message: Message): ChatMessage {
+function messageToChat(message: MessageResponse): ChatMessage {
   return {
     id: message.id,
     role: message.role,
     content: message.content,
-    timestamp: message.created_at || new Date().toISOString(),
-    status: message.status === 'completed' ? 'sent' : message.status as any,
-    attachments: message.attachments,
-    metadata: {
-      model_used: message.model_used,
-      model_provider: message.model_provider,
-      tokens_used: message.tokens_used,
-      processing_time_ms: message.processing_time_ms,
-      temperature: message.temperature,
-      max_tokens: message.max_tokens
-    }
+    timestamp: message.created_at,
+    status: 'sent',
+    attachments: [],
+    metadata: message.metadata
   }
 }
 
@@ -129,13 +129,16 @@ const initialState: ChatState = {
   error: null,
   config: {
     model: 'gpt-4',
+    provider: 'openai',
     personality: 'assistant',
     tools: [],
     temperature: 0.7,
     maxTokens: 2048
   },
-  isConnected: chatService.isOnline(),
-  connectionStatus: chatService.isOnline() ? 'connected' : 'disconnected'
+  isConnected: true,
+  connectionStatus: 'connected',
+  availableModels: [],
+  availableProviders: []
 }
 
 // Reducer para gerenciar estado do chat
@@ -253,6 +256,18 @@ function chatReducer(state: ChatState, action: ChatAction): ChatState {
         isConnected: action.payload === 'connected'
       }
 
+    case 'SET_AVAILABLE_MODELS':
+      return {
+        ...state,
+        availableModels: action.payload
+      }
+
+    case 'SET_AVAILABLE_PROVIDERS':
+      return {
+        ...state,
+        availableProviders: action.payload
+      }
+
     case 'CLEAR_SESSIONS':
       return {
         ...state,
@@ -276,10 +291,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
   // Monitor connection status
   useEffect(() => {
     const checkConnection = () => {
-      const isOnline = chatService.isOnline()
+      // Since the new chat service doesn't have isOnline method, assume connected
       dispatch({ 
         type: 'SET_CONNECTION_STATUS', 
-        payload: isOnline ? 'connected' : 'disconnected' 
+        payload: 'connected' 
       })
     }
 
@@ -315,7 +330,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         settings: state.config
       }
 
-      const conversation = await chatService.createConversation(conversationData)
+      const conversation = await chatUnifiedService.createConversation(conversationData)
       const session = conversationToSession(conversation)
       
       dispatch({ type: 'ADD_SESSION', payload: session })
@@ -348,8 +363,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      const response = await chatService.getConversations()
-      const sessions = response.conversations.map(conv => conversationToSession(conv))
+      const conversations = await chatUnifiedService.getConversations()
+      const sessions = conversations.map(conv => conversationToSession(conv))
       
       // Limpar sessões antigas e adicionar novas
       dispatch({ type: 'CLEAR_SESSIONS' })
@@ -365,25 +380,21 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao carregar sessões'
       dispatch({ type: 'SET_ERROR', payload: errorMessage })
       
-      // Fallback to offline conversations
-      const offlineConversations = chatService.getOfflineConversations()
-      const sessions = offlineConversations.map(conv => conversationToSession(conv))
-      sessions.forEach(session => {
-        dispatch({ type: 'ADD_SESSION', payload: session })
-      })
+      // Log error but don't add fallback conversations since we don't have offline support
+      console.warn('Failed to load conversations from API:', error)
     } finally {
       dispatch({ type: 'SET_LOADING', payload: false })
     }
-  }, [state.currentSession])
+  }, [])
 
   const switchSession = useCallback(async (sessionId: string): Promise<void> => {
     try {
       dispatch({ type: 'SET_LOADING', payload: true })
       dispatch({ type: 'SET_ERROR', payload: null })
 
-      const conversation = await chatService.getConversation(sessionId)
-      const messagesResponse = await chatService.getMessages(sessionId)
-      const session = conversationToSession(conversation, messagesResponse.messages)
+      const conversation = await chatUnifiedService.getConversation(sessionId)
+      const messages = await chatUnifiedService.getMessages(sessionId)
+      const session = conversationToSession(conversation, messages)
       
       dispatch({ type: 'SET_CURRENT_SESSION', payload: session })
     } catch (error) {
@@ -404,7 +415,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     try {
       dispatch({ type: 'SET_ERROR', payload: null })
       
-      await chatService.deleteConversation(sessionId)
+      await chatUnifiedService.deleteConversation(sessionId)
       dispatch({ type: 'DELETE_SESSION', payload: sessionId })
     } catch (error) {
       const errorMessage = error instanceof Error ? error.message : 'Erro ao deletar sessão'
@@ -417,9 +428,8 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
 
   const updateSessionTitle = useCallback(async (sessionId: string, title: string): Promise<void> => {
     try {
-      await chatService.updateConversationTitle(sessionId, title)
-      
-      // Atualizar no estado local
+      // Note: updateConversationTitle doesn't exist in the API service
+      // For now, just update locally until the API method is implemented
       const session = state.sessions.find(s => s.id === sessionId)
       if (session) {
         const updatedSession = { ...session, title, updatedAt: new Date().toISOString() }
@@ -456,12 +466,16 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         payload: { sessionId: state.currentSession.id, message: userMessage }
       })
 
-      const messageData: MessageCreate = {
-        content: message,
-        attachments: attachments ? [] : undefined
-      }
-
-      const assistantMessage = await chatService.sendMessage(state.currentSession.id, messageData)
+      const result = await chatUnifiedService.sendMessageWithAI(
+        state.currentSession.id, 
+        message,
+        {
+          model: state.config.model,
+          provider: state.config.provider,
+          temperature: state.config.temperature,
+          max_tokens: state.config.maxTokens
+        }
+      )
       
       // Update user message status
       dispatch({
@@ -478,7 +492,7 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
         type: 'ADD_MESSAGE',
         payload: { 
           sessionId: state.currentSession.id, 
-          message: messageToChat(assistantMessage) 
+          message: messageToChat(result.assistantMessage) 
         }
       })
 
@@ -555,7 +569,34 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     dispatch({ type: 'SET_TYPING', payload: isTyping })
   }, [])
 
-  const contextValue: ChatContextType = {
+  // Carregar modelos e provedores disponíveis
+  const loadModels = useCallback(async (): Promise<void> => {
+    try {
+      const models = await chatUnifiedService.getModels()
+      dispatch({ type: 'SET_AVAILABLE_MODELS', payload: models })
+    } catch (error) {
+      console.error('Erro ao carregar modelos:', error)
+    }
+  }, [])
+
+  const loadProviders = useCallback(async (): Promise<void> => {
+    try {
+      const providers = await chatUnifiedService.getProviders()
+      dispatch({ type: 'SET_AVAILABLE_PROVIDERS', payload: providers })
+    } catch (error) {
+      console.error('Erro ao carregar provedores:', error)
+    }
+  }, [])
+
+  // Carregar modelos e provedores quando autenticado
+  useEffect(() => {
+    if (isAuthenticated && user) {
+      loadModels()
+      loadProviders()
+    }
+  }, [isAuthenticated, user, loadModels, loadProviders])
+
+  const contextValue: ChatContextType = useMemo(() => ({
     state,
     dispatch,
     createSession,
@@ -569,8 +610,10 @@ export function ChatProvider({ children }: { children: React.ReactNode }) {
     updateConfig,
     connect,
     disconnect,
-    sendTyping
-  }
+    sendTyping,
+    loadModels,
+    loadProviders
+  }), [state, createSession, loadSessions, switchSession, deleteSession, updateSessionTitle, sendMessage, resendMessage, deleteMessage, updateConfig, connect, disconnect, sendTyping, loadModels, loadProviders])
 
   return (
     <ChatContext.Provider value={contextValue}>

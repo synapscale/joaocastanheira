@@ -26,6 +26,7 @@ import ServiceLogo from "../../components/ui/service-logo"
 import { BrandIdentity } from "../../components/ui/brand-identity"
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu"
 import { Switch } from "@/components/ui/switch"
+import { ProtectedRoute } from '@/components/auth/protected-route'
 
 // Tipos para as variáveis do usuário baseados na API
 type VariableCategory = "ai" | "analytics" | "ads" | "social" | "custom"
@@ -96,19 +97,18 @@ export default function UserVariablesPage() {
   const { user, isAuthenticated } = useAuth()
   const {
     variables,
+    stats,
     loading,
     error,
-    syncing,
-    lastSync,
-    addVariable,
+    searchParams,
+    pagination,
+    loadVariables,
+    createVariable,
     updateVariable,
     deleteVariable,
-    syncVariables,
-    loadVariables,
-    clearError,
-    getVariablesByCategory,
-    importVariables,
-    exportVariables
+    duplicateVariable,
+    refreshStats,
+    setSearchParams
   } = useVariables()
 
   const [searchTerm, setSearchTerm] = useState("")
@@ -152,7 +152,7 @@ export default function UserVariablesPage() {
   })
 
   // Obtém variáveis por categoria para estatísticas
-  const aiVariables = getVariablesByCategory("ai")
+  const aiVariables = variables.filter(v => v.category === "ai")
 
   // Handlers para formulário
   const handleCreateVariable = async () => {
@@ -167,7 +167,6 @@ export default function UserVariablesPage() {
         value: newVariableForm.value,
         description: newVariableForm.description,
         category: newVariableForm.category,
-        is_encrypted: newVariableForm.is_encrypted,
         is_active: newVariableForm.is_active
       })
 
@@ -180,20 +179,12 @@ export default function UserVariablesPage() {
       }
     } else {
       // Modo de criação - criar nova variável
-      const result = await addVariable({
+      const result = await createVariable({
         key: newVariableForm.key,
         value: newVariableForm.value,
         description: newVariableForm.description,
         category: newVariableForm.category,
-        is_encrypted: newVariableForm.is_encrypted,
-        is_active: newVariableForm.is_active,
-        // Campos de compatibilidade obrigatórios
-        name: newVariableForm.key,
-        type: newVariableForm.is_encrypted ? 'secret' : 'string',
-        scope: 'global',
-        tags: newVariableForm.category ? [newVariableForm.category] : [],
-        isSecret: newVariableForm.is_encrypted,
-        isActive: newVariableForm.is_active
+        is_encrypted: newVariableForm.is_encrypted
       })
 
       if (result) {
@@ -212,26 +203,35 @@ export default function UserVariablesPage() {
   }
 
   const handleSync = async () => {
-    const success = await syncVariables()
-    if (success) {
+    try {
+      await loadVariables()
+      await refreshStats()
       toast.success("Variáveis sincronizadas!")
+    } catch (error) {
+      toast.error("Erro ao sincronizar variáveis")
     }
   }
 
   const handleImportFile = async () => {
     if (!selectedFile) return
     
-    const success = await importVariables(selectedFile)
-    if (success) {
-      toast.success("Variáveis importadas com sucesso!")
+    try {
+      // Por enquanto, apenas simulamos a importação
+      toast.success("Função de importação será implementada em breve!")
       setImportDialogOpen(false)
       setSelectedFile(null)
+    } catch (error) {
+      toast.error("Erro ao importar variáveis")
     }
   }
 
   const handleExport = async (format: 'json' | 'env') => {
-    await exportVariables(format)
-    toast.success(`Variáveis exportadas como ${format.toUpperCase()}!`)
+    try {
+      // Por enquanto, apenas simulamos a exportação
+      toast.success(`Função de exportação ${format.toUpperCase()} será implementada em breve!`)
+    } catch (error) {
+      toast.error("Erro ao exportar variáveis")
+    }
   }
 
   const resetForm = () => {
@@ -333,8 +333,8 @@ export default function UserVariablesPage() {
       value: selectedVariable.value || "",
       description: selectedVariable.description || "",
       category: selectedVariable.category || "",
-      is_encrypted: selectedVariable.is_encrypted,
-      is_active: selectedVariable.is_active
+      is_encrypted: selectedVariable.isEncrypted,
+      is_active: selectedVariable.isActive
     })
     setIsEditMode(true)
     setIsViewDialogOpen(false)
@@ -353,30 +353,9 @@ export default function UserVariablesPage() {
     }
   }
 
-
-
-  // Redirect se não autenticado
-  useEffect(() => {
-    if (!isAuthenticated) {
-      console.log('🔐 Usuario não autenticado na página user-variables, redirecionando para /login...')
-      router.push('/login')
-    }
-  }, [isAuthenticated, router])
-
-  // Se não está autenticado, mostrar loading enquanto redireciona
-  if (!isAuthenticated) {
-    return (
-      <div className="min-h-screen bg-background flex items-center justify-center">
-        <div className="text-center">
-          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary mx-auto mb-4"></div>
-          <p className="text-muted-foreground">Redirecionando para login...</p>
-        </div>
-      </div>
-    )
-  }
-
   return (
-    <div className="container mx-auto py-6 space-y-6">
+    <ProtectedRoute>
+      <div className="container mx-auto py-6 space-y-6">
       {/* Header */}
       <div className="flex flex-col md:flex-row md:justify-between md:items-center gap-4">
         <div>
@@ -423,10 +402,10 @@ export default function UserVariablesPage() {
                   variant="outline"
                   size="sm"
                   onClick={handleSync}
-                  disabled={syncing}
+                  disabled={loading}
                   className="gap-2"
                 >
-                  <RefreshCw className={`h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
+                  <RefreshCw className={`h-4 w-4 ${loading ? 'animate-spin' : ''}`} />
                   Sincronizar
                 </Button>
               </TooltipTrigger>
@@ -497,7 +476,7 @@ export default function UserVariablesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{variables.filter(v => v.is_encrypted).length}</div>
+                  <div className="text-2xl font-bold">{variables.filter(v => v.isEncrypted).length}</div>
                   <p className="text-xs text-muted-foreground">Criptografadas</p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-amber-500/10 flex items-center justify-center">
@@ -517,7 +496,7 @@ export default function UserVariablesPage() {
             <CardContent className="p-4">
               <div className="flex items-center justify-between">
                 <div>
-                  <div className="text-2xl font-bold">{variables.filter(v => v.is_active).length}</div>
+                  <div className="text-2xl font-bold">{variables.filter(v => v.isActive).length}</div>
                   <p className="text-xs text-muted-foreground">Ativas</p>
                 </div>
                 <div className="w-10 h-10 rounded-full bg-green-500/10 flex items-center justify-center">
@@ -568,7 +547,7 @@ export default function UserVariablesPage() {
           <div className="flex items-center gap-2">
             <AlertCircle className="h-4 w-4 text-destructive" />
             <span className="text-destructive">{error}</span>
-            <Button variant="ghost" size="sm" onClick={clearError} className="ml-auto">
+            <Button variant="ghost" size="sm" onClick={() => {}} className="ml-auto">
               <X className="h-4 w-4" />
             </Button>
           </div>
@@ -700,7 +679,7 @@ export default function UserVariablesPage() {
                       <Card 
                         className={`
                           hover:shadow-md transition-all duration-300 cursor-pointer group
-                          ${variable.is_active 
+                          ${variable.isActive 
                             ? 'border-l-4 border-l-green-500 hover:border-l-green-600 bg-gradient-to-r from-green-50/50 to-transparent dark:from-green-950/20' 
                             : 'border-l-4 border-l-gray-300 hover:border-l-gray-400'
                           }
@@ -733,17 +712,17 @@ export default function UserVariablesPage() {
                                 </div>
                                 <div className="flex items-center gap-1">
                                   <Badge 
-                                    variant={variable.is_active ? "default" : "secondary"} 
+                                    variant={variable.isActive ? "default" : "secondary"} 
                                     className={`text-xs rounded-full ${
-                                      variable.is_active 
+                                      variable.isActive 
                                         ? 'bg-green-100 text-green-800 dark:bg-green-900 dark:text-green-200' 
                                         : ''
                                     }`}
                                   >
                                     <Shield className="h-3 w-3 mr-1" />
-                                    {variable.is_active ? 'Ativa' : 'Inativa'}
+                                    {variable.isActive ? 'Ativa' : 'Inativa'}
                                   </Badge>
-                                  {variable.is_active && (
+                                  {variable.isActive && (
                                     <div className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></div>
                                   )}
                                 </div>
@@ -769,7 +748,7 @@ export default function UserVariablesPage() {
                               )}
                               
                               {/* Show placeholder if no value */}
-                              {!variable.value && variable.is_encrypted && (
+                              {!variable.value && variable.isEncrypted && (
                                 <div className="mt-3">
                                   <div className="flex items-center gap-2 mb-1">
                                     <Key className="h-3 w-3 text-muted-foreground" />
@@ -838,8 +817,8 @@ export default function UserVariablesPage() {
                                           value: variable.value || "",
                                           description: variable.description || "",
                                           category: variable.category || "",
-                                          is_encrypted: variable.is_encrypted,
-                                          is_active: variable.is_active
+                                          is_encrypted: variable.isEncrypted,
+                                          is_active: variable.isActive
                                         })
                                         setIsCreateDialogOpen(true)
                                       }}
@@ -1193,9 +1172,9 @@ export default function UserVariablesPage() {
                   <div>
                     <span className="text-xs text-muted-foreground block mb-1">Status</span>
                     <div className="flex items-center gap-1">
-                      <div className={`w-2 h-2 rounded-full ${selectedVariable.is_active ? 'bg-green-500' : 'bg-gray-400'}`}></div>
+                      <div className={`w-2 h-2 rounded-full ${selectedVariable.isActive ? 'bg-green-500' : 'bg-gray-400'}`}></div>
                       <span className="text-sm font-medium">
-                        {selectedVariable.is_active ? 'Ativa' : 'Inativa'}
+                        {selectedVariable.isActive ? 'Ativa' : 'Inativa'}
                       </span>
                     </div>
                   </div>
@@ -1366,5 +1345,6 @@ export default function UserVariablesPage() {
         </TooltipProvider>
       </div>
     </div>
+    </ProtectedRoute>
   )
 } 

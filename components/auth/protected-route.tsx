@@ -96,7 +96,13 @@ export function ProtectedRoute({
 
   // Não autenticado
   if (!isAuthenticated || !user) {
+    // ❌ EVITAR LOOP: Verificar se já não estamos na página de login
     const currentPath = window.location.pathname
+    if (currentPath === redirectTo || currentPath.startsWith('/login')) {
+      // Se já estamos na página de login, apenas mostrar o conteúdo
+      return fallback || <LoadingSpinner />
+    }
+    
     const loginUrl = `${redirectTo}?redirect=${encodeURIComponent(currentPath)}`
     router.push(loginUrl)
     return fallback || <LoadingSpinner />

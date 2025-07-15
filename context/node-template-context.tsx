@@ -11,7 +11,7 @@
 
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import type { NodeTemplate } from "@/types/node-template"
 
 /**
@@ -174,7 +174,7 @@ export function NodeTemplateProvider({ children }: { children: React.ReactNode }
   }, [])
 
   // Create context value object
-  const value = {
+  const value = useMemo(() => ({
     templates,
     categories,
     tags,
@@ -186,7 +186,7 @@ export function NodeTemplateProvider({ children }: { children: React.ReactNode }
     updateTemplate,
     deleteTemplate,
     importTemplates,
-  }
+  }), [templates, categories, tags, loading, error, getTemplateById, applyTemplate, addTemplate, updateTemplate, deleteTemplate, importTemplates])
 
   return <NodeTemplateContext.Provider value={value}>{children}</NodeTemplateContext.Provider>
 }

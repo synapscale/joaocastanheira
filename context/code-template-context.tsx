@@ -1,84 +1,115 @@
 "use client"
 
-import { createContext, useContext, useState, useEffect, type ReactNode } from "react"
-import { codeTemplates as defaultTemplates, type CodeTemplate } from "@/data/code-templates"
+import { createContext, useContext, useState, useEffect, type ReactNode, useCallback, useMemo } from "react"
+import { apiService } from "@/lib/api/service"
+import type { CodeTemplate } from "@/lib/api/openapi-types"
+import { codeTemplates as defaultTemplates } from "@/data/code-templates"
 
 interface CodeTemplateContextType {
   templates: CodeTemplate[]
   customTemplates: CodeTemplate[]
-  addCustomTemplate: (template: Omit<CodeTemplate, "id">) => void
-  updateCustomTemplate: (id: string, template: Omit<CodeTemplate, "id">) => void
+  isLoading: boolean
+  error: string | null
+  refreshTemplates: () => Promise<void>
+  addCustomTemplate: (template: Omit<CodeTemplate, "id" | "user_id" | "created_at" | "updated_at" | "usage_count" | "rating_average" | "rating_count">) => void
+  updateCustomTemplate: (id: string, template: Partial<CodeTemplate>) => void
   deleteCustomTemplate: (id: string) => void
-  getTemplatesByCategory: (category: string) => CodeTemplate[]
-  getTemplatesByLanguage: (language: string) => CodeTemplate[]
 }
 
 const CodeTemplateContext = createContext<CodeTemplateContextType | undefined>(undefined)
 
 export function CodeTemplateProvider({ children }: { children: ReactNode }) {
+  const [apiTemplates, setApiTemplates] = useState<CodeTemplate[]>([])
   const [customTemplates, setCustomTemplates] = useState<CodeTemplate[]>([])
-
-  // Load custom templates from localStorage on mount
-  useEffect(() => {
-    const storedTemplates = localStorage.getItem("customCodeTemplates")
-    if (storedTemplates) {
-      try {
-        setCustomTemplates(JSON.parse(storedTemplates))
-      } catch (error) {
-        console.error("Failed to parse stored templates:", error)
-      }
+  const [isLoading, setIsLoading] = useState(false)
+  const [error, setError] = useState<string | null>(null)
+  
+  // Usar apenas templates locais - API endpoint não existe
+  const refreshTemplates = useCallback(async () => {
+    try {
+      setIsLoading(true)
+      setError(null)
+      
+      // ❌ Endpoint /code-templates não existe na API oficial
+      // Usando apenas templates estáticos locais por enquanto
+      console.log('ℹ️ Code Templates API não implementada - usando templates locais apenas')
+      
+      setApiTemplates([]) // Limpar templates da API por enquanto
+      setError(null)
+    } catch (err) {
+      console.error('Erro ao carregar templates:', err)
+      setError(err instanceof Error ? err.message : 'Erro ao carregar templates')
+    } finally {
+      setIsLoading(false)
     }
   }, [])
 
-  // Save custom templates to localStorage when they change
+  // Load static templates on mount (não chama API)
   useEffect(() => {
-    localStorage.setItem("customCodeTemplates", JSON.stringify(customTemplates))
-  }, [customTemplates])
+    // Não chama refreshTemplates() automaticamente para evitar erro
+    setIsLoading(false)
+    setError(null)
+    setApiTemplates([])
+  }, [])
 
-  // Add a new custom template
-  const addCustomTemplate = (template: Omit<CodeTemplate, "id">) => {
+
+
+  // Funções para gerenciar templates customizados
+  const addCustomTemplate = useCallback((template: Omit<CodeTemplate, "id" | "user_id" | "created_at" | "updated_at" | "usage_count" | "rating_average" | "rating_count">) => {
     const newTemplate: CodeTemplate = {
       ...template,
-      id: `custom-${Date.now()}`,
+      id: `custom_${Date.now()}`,
+      user_id: "user",
+      created_at: new Date().toISOString(),
+      updated_at: new Date().toISOString(),
+      usage_count: 0,
+      rating_average: 0,
+      rating_count: 0,
     }
-    setCustomTemplates((prev) => [...prev, newTemplate])
-  }
+    setCustomTemplates(prev => [...prev, newTemplate])
+  }, [])
 
-  // Update an existing custom template
-  const updateCustomTemplate = (id: string, template: Omit<CodeTemplate, "id">) => {
-    setCustomTemplates((prev) => prev.map((t) => (t.id === id ? { ...template, id } : t)))
-  }
+  const updateCustomTemplate = useCallback((id: string, template: Partial<CodeTemplate>) => {
+    setCustomTemplates(prev => prev.map(t => 
+      t.id === id ? { ...t, ...template, updated_at: new Date().toISOString() } : t
+    ))
+  }, [])
 
-  // Delete a custom template
-  const deleteCustomTemplate = (id: string) => {
-    setCustomTemplates((prev) => prev.filter((t) => t.id !== id))
-  }
+  const deleteCustomTemplate = useCallback((id: string) => {
+    setCustomTemplates(prev => prev.filter(t => t.id !== id))
+  }, [])
 
-  // Get all templates (default + custom)
-  const templates = [...defaultTemplates, ...customTemplates]
+  // Combinar templates locais (estáticos) com templates da API (vazio por enquanto)
+  const allTemplates = useMemo(() => {
+    // Mapear templates locais para o formato da API
+    const mappedLocalTemplates = defaultTemplates.map(template => ({
+      ...template,
+      user_id: "system",
+      is_public: true,
+      usage_count: 0,
+      rating_average: 0,
+      rating_count: 0,
+      workspace_id: undefined,
+      created_at: "2024-01-01T00:00:00Z",
+      updated_at: "2024-01-01T00:00:00Z",
+    }))
+    
+    return [...mappedLocalTemplates, ...apiTemplates, ...customTemplates]
+  }, [apiTemplates, customTemplates])
 
-  // Get templates by category
-  const getTemplatesByCategory = (category: string) => {
-    return templates.filter((t) => category === "all" || t.category === category)
-  }
-
-  // Get templates by language
-  const getTemplatesByLanguage = (language: string) => {
-    return templates.filter((t) => t.language === "all" || t.language === language)
+  const value: CodeTemplateContextType = {
+    templates: allTemplates,
+    customTemplates,
+    isLoading,
+    error,
+    refreshTemplates,
+    addCustomTemplate,
+    updateCustomTemplate,
+    deleteCustomTemplate,
   }
 
   return (
-    <CodeTemplateContext.Provider
-      value={{
-        templates,
-        customTemplates,
-        addCustomTemplate,
-        updateCustomTemplate,
-        deleteCustomTemplate,
-        getTemplatesByCategory,
-        getTemplatesByLanguage,
-      }}
-    >
+    <CodeTemplateContext.Provider value={value}>
       {children}
     </CodeTemplateContext.Provider>
   )

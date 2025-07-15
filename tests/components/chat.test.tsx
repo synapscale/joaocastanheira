@@ -49,7 +49,7 @@ describe('ChatInput', () => {
         <ChatInput {...defaultProps} />
       </AppProvider>
     );
-    expect(screen.getByPlaceholderText('Pergunte alguma coisa...')).toBeInTheDocument();
+    expect(screen.getByPlaceholderText('Digite sua mensagem aqui...')).toBeInTheDocument();
   });
   it('chama onSendMessage quando o botão de envio é clicado', () => {
     const handleSendMessage = jest.fn();
@@ -58,7 +58,7 @@ describe('ChatInput', () => {
         <ChatInput {...defaultProps} onSendMessage={handleSendMessage} />
       </AppProvider>
     );
-    const input = screen.getByPlaceholderText('Pergunte alguma coisa...');
+    const input = screen.getByPlaceholderText('Digite sua mensagem aqui...');
     fireEvent.change(input, { target: { value: 'Mensagem de teste' } });
     const sendButtons = screen.getAllByRole('button');
     const sendButton = sendButtons[sendButtons.length - 1];

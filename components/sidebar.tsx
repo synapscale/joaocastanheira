@@ -118,6 +118,8 @@ export function Sidebar() {
 
   const getLabel = (navItem: any) => navItem.title ?? navItem.name ?? "Item sem título"
 
+  const isAnyChildActive = (item: any) => (item.children || []).some((child: any) => pathname === child.href);
+
   // Para mobile, usar overlay e posição fixa
   if (isMobile) {
     return (
@@ -166,7 +168,9 @@ export function Sidebar() {
           <div className="py-4">
             <ul className="space-y-1 px-2">
               {navItems.map((item) => {
-                const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+                const isActive = (item.children && item.children.length > 0)
+                  ? pathname === item.href && !isAnyChildActive(item)
+                  : pathname === item.href || pathname.startsWith(`${item.href}/`);
                 const hasChildren = (item as any).children && (item as any).children.length > 0
                 const isExpanded = item.href ? (expandedItems[item.href] || false) : false
                 
@@ -211,7 +215,7 @@ export function Sidebar() {
                     {hasChildren && isExpanded && (
                       <ul className="mt-1 ml-9 space-y-1 border-l border-border pl-2">
                         {(item as any).children.map((child: any) => {
-                          const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
+                          const isChildActive = pathname === child.href;
                           
                           return (
                             <li key={child.href}>
@@ -330,7 +334,9 @@ export function Sidebar() {
       <div className="py-4 flex-1 overflow-y-auto">
         <ul className="space-y-1 px-2">
           {navItems.map((item) => {
-            const isActive = pathname === item.href || pathname.startsWith(`${item.href}/`)
+            const isActive = (item.children && item.children.length > 0)
+              ? pathname === item.href && !isAnyChildActive(item)
+              : pathname === item.href || pathname.startsWith(`${item.href}/`);
             const hasChildren = (item as any).children && (item as any).children.length > 0
             const isExpanded = item.href ? (expandedItems[item.href] || false) : false
             
@@ -399,7 +405,7 @@ export function Sidebar() {
                     className="mt-1 ml-9 space-y-1 border-l border-border pl-2 overflow-hidden"
                   >
                     {(item as any).children.map((child: any) => {
-                      const isChildActive = pathname === child.href || pathname.startsWith(`${child.href}/`)
+                      const isChildActive = pathname === child.href;
                       
                       return (
                         <li key={child.href}>

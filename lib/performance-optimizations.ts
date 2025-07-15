@@ -600,8 +600,9 @@ export function initAnalytics() {
     })
   })
   
-  // Configura envio periódico de eventos em lote
-  setInterval(flushEvents, 10000) // A cada 10 segundos
+  // TEMPORARIAMENTE DESABILITADO - flushEvents a cada 10 segundos
+  // setInterval(flushEvents, 10000) // A cada 10 segundos
+  console.log('🔴 Analytics: FlushEvents timer DESABILITADO temporariamente')
   
   // Garante que os eventos sejam enviados antes do usuário sair da página
   window.addEventListener('beforeunload', () => {

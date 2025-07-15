@@ -1,6 +1,6 @@
 "use client"
 
-import React, { createContext, useContext, useReducer, useEffect, useCallback } from 'react'
+import React, { createContext, useContext, useReducer, useEffect, useCallback, useMemo } from 'react'
 import { apiService } from '../lib/api/service'
 import type { Workspace, WorkspaceMember } from '../lib/api/service'
 import { useAuth } from './auth-context'
@@ -196,24 +196,28 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     }
   }, [authContext.user])
 
-  // Inicializar workspaces quando usuário fizer login
+  // TEMPORARIAMENTE DESABILITADO - Inicializar workspaces quando usuário fizer login
   useEffect(() => {
     console.log('🔍 DEBUG WorkspaceContext useEffect:', {
       authInitialized: authContext.isInitialized,
       hasUser: !!authContext.user,
       userEmail: authContext.user?.email,
       workspaceInitialized: state.isInitialized,
-      shouldInitialize: authContext.isInitialized && authContext.user && !state.isInitialized
+      shouldInitialize: authContext.isInitialized && authContext.user && !state.isInitialized,
+      TEMPORARIAMENTE_DESABILITADO: true
     })
     
-    if (authContext.isInitialized && authContext.user && !state.isInitialized) {
-      console.log('🚀 Iniciando inicialização de workspaces...')
-      initializeWorkspaces()
-    } else if (!authContext.user && state.isInitialized) {
-      // Reset quando usuário fizer logout
-      console.log('🔄 Reset de workspaces - usuário fez logout')
-      dispatch({ type: 'WORKSPACE_RESET' })
-    }
+    // TEMPORARIAMENTE DESABILITADO - requests automáticos para /workspaces
+    // if (authContext.isInitialized && authContext.user && !state.isInitialized) {
+    //   console.log('🚀 Iniciando inicialização de workspaces...')
+    //   initializeWorkspaces()
+    // } else if (!authContext.user && state.isInitialized) {
+    //   // Reset quando usuário fizer logout
+    //   console.log('🔄 Reset de workspaces - usuário fez logout')
+    //   dispatch({ type: 'WORKSPACE_RESET' })
+    // }
+    
+    console.log('🔴 WorkspaceContext: Inicialização automática DESABILITADA temporariamente para debug')
   }, [authContext.isInitialized, authContext.user, state.isInitialized, initializeWorkspaces])
 
   /**
@@ -360,7 +364,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
   }, [state.currentWorkspace, authContext.user])
 
   // Valor do contexto
-  const contextValue: WorkspaceContextType = {
+  const contextValue: WorkspaceContextType = useMemo(() => ({
     state,
     loadWorkspaces,
     setCurrentWorkspace,
@@ -372,7 +376,7 @@ export function WorkspaceProvider({ children }: WorkspaceProviderProps) {
     getCurrentWorkspace,
     getWorkspaces,
     isWorkspaceOwner,
-  }
+  }), [state, loadWorkspaces, setCurrentWorkspace, createWorkspace, updateWorkspace, deleteWorkspace, loadMembers, inviteMember, getCurrentWorkspace, getWorkspaces, isWorkspaceOwner])
 
   return (
     <WorkspaceContext.Provider value={contextValue}>

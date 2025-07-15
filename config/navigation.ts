@@ -32,7 +32,9 @@ import {
   Crown,
   ChevronDown,
   ChevronRight,
-  Upload
+  Upload,
+  Wrench,
+  Database
 } from "lucide-react"
 
 // Tipo para itens de navegação
@@ -117,6 +119,10 @@ export function renderIcon(iconName: string, className: string = "h-5 w-5") {
       return React.createElement(ChevronDown, { className });
     case "ChevronRight":
       return React.createElement(ChevronRight, { className });
+    case "Wrench":
+      return React.createElement(Wrench, { className });
+    case "Database":
+      return React.createElement(Database, { className });
     default:
       // Fallback para ícones não encontrados
       console.warn(`Ícone não encontrado: ${iconName}`);
@@ -157,6 +163,23 @@ const navItems: NavItem[] = [
     title: "Agentes De IA",
     href: "/agentes",
     icon: Bot,
+    children: [
+      {
+        title: "Agentes",
+        href: "/agentes",
+        icon: Bot,
+      },
+      {
+        title: "Tools",
+        href: "/agentes/tools",
+        icon: Wrench,
+      },
+      {
+        title: "Knowledge Base",
+        href: "/agentes/knowledge",
+        icon: Database,
+      },
+    ],
   },
   {
     title: "Chat Interativo",

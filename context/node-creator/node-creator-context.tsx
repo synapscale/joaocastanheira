@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo } from 'react';
 import { NodeCreatorState, NodeCreatorAction, NodeTemplate, NodePort, NodeProperty } from './types';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 
@@ -117,18 +117,18 @@ export function NodeCreatorProvider({ children }: { children: React.ReactNode })
     }
   };
 
+  const contextValue = useMemo(() => ({
+    state,
+    dispatch,
+    addNodeTemplate,
+    updateNodeTemplate,
+    deleteNodeTemplate,
+    selectNodeTemplate,
+    publishNodeTemplate,
+  }), [state, addNodeTemplate, updateNodeTemplate, deleteNodeTemplate, selectNodeTemplate, publishNodeTemplate])
+
   return (
-    <NodeCreatorContext.Provider
-      value={{
-        state,
-        dispatch,
-        addNodeTemplate,
-        updateNodeTemplate,
-        deleteNodeTemplate,
-        selectNodeTemplate,
-        publishNodeTemplate,
-      }}
-    >
+    <NodeCreatorContext.Provider value={contextValue}>
       {children}
     </NodeCreatorContext.Provider>
   );

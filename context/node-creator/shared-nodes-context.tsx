@@ -1,6 +1,6 @@
 "use client";
 
-import React, { createContext, useContext, useReducer, useEffect } from 'react';
+import React, { createContext, useContext, useReducer, useEffect, useMemo } from 'react';
 import { useLocalStorage } from '@/hooks/use-local-storage';
 import { NodeTemplate } from './types';
 import { SharedNodesState, SharedNodesAction, WorkflowNodeDefinition } from './shared-nodes-types';
@@ -106,17 +106,17 @@ export function SharedNodesProvider({ children }: { children: React.ReactNode })
     console.log('Syncing nodes with workflow...');
   };
 
+  const contextValue = useMemo(() => ({
+    state,
+    dispatch,
+    addNodeToWorkflow,
+    updateNodeInWorkflow,
+    deleteNodeFromWorkflow,
+    syncNodesWithWorkflow,
+  }), [state, addNodeToWorkflow, updateNodeInWorkflow, deleteNodeFromWorkflow, syncNodesWithWorkflow])
+
   return (
-    <SharedNodesContext.Provider
-      value={{
-        state,
-        dispatch,
-        addNodeToWorkflow,
-        updateNodeInWorkflow,
-        deleteNodeFromWorkflow,
-        syncNodesWithWorkflow,
-      }}
-    >
+    <SharedNodesContext.Provider value={contextValue}>
       {children}
     </SharedNodesContext.Provider>
   );

@@ -367,7 +367,7 @@ export function WorkflowProvider({ children }: { children: React.ReactNode }) {
 
   const saveWorkflow = useCallback(async () => {
     try {
-      const apiService = new (await import("@/lib/api/service")).ApiService()
+      const { apiService } = await import("@/lib/api/service")
       
       if (!workflowName) {
         throw new Error("Nome do workflow é obrigatório")

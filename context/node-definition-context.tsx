@@ -1,7 +1,7 @@
 "use client"
 
 import type React from "react"
-import { createContext, useContext, useState, useEffect, useCallback } from "react"
+import { createContext, useContext, useState, useEffect, useCallback, useMemo } from "react"
 import type { NodeDefinition, NodeTemplate } from "@/types/node-definition"
 
 interface NodeDefinitionContextType {
@@ -220,7 +220,7 @@ return $input.map(item => {
     setNodeTemplates((prev) => prev.filter((template) => template.id !== id))
   }, [])
 
-  const value = {
+  const value = useMemo(() => ({
     nodeDefinitions,
     getNodeDefinition,
     addNodeDefinition,
@@ -235,7 +235,7 @@ return $input.map(item => {
 
     isLoading,
     error,
-  }
+  }), [nodeDefinitions, getNodeDefinition, addNodeDefinition, updateNodeDefinition, deleteNodeDefinition, nodeTemplates, getNodeTemplate, addNodeTemplate, updateNodeTemplate, deleteNodeTemplate, isLoading, error])
 
   return <NodeDefinitionContext.Provider value={value}>{children}</NodeDefinitionContext.Provider>
 }

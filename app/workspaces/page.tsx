@@ -1,28 +1,27 @@
-import EnhancedWorkspaceDashboard from '@/components/workspaces/enhanced-workspace-dashboard'
-import { Metadata } from 'next'
+"use client"
 
-export const metadata: Metadata = {
-  title: 'Workspaces - SynapScale',
-  description: 'Colabore com sua equipe em projetos incríveis',
-}
+import { ProtectedRoute } from "@/components/auth/protected-route"
+import EnhancedWorkspaceDashboard from '@/components/workspaces/enhanced-workspace-dashboard'
 
 export default function WorkspacesPage() {
   return (
-    <div className="min-h-screen bg-gray-50">
-      <div className="bg-white border-b">
-        <div className="container mx-auto px-4 py-8">
-          <div className="text-center">
-            <h1 className="text-4xl font-bold text-gray-900 mb-4">
-              Workspaces Colaborativos
-            </h1>
-            <p className="text-xl text-gray-600 max-w-2xl mx-auto">
-              Colabore com sua equipe, gerencie projetos e acelere o desenvolvimento 
-              com workspaces organizados e ferramentas de colaboração avançadas.
-            </p>
+    <ProtectedRoute>
+      <div className="min-h-screen bg-gray-50">
+        <div className="bg-white border-b">
+          <div className="container mx-auto px-4 py-8">
+            <div className="text-center">
+              <h1 className="text-4xl font-bold text-gray-900 mb-4">
+                Workspaces Colaborativos
+              </h1>
+              <p className="text-xl text-gray-600 max-w-2xl mx-auto">
+                Colabore com sua equipe, gerencie projetos e acelere o desenvolvimento 
+                com workspaces organizados e ferramentas de colaboração avançadas.
+              </p>
+            </div>
           </div>
         </div>
+        <EnhancedWorkspaceDashboard />
       </div>
-      <EnhancedWorkspaceDashboard />
-    </div>
+    </ProtectedRoute>
   )
 } 

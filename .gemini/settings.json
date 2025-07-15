@@ -1,0 +1,53 @@
+{
+  "selectedAuthType": "oauth-personal",
+  "theme": "GitHub Light",
+  "mcpServers": {
+    "github": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-github"
+      ],
+      "env": {
+        "GITHUB_PERSONAL_ACCESS_TOKEN": "${process.env.GITHUB_PERSONAL_ACCESS_TOKEN}"
+      }
+    },
+    "filesystem": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "@modelcontextprotocol/server-filesystem",
+        "/Users/joaovictormiranda/joaocastanheira"
+      ],
+      "env": {}
+    },
+    "api-specification": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "apidog-mcp-server@latest",
+        "--project=962752"
+      ],
+      "env": {
+        "APIDOG_ACCESS_TOKEN": "APS-ZcKgI2THtmGT2yyD1ajfc9X11rd9UVev"
+      }
+    },
+    "postgres": {
+      "command": "postgres-mcp",
+      "args": [
+        "--access-mode=unrestricted"
+      ],
+      "env": {
+        "DATABASE_URI": "${process.env.DATABASE_URI}",
+        "NODE_TLS_REJECT_UNAUTHORIZED": "${process.env.NODE_TLS_REJECT_UNAUTHORIZED}"
+      }
+    },
+    "task-master-ai": {
+      "command": "npx",
+      "args": [
+        "-y",
+        "task-master-ai@latest"
+      ]
+    }
+  }
+}

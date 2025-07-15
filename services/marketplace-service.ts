@@ -6,7 +6,7 @@ import type {
   MarketplaceFilters,
 } from "@/types/marketplace-template"
 import type { NodeTemplate } from "@/types/node-template"
-import { getApiUrl } from '../lib/config'
+import { apiService } from '../lib/api/service'
 
 /**
  * Serviço para interação com a API do marketplace.
@@ -27,11 +27,9 @@ export class MarketplaceService {
     if (filters.tags && filters.tags.length > 0) params.append('tags', filters.tags.join(','))
     if (filters.sortBy) params.append('sortBy', filters.sortBy)
 
-    const apiUrl = getApiUrl(`/api/v1/templates?${params.toString()}`)
-    const res = await fetch(apiUrl)
-    if (!res.ok) throw new Error('Erro ao buscar templates do marketplace')
-    const data = await res.json()
-    return data.items || []
+    const endpoint = `/templates${params.toString() ? '?' + params.toString() : ''}`
+    const data = await apiService.get<any>(endpoint)
+    return data.items || data || []
   }
 
   /**
@@ -40,11 +38,13 @@ export class MarketplaceService {
    * @returns Promise com o template encontrado ou null
    */
   static async getTemplate(id: string): Promise<MarketplaceTemplate | null> {
-    const apiUrl = getApiUrl(`/api/v1/templates/${id}`)
-    const res = await fetch(apiUrl)
-    if (!res.ok) return null
-    const data = await res.json()
-    return data || null
+    try {
+      const data = await apiService.get<MarketplaceTemplate>(`/templates/${id}`)
+      return data || null
+    } catch (error) {
+      console.error('Erro ao buscar template:', error)
+      return null
+    }
   }
 
   /**
@@ -53,11 +53,13 @@ export class MarketplaceService {
    * @returns Promise com a lista de avaliações
    */
   static async getTemplateReviews(templateId: string): Promise<TemplateReview[]> {
-    const apiUrl = getApiUrl(`/api/v1/templates/${templateId}/reviews`)
-    const res = await fetch(apiUrl)
-    if (!res.ok) throw new Error('Erro ao buscar avaliações do template')
-    const data = await res.json()
-    return data.items || []
+    try {
+      const data = await apiService.get<any>(`/templates/${templateId}/reviews`)
+      return data.items || data || []
+    } catch (error) {
+      console.error('Erro ao buscar avaliações do template:', error)
+      return []
+    }
   }
 
   /**
@@ -66,7 +68,7 @@ export class MarketplaceService {
    * @returns Promise com as informações do usuário ou null
    */
   static async getUser(userId: string): Promise<MarketplaceUser | null> {
-    const apiUrl = getApiUrl(`/api/v1/users/${userId}`)
+    const apiUrl = getApiUrl(`/users/${userId}`)
     const res = await fetch(apiUrl)
     if (!res.ok) return null
     const data = await res.json()
@@ -79,7 +81,7 @@ export class MarketplaceService {
    * @returns Promise com a lista de templates do usuário
    */
   static async getUserTemplates(userId: string): Promise<MarketplaceTemplate[]> {
-    const apiUrl = getApiUrl(`/api/v1/templates?author_id=${userId}`)
+    const apiUrl = getApiUrl(`/templates?author_id=${userId}`)
     const res = await fetch(apiUrl)
     if (!res.ok) throw new Error('Erro ao buscar templates do usuário')
     const data = await res.json()
@@ -91,10 +93,7 @@ export class MarketplaceService {
    * @returns Promise com as estatísticas do marketplace
    */
   static async getMarketplaceStats(): Promise<MarketplaceStats> {
-    const apiUrl = getApiUrl('/api/v1/templates/marketplace')
-    const res = await fetch(apiUrl)
-    if (!res.ok) throw new Error('Erro ao buscar estatísticas do marketplace')
-    const data = await res.json()
+    const data = await apiService.get<MarketplaceStats>('/templates/marketplace')
     return data
   }
 
@@ -105,7 +104,7 @@ export class MarketplaceService {
    * @returns Promise com o template publicado
    */
   static async publishTemplate(template: NodeTemplate, userId: string): Promise<MarketplaceTemplate> {
-    const apiUrl = getApiUrl('/api/v1/templates')
+    const apiUrl = getApiUrl('/templates')
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -123,7 +122,7 @@ export class MarketplaceService {
    * @returns Promise com o template atualizado
    */
   static async updateTemplate(templateId: string, updates: Partial<MarketplaceTemplate>): Promise<MarketplaceTemplate> {
-    const apiUrl = getApiUrl(`/api/v1/templates/${templateId}`)
+    const apiUrl = getApiUrl(`/templates/${templateId}`)
     const res = await fetch(apiUrl, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
@@ -140,7 +139,7 @@ export class MarketplaceService {
    * @returns Promise com o resultado da operação
    */
   static async deleteTemplate(templateId: string): Promise<boolean> {
-    const apiUrl = getApiUrl(`/api/v1/templates/${templateId}`)
+    const apiUrl = getApiUrl(`/templates/${templateId}`)
     const res = await fetch(apiUrl, { method: 'DELETE' })
     if (!res.ok) throw new Error('Erro ao deletar template')
     return true
@@ -155,7 +154,7 @@ export class MarketplaceService {
    * @returns Promise com a avaliação criada
    */
   static async addReview(templateId: string, userId: string, rating: number, comment: string): Promise<TemplateReview> {
-    const apiUrl = getApiUrl(`/api/v1/templates/${templateId}/reviews`)
+    const apiUrl = getApiUrl(`/templates/${templateId}/reviews`)
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -173,7 +172,7 @@ export class MarketplaceService {
    * @returns Promise com o resultado da operação
    */
   static async markReviewHelpful(reviewId: string, templateId: string): Promise<boolean> {
-    const apiUrl = getApiUrl(`/api/v1/templates/reviews/${reviewId}/helpful`)
+    const apiUrl = getApiUrl(`/templates/reviews/${reviewId}/helpful`)
     const res = await fetch(apiUrl, { method: 'POST' })
     if (!res.ok) throw new Error('Erro ao marcar avaliação como útil')
     return true
@@ -185,7 +184,7 @@ export class MarketplaceService {
    * @returns Promise com o template instalado
    */
   static async installTemplate(templateId: string): Promise<NodeTemplate> {
-    const apiUrl = getApiUrl(`/api/v1/templates/install`)
+    const apiUrl = getApiUrl(`/templates/install`)
     const res = await fetch(apiUrl, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },

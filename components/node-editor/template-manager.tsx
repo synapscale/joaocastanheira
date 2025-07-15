@@ -11,10 +11,10 @@ import { ScrollArea } from "@/components/ui/scroll-area"
 import { Badge } from "@/components/ui/badge"
 import { PlusCircle, Save, Trash2, Edit, FolderPlus } from "lucide-react"
 import { CodeEditor } from "./code-editor"
-import type { CodeTemplate } from "@/data/code-templates"
+import type { CodeTemplate } from "@/lib/api/openapi-types"
 
 interface TemplateManagerProps {
-  onSaveTemplate: (template: Omit<CodeTemplate, "id">) => void
+  onSaveTemplate: (template: Omit<CodeTemplate, "id" | "user_id" | "created_at" | "updated_at" | "usage_count" | "rating_average" | "rating_count">) => void
   onDeleteTemplate: (templateId: string) => void
   customTemplates: CodeTemplate[]
 }
@@ -70,13 +70,14 @@ export function TemplateManager({ onSaveTemplate, onDeleteTemplate, customTempla
       .map((tag) => tag.trim())
       .filter(Boolean)
 
-    const template: Omit<CodeTemplate, "id"> = {
+    const template: Omit<CodeTemplate, "id" | "user_id" | "created_at" | "updated_at" | "usage_count" | "rating_average" | "rating_count"> = {
       name,
       description,
       category,
       language,
       tags: tagsArray,
       code,
+      is_public: false, // Default to private for custom templates
     }
 
     onSaveTemplate(template)

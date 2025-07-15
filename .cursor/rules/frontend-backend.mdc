@@ -3,3 +3,165 @@ description:
 globs:
 alwaysApply: false
 ---
+# **🚫 REGRA CRÍTICA: Frontend NUNCA Cria Endpoints**
+
+**⚠️ ATENÇÃO**: Este é um projeto **FRONTEND ONLY**. Nunca criar endpoints ou API routes.
+
+## **❌ Proibições Absolutas**
+
+### **1. Nunca Criar API Routes**
+```typescript
+// ❌ NUNCA FAZER: Criar endpoints no frontend
+// app/api/v1/*/route.ts
+// pages/api/*/ts
+export async function GET() { /* ... */ } // PROIBIDO!
+```
+
+### **2. Nunca Implementar Lógica de Backend**
+```typescript
+// ❌ NUNCA FAZER: Lógica de servidor no frontend
+const users = await database.query() // PROIBIDO!
+const response = await processPayment() // PROIBIDO!
+```
+
+## **✅ Comportamento Correto**
+
+### **1. Sempre Consumir APIs Externas**
+```typescript
+// ✅ CORRETO: Conectar a APIs existentes
+const response = await fetch('https://api.backend.com/users')
+const data = await apiService.get('/users')
+```
+
+### **2. Usar Configuração de API Externa**
+```typescript
+// ✅ CORRETO: Usar URLs do backend configuradas
+const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL
+const response = await fetch(`${API_BASE_URL}/endpoint`)
+```
+
+### **3. Tratar Erros de Conectividade**
+```typescript
+// ✅ CORRETO: Tratar quando backend não responde
+try {
+  const data = await apiService.get('/endpoint')
+} catch (error) {
+  // Mostrar erro de conectividade, não fallback mockado
+  setError('Erro ao conectar com o servidor')
+}
+```
+
+## **🔧 Estrutura Correta do Projeto**
+
+### **Frontend Responsibilities:**
+- **UI Components** - Renderização e interação
+- **State Management** - Estado da aplicação
+- **API Calls** - Chamadas para backend externo
+- **Routing** - Navegação entre páginas
+- **Authentication** - Gerenciar tokens do backend
+
+### **Backend Responsibilities (NÃO implementar aqui):**
+- **Database Operations** - CRUD, queries
+- **Business Logic** - Regras de negócio
+- **Authentication** - Validação de credenciais
+- **File Processing** - Upload, transformação
+- **Email/SMS** - Envio de notificações
+
+## **📁 Estrutura de Arquivos Permitida**
+
+```
+✅ PERMITIDO:
+├── components/          # Componentes React
+├── hooks/              # Custom hooks
+├── lib/
+│   ├── api/
+│   │   └── service.ts  # Cliente para API externa
+│   └── utils/          # Utilities do frontend
+├── pages/              # Páginas Next.js
+├── styles/             # CSS/Styling
+└── types/              # TypeScript types
+
+❌ PROIBIDO:
+├── app/api/            # API Routes Next.js
+├── pages/api/          # API Routes Pages
+├── server/             # Código de servidor
+├── database/           # Acesso direto a DB
+└── models/             # Models de banco
+```
+
+## **🌐 Configuração de API**
+
+### **Sempre Usar Variáveis de Ambiente**
+```env
+# ✅ CORRETO: Backend externo
+NEXT_PUBLIC_API_URL=https://api.backend.com
+
+# ❌ PROIBIDO: Endpoints locais
+NEXT_PUBLIC_API_URL=http://localhost:3000/api
+```
+
+### **Validar Conectividade**
+```typescript
+// ✅ CORRETO: Verificar se backend está respondendo
+export const healthCheck = async () => {
+  try {
+    const response = await fetch(`${API_BASE_URL}/health`)
+    return response.ok
+  } catch {
+    return false
+  }
+}
+```
+
+## **🚨 Cenários de Erro Comuns**
+
+### **1. Backend Indisponível**
+```typescript
+// ✅ CORRETO: Mostrar erro ao usuário
+if (!backendAvailable) {
+  return <ErrorBanner message="Servidor temporariamente indisponível" />
+}
+
+// ❌ ERRADO: Criar endpoint local como fallback
+```
+
+### **2. Endpoint Não Encontrado**
+```typescript
+// ✅ CORRETO: Validar endpoints com backend
+const endpoints = await validateEndpoints()
+
+// ❌ ERRADO: Criar endpoint local
+```
+
+## **📋 Checklist de Desenvolvimento**
+
+Antes de implementar qualquer feature:
+
+- [ ] **Verificar se é responsabilidade do frontend**
+- [ ] **Confirmar que endpoints existem no backend**
+- [ ] **Usar apenas clientes HTTP (fetch, axios)**
+- [ ] **Configurar variáveis de ambiente corretas**
+- [ ] **Implementar tratamento de erro de conectividade**
+- [ ] **NUNCA criar arquivos em `app/api/` ou `pages/api/`**
+
+## **🔍 Tools para Discovery de APIs**
+
+### **Usar apidof-mcp-server**
+```typescript
+// ✅ CORRETO: Descobrir endpoints disponíveis
+// Use apidof-mcp-server para encontrar APIs existentes
+// antes de implementar qualquer integração
+```
+
+## **⚠️ Consequências de Violar Esta Regra**
+
+1. **Arquitetura Quebrada** - Frontend fazendo papel do backend
+2. **Deployment Problemático** - Código de servidor em cliente
+3. **Security Issues** - Lógica sensível exposta
+4. **Manutenibilidade** - Responsabilidades misturadas
+
+---
+
+**🎯 LEMBRE-SE: Frontend = Cliente | Backend = Servidor**
+
+**Sempre pergunte: "Isso deveria estar no servidor?" Se sim, NÃO implemente no frontend.**
